@@ -1,0 +1,8 @@
+
+.vs/
+bin/
+obj/
+/GameData/
+
+/*.props.user
+/deps/installs

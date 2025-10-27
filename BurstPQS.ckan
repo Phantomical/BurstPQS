@@ -1,0 +1,18 @@
+# yaml-language-server: $schema=https://raw.githubusercontent.com/KSP-CKAN/CKAN/refs/heads/master/CKAN.schema
+
+tags:
+  - plugin
+  - physics
+
+depends:
+  - name: ModuleManager
+    min_version: 4.2.3
+  - name: Harmony2
+    min_version: 2.2.1
+
+suggests:
+  - name: BackgroundResourceProcessing
+    min_version: 0.2.0
+
+conflicts:
+  - name: PersistentThrust

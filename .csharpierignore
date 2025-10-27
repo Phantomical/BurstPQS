@@ -1,0 +1,6 @@
+*.csproj
+*.csproj.user
+*.props
+*.targets
+*.config
+GameData

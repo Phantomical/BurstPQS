@@ -1,0 +1,62 @@
+name: ci
+
+on:
+  push:
+  pull_request:
+  workflow_call:
+
+env:
+  KSP_ROOT: D:\\KSP
+  GH_TOKEN: ${{ github.token }}
+  RELEASE_STAGING: D:\\release
+
+jobs:
+  build:
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v4
+      
+      - name: Download ckan.exe
+        run: gh release download --repo KSP-CKAN/CKAN --pattern ckan.exe -O ckan.exe
+        
+      - name: Download KSP Libs
+        run: |
+          curl -sSL https://github.com/KSPModdingLibs/KSPLibs/raw/main/KSP-1.12.5.zip -o D:\\ksp.zip
+          unzip -q D:\\ksp.zip -d ${{ env.KSP_ROOT }}
+        shell: bash
+
+      - name: Install CKAN dependencies
+        shell: powershell
+        run: .\setup-deps.ps1 -ckan .\ckan.exe -asroot
+
+      - uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: '9.0'
+          cache: true
+          cache-dependency-path: "**/packages.lock.json"
+
+      - run: dotnet restore
+      - run: dotnet build -c Release
+
+      - name: Copy Files to Staging
+        shell: bash
+        run: |
+          shopt -s nocaseglob # so globs are case-insensitive
+          shopt -s globstar
+          shopt -s nullglob
+          mkdir -p ${{ env.RELEASE_STAGING  }}   
+          cp -r -v GameData README* LICENSE* CHANGELOG* ${{ env.RELEASE_STAGING }}
+          cp -r -v LICENSE* BurstPQS.ckan ${{ env.RELEASE_STAGING }}/GameData/BurstPQS
+          cd ${{ env.RELEASE_STAGING }}
+
+      - uses: actions/upload-artifact@v4
+        with:
+          path: ${{ env.RELEASE_STAGING }}
+          name: BurstPQS
+          if-no-files-found: error
+          include-hidden-files: 'true'
+
+      - uses: actions/upload-artifact@v4
+        with:
+          path: GameData/BurstPQS/BurstPQS.version
+          name: BurstPQS.version

@@ -1,0 +1,20 @@
+{
+    "spec_version": "v1.6",
+    "identifier": "BurstPQS-Dependencies-1",
+    "name": "BurstPQS Dependency Set 1",
+    "abstract": "Dependencies required to do development for BurstPQS",
+    "author": "steamroller",
+    "version": "1",
+    "ksp_version_min": "1.8",
+    "ksp_version_max": "1.12",
+    "license": "MIT",
+    "kind": "metapackage",
+    "depends": [
+        { "name": "Harmony2" },
+        { "name": "KSPBurst" }
+    ],
+    "recommends": [
+        { "name": "KSPCommunityFixes" },
+        { "name": "QuickStart" }
+    ]
+}
