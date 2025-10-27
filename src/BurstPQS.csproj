@@ -1,0 +1,86 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <PropertyGroup>
+    <Description>Burst-Accelerated PQS</Description>
+
+    <GenerateKSPAssemblyAttribute>true</GenerateKSPAssemblyAttribute>
+    <GenerateKSPAssemblyDependencyAttributes>true</GenerateKSPAssemblyDependencyAttributes>
+
+    <KSPBinaryType>binary</KSPBinaryType>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <PackageReference Include="JsonPoke" Version="1.2.0" />
+
+    <Reference Include="0Harmony.dll">
+      <HintPath>$(DepSet1)\000_Harmony\0Harmony.dll</HintPath>
+      <Private>false</Private>
+      <CKANIdentifier>Harmony2</CKANIdentifier>
+      <KSPAssemblyName>HarmonyKSP</KSPAssemblyName>
+      <KSPAssemblyVersion>1.0.0</KSPAssemblyVersion>
+    </Reference>
+
+    <KSPVersionFile Include=".">
+      <Destination>$(GameDataOutDir)/BurstPQS.version</Destination>
+      <URL>
+        https://github.com/Phantomical/BurstPQS/releases/latest/download/BurstPQS.version</URL>
+      <Download>https://github.com/Phantomical/BurstPQS/releases/latest</Download>
+    </KSPVersionFile>
+  </ItemGroup>
+
+  <!--
+    It's really easy for old binaries to stick around in GameData and bin
+    directories. This step makes sure that doesn't happen.
+  -->
+  <Target Name="GameDataPostClean" AfterTargets="Clean">
+    <!--
+      Make sure to delete the output mod directory on clean so we don't have
+      outdated artifacts lying around.
+    -->
+    <RemoveDir Directories="$(GameDataOutDir)" />
+    <!--
+      KSP gets borked if there are invalid junctions in GameData. We fix this
+      by recreating the directory after we delete it.
+    -->
+    <MakeDir Directories="$(GameDataOutDir)" />
+  </Target>
+
+  <Target Name="CopyUnityAssets" AfterTargets="CopyFilesToOutputDirectory">
+    <ItemGroup>
+      <Patches Include="$(ProjectRootDir)\src\GameData\**\*.*" />
+    </ItemGroup>
+    <Copy SourceFiles="@(Patches)" DestinationFolder="$(GameDataOutDir)\%(RecursiveDir)" />
+  </Target>
+
+  <Target Name="GenerateKSPVersionFile" AfterTargets="Build">
+    <ReadLinesFromFile File="$(ProjectDir)\$(ProjectName).version">
+      <Output TaskParameter="Lines" ItemName="_JSONLines" />
+    </ReadLinesFromFile>
+
+    <PropertyGroup>
+      <_JSON>@(_JSONLines, '%0a')</_JSON>
+
+      <_Major>$(Version.Split('.')[0])</_Major>
+      <_Minor>$(Version.Split('.')[1])</_Minor>
+      <_Patch>$(Version.Split('.')[2])</_Patch>
+      <_Build>0</_Build>
+    </PropertyGroup>
+
+    <JsonPoke Content="$(_JSON)" Query="$.VERSION.MAJOR" RawValue="$(_Major)">
+      <Output TaskParameter="Content" PropertyName="_JSON" />
+    </JsonPoke>
+    <JsonPoke Content="$(_JSON)" Query="$.VERSION.MINOR" RawValue="$(_Minor)">
+      <Output TaskParameter="Content" PropertyName="_JSON" />
+    </JsonPoke>
+    <JsonPoke Content="$(_JSON)" Query="$.VERSION.PATCH" RawValue="$(_Patch)">
+      <Output TaskParameter="Content" PropertyName="_JSON" />
+    </JsonPoke>
+    <JsonPoke Content="$(_JSON)" Query="$.VERSION.PATCH" RawValue="$(_Patch)">
+      <Output TaskParameter="Content" PropertyName="_JSON" />
+    </JsonPoke>
+    <JsonPoke Content="$(_JSON)" Query="$.VERSION.BUILD" RawValue="$(_Build)">
+      <Output TaskParameter="Content" PropertyName="_JSON" />
+    </JsonPoke>
+    <WriteLinesToFile File="$(GameDataOutDir)\$(ProjectName).version" Lines="$(_JSON)"
+      Overwrite="true" />
+  </Target>
+</Project>

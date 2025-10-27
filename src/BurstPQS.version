@@ -1,0 +1,25 @@
+{
+    "NAME": "BackgroundThrust",
+    "URL": "https://github.com/Phantomical/BackgroundThrust/releases/latest/download/BackgroundThrust.version",
+    "DOWNLOAD": "https://github.com/Phantomical/BackgroundThrust/releases",
+    "GITHUB": {
+        "USERNAME": "Phantomical",
+        "REPOSITORY": "BackgroundThrust"
+    },
+    "VERSION": {},
+    "KSP_VERSION": {
+        "MAJOR": 1,
+        "MINOR": 12,
+        "PATCH": 5
+    },
+    "KSP_VERSION_MIN": {
+        "MAJOR": 1,
+        "MINOR": 8,
+        "PATCH": 0
+    },
+    "KSP_VERSION_MAX": {
+        "MAJOR": 1,
+        "MINOR": 12,
+        "PATCH": 99
+    }
+}
