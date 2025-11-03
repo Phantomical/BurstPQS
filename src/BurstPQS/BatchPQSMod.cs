@@ -2,7 +2,14 @@ using System.Collections.Generic;
 
 namespace BurstPQS;
 
-public abstract class BatchPQSMod : PQSMod
+public interface IBatchPQSMod
+{
+    void OnQuadBuildVertex(in QuadBuildData data);
+
+    void OnQuadBuildVertexHeight(in QuadBuildData data);
+}
+
+public abstract class BatchPQSMod : PQSMod, IBatchPQSMod
 {
     public virtual void OnQuadBuildVertex(in QuadBuildData data) { }
 

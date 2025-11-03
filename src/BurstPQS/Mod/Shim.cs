@@ -11,7 +11,7 @@ namespace BurstPQS.Mod;
 /// It does not forward any of the other callbacks and shouldn't be used outside
 /// of forwarding batched callbacks.
 /// </summary>
-internal sealed class Shim : BatchPQSMod
+internal sealed class Shim : IBatchPQSMod
 {
     struct OverrideInfo
     {
@@ -28,22 +28,15 @@ internal sealed class Shim : BatchPQSMod
     {
         this.mod = mod;
         this.info = GetOverrideInfo(mod.GetType());
-
-        sphere = mod.sphere;
-        requirements = mod.requirements;
-        modEnabled = mod.modEnabled;
-        order = mod.order;
-        overrideQuadBuildCheck = mod.overrideQuadBuildCheck;
-        modExpansionDisabled = mod.modExpansionDisabled;
     }
 
     #region BatchPQSMod
-    public override void OnQuadBuildVertex(in QuadBuildData data)
+    public void OnQuadBuildVertex(in QuadBuildData data)
     {
         if (!info.onVertexBuildOverridden)
             return;
 
-        mod.overrideQuadBuildCheck = overrideQuadBuildCheck;
+        mod.overrideQuadBuildCheck = false;
 
         var vbdata = PQS.vbData;
         int vcount = data.VertexCount;
@@ -56,12 +49,12 @@ internal sealed class Shim : BatchPQSMod
         }
     }
 
-    public override void OnQuadBuildVertexHeight(in QuadBuildData data)
+    public void OnQuadBuildVertexHeight(in QuadBuildData data)
     {
         if (!info.onVertexBuildHeightOverridden)
             return;
 
-        mod.overrideQuadBuildCheck = overrideQuadBuildCheck;
+        mod.overrideQuadBuildCheck = false;
 
         var vbdata = PQS.vbData;
         int vcount = data.VertexCount;

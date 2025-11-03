@@ -1,6 +1,4 @@
 using System;
-using System.Linq.Expressions;
-using System.Reflection;
 using BurstPQS.Collections;
 using BurstPQS.Util;
 using Unity.Burst;
@@ -13,7 +11,7 @@ namespace BurstPQS;
 [BurstCompile]
 public unsafe class BatchPQS : PQS
 {
-    private BatchPQSMod[] batchMods;
+    private IBatchPQSMod[] batchMods;
 
     void Awake()
     {
@@ -328,10 +326,10 @@ public unsafe class BatchPQS : PQS
     #region Method Injections
     internal void PostSetupMods()
     {
-        batchMods = new BatchPQSMod[mods.Length];
+        batchMods = new IBatchPQSMod[mods.Length];
         for (int i = 0; i < batchMods.Length; ++i)
         {
-            if (mods[i] is BatchPQSMod batchMod)
+            if (mods[i] is IBatchPQSMod batchMod)
                 batchMods[i] = batchMod;
             else
                 batchMods[i] = new Mod.Shim(mods[i]);
@@ -340,32 +338,6 @@ public unsafe class BatchPQS : PQS
     #endregion
 
     #region PQS Memberwise Clone
-    delegate void MemberwiseCloneDelegate(PQS src, PQS dst);
-    static readonly MemberwiseCloneDelegate MemberwiseCloneFunc = BuildMemberwiseCloneDelegate();
-
-    private void MemberwiseCloneFrom(PQS instance) => MemberwiseCloneFunc(instance, this);
-
-    private static MemberwiseCloneDelegate BuildMemberwiseCloneDelegate()
-    {
-        var fields = typeof(PQS).GetFields(
-            BindingFlags.Instance | BindingFlags.Public | BindingFlags.NonPublic
-        );
-        var src = Expression.Parameter(typeof(PQS), "src");
-        var dst = Expression.Parameter(typeof(PQS), "dst");
-        var stmts = new Expression[fields.Length];
-
-        for (int i = 0; i < fields.Length; ++i)
-        {
-            stmts[i] = Expression.Assign(
-                Expression.Field(dst, fields[i]),
-                Expression.Field(src, fields[i])
-            );
-        }
-
-        var block = Expression.Block(stmts);
-        var lambda = Expression.Lambda<MemberwiseCloneDelegate>(block, src, dst);
-
-        return lambda.Compile();
-    }
+    private void MemberwiseCloneFrom(PQS instance) => CloneUtil.MemberwiseCopyTo(instance, this);
     #endregion
 }
