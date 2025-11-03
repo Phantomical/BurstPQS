@@ -9,6 +9,7 @@
         <LangVersion>preview</LangVersion>
 
         <DebugType>portable</DebugType>
+        <AllowUnsafeBlocks>true</AllowUnsafeBlocks>
 
         <!-- Generate an XML documentation file so that others can see the doc comments -->
         <GenerateDocumentationFile>true</GenerateDocumentationFile>
@@ -102,6 +103,7 @@
     <PropertyGroup>
         <!-- Calculate ManagedPath -->
         <ManagedPath>$(KSPRoot)/$(ManagedRelativePath)</ManagedPath>
+        <GameData>$(KSPRoot)/GameData</GameData>
     </PropertyGroup>
 
     <!-- set the start action so that you can launch directly from VS -->

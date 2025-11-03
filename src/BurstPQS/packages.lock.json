@@ -1,0 +1,33 @@
+{
+  "version": 1,
+  "dependencies": {
+    ".NETFramework,Version=v4.8.1": {
+      "JsonPoke": {
+        "type": "Direct",
+        "requested": "[1.2.0, )",
+        "resolved": "1.2.0",
+        "contentHash": "AW7iyzudTA4VzW3pYjTzy+MucrF+wUWKQulqx/EnqvlqLwVseNk2nqlWpTRySItQCgBv0w7o/dqTN4wj0tWJhA=="
+      },
+      "Krafs.Publicizer": {
+        "type": "Direct",
+        "requested": "[2.3.0, )",
+        "resolved": "2.3.0",
+        "contentHash": "DjktTgctwxUMhMkWKrRECer3LR1lHzanCOlE4mpinAiY8SfWJq4DG/QitP5h1A+WBjyWHzQSOG+204i3VpO1FA=="
+      },
+      "Microsoft.NETFramework.ReferenceAssemblies": {
+        "type": "Direct",
+        "requested": "[1.0.3, )",
+        "resolved": "1.0.3",
+        "contentHash": "vUc9Npcs14QsyOD01tnv/m8sQUnGTGOw1BCmKcv77LBJY7OxhJ+zJF7UD/sCL3lYNFuqmQEVlkfS4Quif6FyYg==",
+        "dependencies": {
+          "Microsoft.NETFramework.ReferenceAssemblies.net481": "1.0.3"
+        }
+      },
+      "Microsoft.NETFramework.ReferenceAssemblies.net481": {
+        "type": "Transitive",
+        "resolved": "1.0.3",
+        "contentHash": "Vv/20vgHS7VglVOVh8J3Iz/MA+VYKVRp9f7r2qiKBMuzviTOmocG70yq0Q8T5OTmCONkEAIJwETD1zhEfLkAXQ=="
+      }
+    }
+  }
+}

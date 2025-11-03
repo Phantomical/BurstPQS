@@ -11,7 +11,7 @@
     "kind": "metapackage",
     "depends": [
         { "name": "Harmony2" },
-        { "name": "KSPBurst" }
+        { "name": "KSPBurst-Lite" }
     ],
     "recommends": [
         { "name": "KSPCommunityFixes" },

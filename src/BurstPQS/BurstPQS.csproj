@@ -10,6 +10,10 @@
 
   <ItemGroup>
     <PackageReference Include="JsonPoke" Version="1.2.0" />
+    <PackageReference Include="Krafs.Publicizer" Version="2.3.0">
+      <IncludeAssets>runtime; build; native; contentfiles; analyzers; buildtransitive</IncludeAssets>
+      <PrivateAssets>all</PrivateAssets>
+    </PackageReference>
 
     <Reference Include="0Harmony.dll">
       <HintPath>$(DepSet1)\000_Harmony\0Harmony.dll</HintPath>
@@ -19,12 +23,20 @@
       <KSPAssemblyVersion>1.0.0</KSPAssemblyVersion>
     </Reference>
 
+    <Reference Include="$(GameData)/000_KSPBurst/Plugins/*.dll">
+      <Private>false</Private>
+    </Reference>
+
     <KSPVersionFile Include=".">
       <Destination>$(GameDataOutDir)/BurstPQS.version</Destination>
       <URL>
         https://github.com/Phantomical/BurstPQS/releases/latest/download/BurstPQS.version</URL>
       <Download>https://github.com/Phantomical/BurstPQS/releases/latest</Download>
     </KSPVersionFile>
+  </ItemGroup>
+
+  <ItemGroup>
+    <Publicize Include="Assembly-CSharp" />
   </ItemGroup>
 
   <!--
@@ -80,7 +92,6 @@
     <JsonPoke Content="$(_JSON)" Query="$.VERSION.BUILD" RawValue="$(_Build)">
       <Output TaskParameter="Content" PropertyName="_JSON" />
     </JsonPoke>
-    <WriteLinesToFile File="$(GameDataOutDir)\$(ProjectName).version" Lines="$(_JSON)"
-      Overwrite="true" />
+    <WriteLinesToFile File="$(GameDataOutDir)\$(ProjectName).version" Lines="$(_JSON)" Overwrite="true" />
   </Target>
 </Project>
