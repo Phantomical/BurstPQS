@@ -1,0 +1,113 @@
+using System;
+using BurstPQS.Util;
+using Unity.Burst;
+using UnityEngine;
+
+namespace BurstPQS.Mod;
+
+[BurstCompile]
+public class FlattenAreaTangential : PQSMod_FlattenAreaTangential, IBatchPQSMod
+{
+    public FlattenAreaTangential(PQSMod_FlattenAreaTangential mod)
+    {
+        CloneUtil.MemberwiseCopy(mod, this);
+    }
+
+    public void OnQuadBuildVertex(in QuadBuildData data) { }
+
+    public void OnQuadBuildVertexHeight(in QuadBuildData data)
+    {
+        if (!quadActive)
+            return;
+
+        var info = new BurstInfo
+        {
+            DEBUG_showColors = DEBUG_showColors,
+            flattenToRadius = flattenToRadius,
+            smoothStart = smoothStart,
+            smoothEnd = smoothEnd,
+            angleInner = angleInner,
+            angleOuter = angleOuter,
+            angleQuadInclusion = angleQuadInclusion,
+            angleDelta = angleDelta,
+            posNorm = posNorm,
+        };
+
+        SetHeight(in info, in data.burstData);
+    }
+
+    [BurstCompile]
+    [BurstPQSAutoPatch]
+    static void SetHeight(in BurstInfo info, in BurstQuadBuildData data) => info.Execute(in data);
+
+    struct BurstInfo
+    {
+        public bool DEBUG_showColors;
+
+        public double flattenToRadius;
+        public double smoothStart;
+        public double smoothEnd;
+        public double angleInner;
+        public double angleOuter;
+        public double angleQuadInclusion;
+        public double angleDelta;
+        public Vector3d posNorm;
+
+        public readonly void Execute(in BurstQuadBuildData data)
+        {
+            for (int i = 0; i < data.VertexCount; ++i)
+            {
+                if (DEBUG_showColors)
+                    data.vertColor[i] = Color.green;
+
+                double testAngle = Math.Acos(Vector3d.Dot(data.directionFromCenter[i], posNorm));
+                double vHeight = flattenToRadius / Math.Cos(testAngle);
+                if (!(testAngle < angleOuter))
+                    return;
+
+                if (testAngle < angleInner)
+                {
+                    data.vertHeight[i] = vHeight;
+                    if (DEBUG_showColors)
+                        data.vertColor[i] = Color.yellow;
+                }
+                else
+                {
+                    double aDelta = (testAngle - angleInner) / angleDelta;
+                    data.vertHeight[i] = CubicHermite(
+                        vHeight,
+                        data.vertHeight[i],
+                        smoothStart,
+                        smoothEnd,
+                        aDelta
+                    );
+
+                    if (DEBUG_showColors)
+                    {
+                        data.vertColor[i] = Color.Lerp(
+                            Color.blue,
+                            Color.yellow,
+                            (float)(1.0 - aDelta)
+                        );
+                    }
+                }
+            }
+        }
+
+        public static double CubicHermite(
+            double start,
+            double end,
+            double startTangent,
+            double endTangent,
+            double t
+        )
+        {
+            double ct2 = t * t;
+            double ct3 = ct2 * t;
+            return start * (2.0 * ct3 - 3.0 * ct2 + 1.0)
+                + startTangent * (ct3 - 2.0 * ct2 + t)
+                + end * (-2.0 * ct3 + 3.0 * ct2)
+                + endTangent * (ct3 - ct2);
+        }
+    }
+}

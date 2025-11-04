@@ -5,7 +5,7 @@ namespace BurstPQS.Util;
 
 public static class CloneUtil
 {
-    public static void MemberwiseCopyTo<T>(T src, T dst)
+    public static void MemberwiseCopy<T>(T src, T dst)
         where T : class => CloneImpl<T>.CloneFunc(src, dst);
 
     static class CloneImpl<T>

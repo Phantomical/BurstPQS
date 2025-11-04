@@ -338,6 +338,6 @@ public unsafe class BatchPQS : PQS
     #endregion
 
     #region PQS Memberwise Clone
-    private void MemberwiseCloneFrom(PQS instance) => CloneUtil.MemberwiseCopyTo(instance, this);
+    private void MemberwiseCloneFrom(PQS instance) => CloneUtil.MemberwiseCopy(instance, this);
     #endregion
 }

@@ -43,10 +43,14 @@ public readonly unsafe struct MemorySpan<T> : IEnumerable<T>
     {
         if (length < 0)
             BurstException.ThrowArgumentOutOfRange();
+        if (data is not null && length > 0)
+            BurstException.ThrowArgumentOutOfRange();
 
         this.data = data;
         this.length = length;
     }
+
+    public readonly T* GetDataPtr() => data;
 
     public void Clear()
     {
