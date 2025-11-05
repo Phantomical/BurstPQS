@@ -1,17 +1,18 @@
 using System;
 using BurstPQS.Collections;
 using BurstPQS.Util;
+using LibNoise.Models;
 using Unity.Burst;
 using UnityEngine;
 
 namespace BurstPQS.Mod;
 
 [BurstCompile]
-public class MapDecal : PQSMod_MapDecal, IBatchPQSMod
+public class MapDecalTangent : PQSMod_MapDecal, IBatchPQSMod
 {
     new bool[] vertActive;
 
-    public MapDecal(PQSMod_MapDecal mod)
+    public MapDecalTangent(PQSMod_MapDecal mod)
     {
         CloneUtil.MemberwiseCopy(mod, this);
     }
@@ -117,7 +118,7 @@ public class MapDecal : PQSMod_MapDecal, IBatchPQSMod
         info.BuildVerts(in data, colorMap, vertActive, sphereRadius);
     }
 
-    struct BurstInfo(MapDecal mod)
+    struct BurstInfo(MapDecalTangent mod)
     {
         public double radius = mod.radius;
 
@@ -195,23 +196,23 @@ public class MapDecal : PQSMod_MapDecal, IBatchPQSMod
                 if (removeScatter)
                     data.allowScatter[i] = false;
 
+                var height =
+                    heightMapDeformity
+                    * ha.height
+                    / Vector3d.Dot(data.directionFromCenter[i], posNorm);
+
+                if (absolute)
+                    height += sphereRadius + absoluteOffset;
+
                 if (cullBlack && ha.height <= 0f)
                 {
                     // do nothing
-                }
-                else if (absolute)
-                {
-                    data.vertHeight[i] = UtilMath.LerpUnclamped(
-                        data.vertHeight[i],
-                        sphereRadius + absoluteOffset + heightMapDeformity * ha.height,
-                        smoothFactor
-                    );
                 }
                 else
                 {
                     data.vertHeight[i] = UtilMath.LerpUnclamped(
                         data.vertHeight[i],
-                        data.vertHeight[i] + heightMapDeformity * ha.height,
+                        height,
                         smoothFactor
                     );
                 }

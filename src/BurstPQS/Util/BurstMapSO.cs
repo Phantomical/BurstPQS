@@ -279,4 +279,11 @@ public struct BurstMapSO
             c.midY
         );
     }
+
+    public readonly Color GetPixelColor(double x, double y) => GetPixelColor((float)x, (float)y);
+
+    public readonly float GetPixelFloat(double x, double y) => GetPixelFloat((float)x, (float)y);
+
+    public readonly HeightAlpha GetPixelHeightAlpha(double x, double y) =>
+        GetPixelHeightAlpha((float)x, (float)y);
 }
