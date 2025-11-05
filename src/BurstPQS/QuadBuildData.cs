@@ -39,6 +39,9 @@ public struct QuadBuildData
     public readonly MemorySpan<double> latitude => burstData.latitude;
     public readonly MemorySpan<FixedArray6<PQS.GnomonicUV>> gnomonicUVs => burstData.gnomonicUVs;
 
+    public readonly BurstQuadBuildData.SX sx => burstData.sx;
+    public readonly BurstQuadBuildData.SY sy => burstData.sy;
+
     public readonly void CopyTo(PQS.VertexBuildData vbdata, int index)
     {
         burstData.CopyTo(vbdata, index);
@@ -108,6 +111,9 @@ public unsafe struct BurstQuadBuildData
     public readonly MemorySpan<double> latitude => new(_latitude, VertexCount);
     public readonly MemorySpan<FixedArray6<PQS.GnomonicUV>> gnomonicUVs =>
         new(_gnomonicUVs, VertexCount);
+
+    public readonly SX sx => new(in this);
+    public readonly SY sy => new(in this);
 
     internal BurstQuadBuildData(
         PQ quad,
@@ -277,6 +283,40 @@ public unsafe struct BurstQuadBuildData
         IEnumerator<int> IEnumerable<int>.GetEnumerator() => GetEnumerator();
 
         IEnumerator IEnumerable.GetEnumerator() => GetEnumerator();
+    }
+
+    [method: MethodImpl(MethodImplOptions.AggressiveInlining)]
+    public readonly struct SY(in BurstQuadBuildData data)
+    {
+        readonly MemorySpan<double> latitude = data.latitude;
+
+        public int Length
+        {
+            [MethodImpl(MethodImplOptions.AggressiveInlining)]
+            get => latitude.Length;
+        }
+        public double this[int index]
+        {
+            [MethodImpl(MethodImplOptions.AggressiveInlining)]
+            get => latitude[index] / Math.PI + 0.5;
+        }
+    }
+
+    [method: MethodImpl(MethodImplOptions.AggressiveInlining)]
+    public readonly struct SX(in BurstQuadBuildData data)
+    {
+        readonly MemorySpan<double> longitude = data.longitude;
+
+        public int Length
+        {
+            [MethodImpl(MethodImplOptions.AggressiveInlining)]
+            get => longitude.Length;
+        }
+        public double this[int index]
+        {
+            [MethodImpl(MethodImplOptions.AggressiveInlining)]
+            get => longitude[index] / Math.PI * 0.5;
+        }
     }
 }
 

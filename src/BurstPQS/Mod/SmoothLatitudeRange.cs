@@ -25,8 +25,7 @@ public class SmoothLatitudeRange : PQSMod_SmoothLatitudeRange, IBatchPQSMod
     {
         for (int i = 0; i < data.VertexCount; ++i)
         {
-            var sy = data.latitude[i] * Math.PI - 0.5;
-            var smooth = latitudeRange.Lerp(sy);
+            var smooth = latitudeRange.Lerp(data.sy[i]);
             if (smooth == 0.0)
                 return;
 

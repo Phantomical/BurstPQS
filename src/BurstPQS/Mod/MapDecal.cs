@@ -141,7 +141,7 @@ public class MapDecal : PQSMod_MapDecal, IBatchPQSMod
 
         public double inclusionAngle = mod.inclusionAngle;
 
-        public bool quadActive;
+        public bool quadActive = mod.quadActive;
 
         public Vector3d posNorm = mod.posNorm;
 

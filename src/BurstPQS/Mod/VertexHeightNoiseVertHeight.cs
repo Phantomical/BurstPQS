@@ -1,0 +1,80 @@
+using BurstPQS.Noise;
+using BurstPQS.Util;
+using Unity.Burst;
+using IModule = LibNoise.IModule;
+
+namespace BurstPQS.Mod;
+
+[BurstCompile(FloatMode = FloatMode.Fast)]
+public class VertexHeightNoiseVertHeight : PQSMod_VertexHeightNoiseVertHeight, IBatchPQSMod
+{
+    public void OnQuadBuildVertexHeight(in QuadBuildData data)
+    {
+        var p = new Params
+        {
+            sphereRadiusMin = sphere.radiusMin,
+            sphereRadiusDelta = sphere.radiusDelta,
+            heightStart = heightStart,
+            heightEnd = heightEnd,
+            hDeltaR = hDeltaR,
+            deformity = deformity,
+        };
+
+        if (noiseMap is LibNoise.Perlin perlin)
+            BuildVertexPerlin(in data.burstData, new(perlin), in p);
+        else if (noiseMap is LibNoise.RidgedMultifractal multi)
+            BuildVertexRidgedMultifractal(in data.burstData, new(multi), in p);
+        else if (noiseMap is LibNoise.Billow billow)
+            BuildVertexBillow(in data.burstData, new(billow), in p);
+        else
+            BuildVertex(in data.burstData, noiseMap, in p);
+    }
+
+    public void OnQuadBuildVertex(in QuadBuildData data) { }
+
+    struct Params
+    {
+        public double sphereRadiusMin;
+        public double sphereRadiusDelta;
+        public float heightStart;
+        public float heightEnd;
+        public double hDeltaR;
+        public float deformity;
+    }
+
+    static void BuildVertex<N>(in BurstQuadBuildData data, in N noise, in Params p)
+        where N : IModule
+    {
+        double h;
+        double n;
+
+        for (int i = 0; i < data.VertexCount; ++i)
+        {
+            h = (data.vertHeight[i] - p.sphereRadiusMin) / p.sphereRadiusDelta;
+            if (h < p.heightStart || h > p.heightEnd)
+                continue;
+            h = (h - p.heightStart) * p.hDeltaR;
+            n = UtilMath.Clamp(noise.GetValue(data.directionFromCenter[i]), -1.0, 1.0);
+
+            data.vertHeight[i] += (n + 1.0) * 0.5 * p.deformity * h;
+        }
+    }
+
+    [BurstCompile]
+    [BurstPQSAutoPatch]
+    static void BuildVertexPerlin(in BurstQuadBuildData data, in Perlin noise, in Params p) =>
+        BuildVertex(in data, in noise, p);
+
+    [BurstCompile]
+    [BurstPQSAutoPatch]
+    static void BuildVertexRidgedMultifractal(
+        in BurstQuadBuildData data,
+        in RidgedMultifractal noise,
+        in Params p
+    ) => BuildVertex(in data, in noise, p);
+
+    [BurstCompile]
+    [BurstPQSAutoPatch]
+    static void BuildVertexBillow(in BurstQuadBuildData data, in Billow noise, in Params p) =>
+        BuildVertex(in data, in noise, p);
+}

@@ -67,6 +67,7 @@ public struct BurstMapSO
         Height = mapSO.Height;
         BitsPerPixel = mapSO.BitsPerPixel;
         RowWidth = mapSO.RowWidth;
+        this.data = data;
     }
 
     /// <summary>
