@@ -23,11 +23,11 @@ public unsafe struct BurstSimplex
     ];
     static readonly int[] p = [.. KSPSimplex.p];
 
-    double octaves;
+    public double octaves;
 
-    double persistence;
+    public double persistence;
 
-    double frequency;
+    public double frequency;
     int* perm;
 
     public static Guard Create(KSPSimplex simplex, out BurstSimplex burst)

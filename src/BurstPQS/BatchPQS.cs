@@ -55,7 +55,8 @@ public unsafe class BatchPQS : PQS
         foreach (var mod in batchMods)
             mod.OnQuadBuildVertex(in data);
 
-        BuildVertices(in data);
+        if (!isFakeBuild)
+            BuildVertices(in data);
 
         buildQuad.mesh.vertices = buildQuad.verts;
         buildQuad.mesh.triangles = cacheIndices[0];
@@ -77,15 +78,11 @@ public unsafe class BatchPQS : PQS
         bool reqVertexMapCoords
     );
 
-    static readonly InitBuildDataDelegate InitBuildDataFp = BurstCompiler
-        .CompileFunctionPointer<InitBuildDataDelegate>(InitBuildDataBurst)
-        .Invoke;
-
     void InitBuildData(PQ quad, in QuadBuildData data)
     {
         fixed (Vector3* pCacheVerts = cacheVerts)
         {
-            InitBuildDataFp(
+            InitBuildDataBurst(
                 new MemorySpan<Vector3>(pCacheVerts, cacheVerts.Length),
                 in quad.quadMatrix,
                 in data,
@@ -96,6 +93,7 @@ public unsafe class BatchPQS : PQS
     }
 
     [BurstCompile]
+    [BurstPQSAutoPatch]
     static void InitBuildDataBurst(
         in MemorySpan<Vector3> cacheVerts,
         in Matrix4x4 quadMatrix,
@@ -227,6 +225,7 @@ public unsafe class BatchPQS : PQS
     }
 
     [BurstCompile]
+    [BurstPQSAutoPatch]
     static void BuildVerticesBurst(
         in BurstQuadBuildData data,
         in BuildVerticesOptions opts,

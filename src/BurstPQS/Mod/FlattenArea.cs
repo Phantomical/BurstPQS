@@ -79,7 +79,7 @@ public class FlattenArea : PQSMod_FlattenArea, IBatchPQSMod
                 }
 
                 double aDelta = (testAngle - angleInner) / angleDelta;
-                data.vertHeight[i] = CubicHermite(
+                data.vertHeight[i] = MathUtil.CubicHermite(
                     flattenToRadius,
                     data.vertHeight[i],
                     smoothStart,
@@ -90,22 +90,6 @@ public class FlattenArea : PQSMod_FlattenArea, IBatchPQSMod
                 if (DEBUG_showColors)
                     data.vertColor[i] = Color.Lerp(Color.blue, Color.yellow, (float)aDelta);
             }
-        }
-
-        public static double CubicHermite(
-            double start,
-            double end,
-            double startTangent,
-            double endTangent,
-            double t
-        )
-        {
-            double ct2 = t * t;
-            double ct3 = ct2 * t;
-            return start * (2.0 * ct3 - 3.0 * ct2 + 1.0)
-                + startTangent * (ct3 - 2.0 * ct2 + t)
-                + end * (-2.0 * ct3 + 3.0 * ct2)
-                + endTangent * (ct3 - ct2);
         }
     }
 }
