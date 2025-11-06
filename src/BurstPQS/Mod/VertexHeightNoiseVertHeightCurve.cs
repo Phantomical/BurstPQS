@@ -5,7 +5,7 @@ using IModule = LibNoise.IModule;
 
 namespace BurstPQS.Mod;
 
-[BurstCompile(FloatMode = FloatMode.Fast)]
+[BurstCompile]
 public class VertexHeightNoiseVertHeightCurve
     : PQSMod_VertexHeightNoiseVertHeightCurve,
         IBatchPQSMod
@@ -43,10 +43,10 @@ public class VertexHeightNoiseVertHeightCurve
     }
 
     static void BuildVertex<N>(
-        in BurstQuadBuildData data,
-        in N noise,
-        in BurstAnimationCurve curve,
-        in Params p
+        [NoAlias] in BurstQuadBuildData data,
+        [NoAlias] in N noise,
+        [NoAlias] in BurstAnimationCurve curve,
+        [NoAlias] in Params p
     )
         where N : IModule
     {
@@ -64,12 +64,12 @@ public class VertexHeightNoiseVertHeightCurve
             else
                 t = (float)((h - p.heightStart) / (p.heightEnd - p.heightStart));
 
-            n = UtilMath.Clamp(noise.GetValue(data.directionFromCenter[i]), -1.0, 1.0);
+            n = MathUtil.Clamp(noise.GetValue(data.directionFromCenter[i]), -1.0, 1.0);
             data.vertHeight[i] += (n + 1.0) * 0.5 * p.deformity * curve.Evaluate(t);
         }
     }
 
-    [BurstCompile]
+    [BurstCompile(FloatMode = FloatMode.Fast)]
     [BurstPQSAutoPatch]
     static void BuildVertexPerlin(
         in BurstQuadBuildData data,
@@ -78,7 +78,7 @@ public class VertexHeightNoiseVertHeightCurve
         in Params p
     ) => BuildVertex(in data, in noise, in curve, in p);
 
-    [BurstCompile]
+    [BurstCompile(FloatMode = FloatMode.Fast)]
     [BurstPQSAutoPatch]
     static void BuildVertexRidgedMultifractal(
         in BurstQuadBuildData data,
@@ -87,7 +87,7 @@ public class VertexHeightNoiseVertHeightCurve
         in Params p
     ) => BuildVertex(in data, in noise, in curve, in p);
 
-    [BurstCompile]
+    [BurstCompile(FloatMode = FloatMode.Fast)]
     [BurstPQSAutoPatch]
     static void BuildVertexBillow(
         in BurstQuadBuildData data,

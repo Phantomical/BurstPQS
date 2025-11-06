@@ -19,7 +19,7 @@ public struct BurstAnimationCurve
         }
     }
 
-    MemorySpan<Keyframe> keys;
+    ReadOnlyMemorySpan<Keyframe> keys;
 
     public static unsafe Guard Create(AnimationCurve curve, out BurstAnimationCurve burst)
     {

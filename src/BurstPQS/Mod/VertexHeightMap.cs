@@ -14,7 +14,7 @@ public class VertexHeightMap : PQSMod_VertexHeightMap, IBatchPQSMod
         BuildHeight(in data.burstData, in mapSO, heightMapOffset, heightMapDeformity);
     }
 
-    [BurstCompile]
+    [BurstCompile(FloatMode = FloatMode.Fast)]
     [BurstPQSAutoPatch]
     static void BuildHeight(
         in BurstQuadBuildData data,

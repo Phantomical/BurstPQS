@@ -14,10 +14,12 @@ public class VertexColorSolid : PQSMod_VertexColorSolid, IBatchPQSMod
 
     public void OnQuadBuildVertexHeight(in QuadBuildData data) { }
 
-    [BurstCompile]
+    [BurstCompile(FloatMode = FloatMode.Fast)]
     [BurstPQSAutoPatch]
-    static void BuildVertex(in BurstQuadBuildData data, in Color color, float blend)
+    static void BuildVertex([NoAlias] in BurstQuadBuildData data, [NoAlias] in Color c, float blend)
     {
+        var color = c;
+
         for (int i = 0; i < data.VertexCount; ++i)
         {
             data.vertColor[i] = Color.Lerp(data.vertColor[i], color, blend);

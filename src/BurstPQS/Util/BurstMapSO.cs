@@ -2,6 +2,7 @@ using System;
 using BurstPQS.Collections;
 using KSP.UI;
 using Unity.Collections.LowLevel.Unsafe;
+using Unity.Mathematics;
 using UnityEngine;
 
 namespace BurstPQS.Util;
@@ -59,9 +60,9 @@ public struct BurstMapSO
     public readonly MapSO.MapDepth Depth => (MapSO.MapDepth)BitsPerPixel;
     public readonly int Size => data.Length;
 
-    MemorySpan<byte> data;
+    readonly ReadOnlyMemorySpan<byte> data;
 
-    private BurstMapSO(MapSO mapSO, MemorySpan<byte> data)
+    private BurstMapSO(MapSO mapSO, ReadOnlyMemorySpan<byte> data)
     {
         Width = mapSO.Width;
         Height = mapSO.Height;

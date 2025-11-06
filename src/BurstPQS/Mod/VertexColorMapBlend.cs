@@ -9,20 +9,17 @@ public class VertexColorMapBlend : PQSMod_VertexColorMapBlend, IBatchPQSMod
 {
     public void OnQuadBuildVertex(in QuadBuildData data)
     {
-        throw new System.NotImplementedException();
-    }
-
-    public void OnQuadBuildVertexHeight(in QuadBuildData data)
-    {
         using var guard = BurstMapSO.Create(vertexColorMap, out var mapSO);
-        SetVertexColors(in data.burstData, in mapSO, blend);
+        BuildVertices(in data.burstData, in mapSO, blend);
     }
 
-    [BurstCompile]
+    public void OnQuadBuildVertexHeight(in QuadBuildData data) { }
+
+    [BurstCompile(FloatMode = FloatMode.Fast)]
     [BurstPQSAutoPatch]
-    static void SetVertexColors(
-        in BurstQuadBuildData data,
-        in BurstMapSO vertexColorMap,
+    static void BuildVertices(
+        [NoAlias] in BurstQuadBuildData data,
+        [NoAlias] in BurstMapSO vertexColorMap,
         float blend
     )
     {

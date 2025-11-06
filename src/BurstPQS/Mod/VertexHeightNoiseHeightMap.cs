@@ -6,7 +6,7 @@ using IModule = LibNoise.IModule;
 
 namespace BurstPQS.Mod;
 
-[BurstCompile(FloatMode = FloatMode.Fast)]
+[BurstCompile]
 public class VertexHeightNoiseHeightMap : PQSMod_VertexHeightNoiseHeightMap, IBatchPQSMod
 {
     static float[] HeightMapData;
@@ -91,13 +91,13 @@ public class VertexHeightNoiseHeightMap : PQSMod_VertexHeightNoiseHeightMap, IBa
                 continue;
 
             h = (h - heightStart) * hDeltaR;
-            double n = UtilMath.Clamp(noise.GetValue(data.directionFromCenter[i]), -1d, 1d);
+            double n = MathUtil.Clamp(noise.GetValue(data.directionFromCenter[i]), -1d, 1d);
 
             data.vertHeight[i] += (n + 1.0) * 0.5 * deformity * h;
         }
     }
 
-    [BurstCompile]
+    [BurstCompile(FloatMode = FloatMode.Fast)]
     [BurstPQSAutoPatch]
     static void BuildVertexPerlin(
         in BurstQuadBuildData data,
@@ -118,7 +118,7 @@ public class VertexHeightNoiseHeightMap : PQSMod_VertexHeightNoiseHeightMap, IBa
             deformity
         );
 
-    [BurstCompile]
+    [BurstCompile(FloatMode = FloatMode.Fast)]
     [BurstPQSAutoPatch]
     static void BuildVertexRidgedMultifractal(
         in BurstQuadBuildData data,
@@ -139,7 +139,7 @@ public class VertexHeightNoiseHeightMap : PQSMod_VertexHeightNoiseHeightMap, IBa
             deformity
         );
 
-    [BurstCompile]
+    [BurstCompile(FloatMode = FloatMode.Fast)]
     [BurstPQSAutoPatch]
     static void BuildVertexBillow(
         in BurstQuadBuildData data,

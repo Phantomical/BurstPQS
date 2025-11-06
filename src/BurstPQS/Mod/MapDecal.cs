@@ -1,4 +1,5 @@
 using System;
+using System.Runtime.CompilerServices;
 using BurstPQS.Collections;
 using BurstPQS.Util;
 using Unity.Burst;
@@ -90,28 +91,28 @@ public class MapDecal : PQSMod_MapDecal, IBatchPQSMod
         }
     }
 
-    [BurstCompile]
+    [BurstCompile(FloatMode = FloatMode.Fast)]
     [BurstPQSAutoPatch]
     static void BuildHeights(
-        in BurstQuadBuildData data,
-        in BurstInfo info,
-        in NullableWrap<BurstMapSO> heightMap,
+        [NoAlias] in BurstQuadBuildData data,
+        [NoAlias] in BurstInfo info,
+        [NoAlias] in NullableWrap<BurstMapSO> heightMap,
         bool sphereIsBuildingMaps,
         double sphereRadius,
-        in MemorySpan<bool> vertActive
+        [NoAlias] in MemorySpan<bool> vertActive
     )
     {
         info.BuildHeights(in data, heightMap, sphereIsBuildingMaps, sphereRadius, vertActive);
     }
 
-    [BurstCompile]
+    [BurstCompile(FloatMode = FloatMode.Fast)]
     [BurstPQSAutoPatch]
     static void BuildVerts(
-        in BurstQuadBuildData data,
-        in BurstInfo info,
-        in NullableWrap<BurstMapSO> colorMap,
+        [NoAlias] in BurstQuadBuildData data,
+        [NoAlias] in BurstInfo info,
+        [NoAlias] in NullableWrap<BurstMapSO> colorMap,
         double sphereRadius,
-        in MemorySpan<bool> vertActive
+        [NoAlias] in MemorySpan<bool> vertActive
     )
     {
         info.BuildVerts(in data, colorMap, vertActive, sphereRadius);
@@ -155,6 +156,7 @@ public class MapDecal : PQSMod_MapDecal, IBatchPQSMod
 
         public float smoothH1M = mod.smoothH1M;
 
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public readonly void BuildHeights(
             in BurstQuadBuildData data,
             BurstMapSO? nHeightMap,
@@ -201,7 +203,7 @@ public class MapDecal : PQSMod_MapDecal, IBatchPQSMod
                 }
                 else if (absolute)
                 {
-                    data.vertHeight[i] = UtilMath.LerpUnclamped(
+                    data.vertHeight[i] = MathUtil.Lerp(
                         data.vertHeight[i],
                         sphereRadius + absoluteOffset + heightMapDeformity * ha.height,
                         smoothFactor
@@ -209,7 +211,7 @@ public class MapDecal : PQSMod_MapDecal, IBatchPQSMod
                 }
                 else
                 {
-                    data.vertHeight[i] = UtilMath.LerpUnclamped(
+                    data.vertHeight[i] = MathUtil.Lerp(
                         data.vertHeight[i],
                         data.vertHeight[i] + heightMapDeformity * ha.height,
                         smoothFactor
@@ -218,6 +220,7 @@ public class MapDecal : PQSMod_MapDecal, IBatchPQSMod
             }
         }
 
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public readonly void BuildVerts(
             in BurstQuadBuildData data,
             BurstMapSO? nColorMap,

@@ -4,6 +4,7 @@ using System.Collections.Generic;
 using System.Runtime.CompilerServices;
 using System.Runtime.InteropServices;
 using BurstPQS.Collections;
+using Unity.Burst;
 using Unity.Burst.CompilerServices;
 using UnityEngine;
 using VehiclePhysics;
@@ -58,25 +59,64 @@ public unsafe struct BurstQuadBuildData
     readonly int _vertexCount;
     readonly int _baseIndex;
 
+    [NoAlias]
     readonly Vector3d* _globalV;
+
+    [NoAlias]
     readonly Vector3d* _directionFromCenter;
+
+    [NoAlias]
     readonly Vector3d* _directionD;
+
+    [NoAlias]
     readonly Vector3d* _directionXZ;
+
+    [NoAlias]
     readonly double* _vertHeight;
+
+    [NoAlias]
     readonly Color* _vertColor;
+
+    [NoAlias]
     readonly double* _u;
+
+    [NoAlias]
     readonly double* _v;
+
+    [NoAlias]
     readonly double* _u2;
+
+    [NoAlias]
     readonly double* _v2;
+
+    [NoAlias]
     readonly double* _u3;
+
+    [NoAlias]
     readonly double* _v3;
+
+    [NoAlias]
     readonly double* _u4;
+
+    [NoAlias]
     readonly double* _v4;
+
+    [NoAlias]
     readonly double* _gnomonicU;
+
+    [NoAlias]
     readonly double* _gnomonicV;
+
+    [NoAlias]
     readonly bool* _allowScatter;
+
+    [NoAlias]
     readonly double* _longitude;
+
+    [NoAlias]
     readonly double* _latitude;
+
+    [NoAlias]
     readonly FixedArray6<PQS.GnomonicUV>* _gnomonicUVs;
 
     public PQS.QuadPlane gnomonicPlane;
@@ -85,7 +125,12 @@ public unsafe struct BurstQuadBuildData
     {
         [return: AssumeRange(0, int.MaxValue)]
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        get => _vertexCount;
+        get
+        {
+            if (_vertexCount < 0)
+                Hint.Assume(false);
+            return _vertexCount;
+        }
     }
 
     public readonly VertexIndices vertIndex => new(_baseIndex, VertexCount);

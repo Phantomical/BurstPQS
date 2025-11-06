@@ -13,9 +13,13 @@ public class VertexDefineCoastLine : PQSMod_VertexDefineCoastLine, IBatchPQSMod
         BuildHeight(in data.burstData, oceanRadius, depthOffset);
     }
 
-    [BurstCompile]
+    [BurstCompile(FloatMode = FloatMode.Fast)]
     [BurstPQSAutoPatch]
-    static void BuildHeight(in BurstQuadBuildData data, double oceanRadius, double depthOffset)
+    static void BuildHeight(
+        [NoAlias] in BurstQuadBuildData data,
+        double oceanRadius,
+        double depthOffset
+    )
     {
         for (int i = 0; i < data.VertexCount; ++i)
         {

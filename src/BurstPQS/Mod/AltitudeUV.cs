@@ -4,6 +4,7 @@ using Unity.Burst;
 
 namespace BurstPQS.Mod;
 
+[BurstCompile]
 public class AltitudeUV : PQSMod_AltitudeUV, IBatchPQSMod
 {
     public AltitudeUV(PQSMod_AltitudeUV mod)
@@ -13,15 +14,15 @@ public class AltitudeUV : PQSMod_AltitudeUV, IBatchPQSMod
 
     public void OnQuadBuildVertex(in QuadBuildData data)
     {
-        SetUVs(in data.burstData, sphere.radius, atmosphereHeight, oceanDepth, invert);
+        BuildVertices(in data.burstData, sphere.radius, atmosphereHeight, oceanDepth, invert);
     }
 
     public void OnQuadBuildVertexHeight(in QuadBuildData data) { }
 
     [BurstCompile(FloatMode = FloatMode.Fast)]
     [BurstPQSAutoPatch]
-    static void SetUVs(
-        in BurstQuadBuildData data,
+    static void BuildVertices(
+        [NoAlias] in BurstQuadBuildData data,
         double radius,
         double atmosphereHeight,
         double oceanDepth,
@@ -35,7 +36,7 @@ public class AltitudeUV : PQSMod_AltitudeUV, IBatchPQSMod
                 h /= atmosphereHeight;
             else
                 h /= oceanDepth;
-            h = UtilMath.Clamp(h, -1.0, 1.0);
+            h = MathUtil.Clamp(h, -1.0, 1.0);
 
             if (invert)
                 h = 1.0 - h;

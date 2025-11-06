@@ -4,7 +4,7 @@ using Unity.Burst;
 
 namespace BurstPQS.Mod;
 
-[BurstCompile(FloatMode = FloatMode.Fast)]
+[BurstCompile]
 public class VertexHeightNoiseVertHeightCurve3
     : PQSMod_VertexHeightNoiseVertHeightCurve3,
         IBatchPQSMod
@@ -48,14 +48,16 @@ public class VertexHeightNoiseVertHeightCurve3
         public double hDeltaR;
     }
 
+    [BurstCompile(FloatMode = FloatMode.Fast)]
+    [BurstPQSAutoPatch]
     static void BuildVertex(
-        in BurstQuadBuildData data,
-        in RidgedMultifractal ridgedAdd,
-        in RidgedMultifractal ridgedSub,
-        in BurstSimplex curveMultiplier,
-        in BurstSimplex deformity,
-        in BurstAnimationCurve inputHeightCurve,
-        in Params p
+        [NoAlias] in BurstQuadBuildData data,
+        [NoAlias] in RidgedMultifractal ridgedAdd,
+        [NoAlias] in RidgedMultifractal ridgedSub,
+        [NoAlias] in BurstSimplex curveMultiplier,
+        [NoAlias] in BurstSimplex deformity,
+        [NoAlias] in BurstAnimationCurve inputHeightCurve,
+        [NoAlias] in Params p
     )
     {
         double r;
@@ -77,12 +79,8 @@ public class VertexHeightNoiseVertHeightCurve3
             if (s != 0.0)
             {
                 r = ridgedAdd.GetValue(dir) - ridgedSub.GetValue(dir);
-                d = UtilMath.LerpUnclamped(
-                    p.deformityMin,
-                    p.deformityMax,
-                    deformity.noiseNormalized(dir)
-                );
-                r = UtilMath.Clamp(r, -1.0, 1.0);
+                d = MathUtil.Lerp(p.deformityMin, p.deformityMax, deformity.noiseNormalized(dir));
+                r = MathUtil.Clamp(r, -1.0, 1.0);
                 r = (r + 1.0) * 0.5;
 
                 data.vertHeight[i] += r * d * s;

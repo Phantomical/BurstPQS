@@ -17,7 +17,7 @@ public class VertexColorSolidBlend : PQSMod_VertexColorSolid, IBatchPQSMod
 
     [BurstCompile]
     [BurstPQSAutoPatch]
-    static void BuildVertex(in BurstQuadBuildData data, in Color color)
+    static void BuildVertex([NoAlias] in BurstQuadBuildData data, in Color color)
     {
         data.vertColor.Fill(color);
     }

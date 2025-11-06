@@ -1,7 +1,11 @@
+using System;
+using BurstPQS.Collections;
 using BurstPQS.Util;
+using Unity.Burst;
 
 namespace BurstPQS.Mod;
 
+[BurstCompile]
 public class FlattenOcean : PQSMod_FlattenOcean, IBatchPQSMod
 {
     public FlattenOcean(PQSMod_FlattenOcean mod)
@@ -11,16 +15,16 @@ public class FlattenOcean : PQSMod_FlattenOcean, IBatchPQSMod
 
     public virtual void OnQuadBuildVertex(in QuadBuildData data) { }
 
-    public virtual unsafe void OnQuadBuildVertexHeight(in QuadBuildData data)
+    public virtual void OnQuadBuildVertexHeight(in QuadBuildData data)
     {
-        // This one is simple enough that it is not worth using burst.
-        var ptr = data.vertHeight.GetDataPtr();
-        var count = data.VertexCount;
+        BuildHeights(data.vertHeight, oceanRad);
+    }
 
-        for (int i = 0; i < count; ++i)
-        {
-            if (ptr[i] < oceanRad)
-                ptr[i] = oceanRad;
-        }
+    [BurstCompile(FloatMode = FloatMode.Fast)]
+    [BurstPQSAutoPatch]
+    static void BuildHeights([NoAlias] in MemorySpan<double> vertHeight, double oceanRad)
+    {
+        for (int i = 0; i < vertHeight.Length; ++i)
+            vertHeight[i] = Math.Max(vertHeight[i], oceanRad);
     }
 }

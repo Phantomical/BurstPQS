@@ -33,12 +33,13 @@ public class FlattenAreaTangential : PQSMod_FlattenAreaTangential, IBatchPQSMod
             posNorm = posNorm,
         };
 
-        SetHeight(in info, in data.burstData);
+        BuildHeights(in info, in data.burstData);
     }
 
-    [BurstCompile]
+    [BurstCompile(FloatMode = FloatMode.Fast)]
     [BurstPQSAutoPatch]
-    static void SetHeight(in BurstInfo info, in BurstQuadBuildData data) => info.Execute(in data);
+    static void BuildHeights([NoAlias] in BurstInfo info, [NoAlias] in BurstQuadBuildData data) =>
+        info.Execute(in data);
 
     struct BurstInfo
     {

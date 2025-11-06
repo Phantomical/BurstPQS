@@ -1,4 +1,5 @@
 using System.Runtime.InteropServices;
+using Unity.Burst.CompilerServices;
 
 namespace BurstPQS.Collections;
 
@@ -19,7 +20,7 @@ public struct FixedArray6<T>
     {
         readonly get
         {
-            if ((uint)index >= Length)
+            if (Hint.Unlikely((uint)index >= Length))
                 BurstException.ThrowIndexOutOfRange();
 
             fixed (FixedArray6<T>* array = &this)
@@ -27,7 +28,7 @@ public struct FixedArray6<T>
         }
         set
         {
-            if ((uint)index >= Length)
+            if (Hint.Unlikely((uint)index >= Length))
                 BurstException.ThrowIndexOutOfRange();
 
             fixed (FixedArray6<T>* array = &this)

@@ -1,3 +1,5 @@
+using System;
+
 namespace BurstPQS.Util;
 
 public static class MathUtil
@@ -22,4 +24,8 @@ public static class MathUtil
     {
         return v1 * dt + v2 * (1.0 - dt);
     }
+
+    public static double Clamp(double v, double min, double max) => Math.Min(Math.Max(v, min), max);
+
+    public static double Clamp01(double v) => Clamp(v, 0.0, 1.0);
 }

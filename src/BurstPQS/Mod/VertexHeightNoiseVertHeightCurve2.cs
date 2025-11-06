@@ -1,11 +1,10 @@
 using BurstPQS.Noise;
 using BurstPQS.Util;
 using Unity.Burst;
-using IModule = LibNoise.IModule;
 
 namespace BurstPQS.Mod;
 
-[BurstCompile(FloatMode = FloatMode.Fast)]
+[BurstCompile]
 public class VertexHeightNoiseVertHeightCurve2
     : PQSMod_VertexHeightNoiseVertHeightCurve2,
         IBatchPQSMod
@@ -45,13 +44,15 @@ public class VertexHeightNoiseVertHeightCurve2
         public float deformity;
     }
 
+    [BurstCompile(FloatMode = FloatMode.Fast)]
+    [BurstPQSAutoPatch]
     static void BuildVertex(
-        in BurstQuadBuildData data,
-        in RidgedMultifractal ridgedAdd,
-        in RidgedMultifractal ridgedSub,
-        in BurstSimplex simplex,
-        in BurstAnimationCurve simplexCurve,
-        in Params p
+        [NoAlias] in BurstQuadBuildData data,
+        [NoAlias] in RidgedMultifractal ridgedAdd,
+        [NoAlias] in RidgedMultifractal ridgedSub,
+        [NoAlias] in BurstSimplex simplex,
+        [NoAlias] in BurstAnimationCurve simplexCurve,
+        [NoAlias] in Params p
     )
     {
         double h;
@@ -72,7 +73,7 @@ public class VertexHeightNoiseVertHeightCurve2
             s = simplex.noiseNormalized(data.directionFromCenter[i]) * simplexCurve.Evaluate(t);
             if (s != 0.0)
             {
-                r = UtilMath.Clamp(
+                r = MathUtil.Clamp(
                     ridgedAdd.GetValue(data.directionFromCenter[i])
                         - ridgedSub.GetValue(data.directionFromCenter[i]),
                     -1.0,

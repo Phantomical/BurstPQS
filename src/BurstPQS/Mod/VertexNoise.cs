@@ -5,7 +5,7 @@ using Unity.Burst;
 
 namespace BurstPQS.Mod;
 
-[BurstCompile(FloatMode = FloatMode.Fast)]
+[BurstCompile]
 public class VertexNoise : PQSMod_VertexNoise, IBatchPQSMod
 {
     public void OnQuadBuildVertex(in QuadBuildData data) { }
@@ -27,11 +27,11 @@ public class VertexNoise : PQSMod_VertexNoise, IBatchPQSMod
         BuildHeight(in data.burstData, in noise, sphere.radius, noiseDeformity);
     }
 
-    [BurstCompile]
+    [BurstCompile(FloatMode = FloatMode.Fast)]
     [BurstPQSAutoPatch]
     static void BuildHeight(
-        in BurstQuadBuildData data,
-        in Select<Perlin, ScaleBiasOutput<Billow>, RidgedMultifractal> terrainHeightMap,
+        [NoAlias] in BurstQuadBuildData data,
+        [NoAlias] in Select<Perlin, ScaleBiasOutput<Billow>, RidgedMultifractal> terrainHeightMap,
         double sphereRadius,
         double noiseDeformity
     )

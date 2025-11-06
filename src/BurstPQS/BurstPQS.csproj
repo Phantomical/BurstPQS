@@ -29,8 +29,7 @@
 
     <KSPVersionFile Include=".">
       <Destination>$(GameDataOutDir)/BurstPQS.version</Destination>
-      <URL>
-        https://github.com/Phantomical/BurstPQS/releases/latest/download/BurstPQS.version</URL>
+      <URL>https://github.com/Phantomical/BurstPQS/releases/latest/download/BurstPQS.version</URL>
       <Download>https://github.com/Phantomical/BurstPQS/releases/latest</Download>
     </KSPVersionFile>
   </ItemGroup>
@@ -92,6 +91,7 @@
     <JsonPoke Content="$(_JSON)" Query="$.VERSION.BUILD" RawValue="$(_Build)">
       <Output TaskParameter="Content" PropertyName="_JSON" />
     </JsonPoke>
-    <WriteLinesToFile File="$(GameDataOutDir)\$(ProjectName).version" Lines="$(_JSON)" Overwrite="true" />
+    <WriteLinesToFile File="$(GameDataOutDir)\$(ProjectName).version" Lines="$(_JSON)"
+      Overwrite="true" />
   </Target>
 </Project>

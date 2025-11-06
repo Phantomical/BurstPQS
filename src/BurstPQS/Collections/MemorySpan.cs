@@ -3,8 +3,10 @@ using System.Collections;
 using System.Collections.Generic;
 using System.Diagnostics;
 using System.Runtime.CompilerServices;
+using BurstPQS.Util;
 using Unity.Burst.CompilerServices;
 using Unity.Collections.LowLevel.Unsafe;
+using Unity.Mathematics;
 
 namespace BurstPQS.Collections;
 
@@ -19,14 +21,19 @@ public readonly unsafe struct MemorySpan<T> : IEnumerable<T>
     public readonly int Length
     {
         [return: AssumeRange(0, int.MaxValue)]
-        get => length;
+        get
+        {
+            Hint.Assume(length >= 0);
+            return length;
+        }
     }
 
     public ref T this[int index]
     {
         get
         {
-            if (index < 0 || index > Length)
+            // Hint.Assume(index >= 0 && index < Length);
+            if (Hint.Unlikely(index < 0 || index > Length))
                 BurstException.ThrowIndexOutOfRange();
 
             return ref data[index];
@@ -41,10 +48,17 @@ public readonly unsafe struct MemorySpan<T> : IEnumerable<T>
 
     public MemorySpan(T* data, int length)
     {
+        // Hint.Assume(length >= 0);
+        // Hint.Assume(length == 0 || data is not null);
         if (length < 0)
             BurstException.ThrowArgumentOutOfRange();
-        if (data is not null && length > 0)
-            BurstException.ThrowArgumentOutOfRange();
+
+        // This bit makes codegen quite a bit worse
+        if (!BurstUtil.IsBurstCompiled)
+        {
+            if (data is not null && length > 0)
+                BurstException.ThrowArgumentOutOfRange();
+        }
 
         this.data = data;
         this.length = length;
@@ -115,4 +129,23 @@ public readonly unsafe struct MemorySpan<T> : IEnumerable<T>
     }
 
     #endregion
+}
+
+public static class MemorySpanExt
+{
+    public static unsafe double4 GetVec4(this MemorySpan<double> span, int index)
+    {
+        if (Hint.Unlikely(index < 0 || index + 4 > span.Length))
+            BurstException.ThrowIndexOutOfRange();
+
+        return *(double4*)&span.GetDataPtr()[index];
+    }
+
+    public static unsafe void SetVec4(this MemorySpan<double> span, int index, double4 v)
+    {
+        if (Hint.Unlikely(index < 0 || index + 4 > span.Length))
+            BurstException.ThrowIndexOutOfRange();
+
+        *(double4*)&span.GetDataPtr()[index] = v;
+    }
 }

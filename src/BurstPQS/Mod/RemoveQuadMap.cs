@@ -3,6 +3,7 @@ using Unity.Burst;
 
 namespace BurstPQS.Mod;
 
+[BurstCompile]
 public class RemoveQuadMap : PQSMod_RemoveQuadMap, IBatchPQSMod
 {
     public RemoveQuadMap(PQSMod_RemoveQuadMap mod)
@@ -18,22 +19,24 @@ public class RemoveQuadMap : PQSMod_RemoveQuadMap, IBatchPQSMod
 
     public void OnQuadBuildVertexHeight(in QuadBuildData data) { }
 
-    [BurstCompile]
+    [BurstCompile(FloatMode = FloatMode.Fast)]
     [BurstPQSAutoPatch]
     static bool ShouldBeVisible(
-        in BurstQuadBuildData data,
-        in BurstMapSO map,
+        [NoAlias] in BurstQuadBuildData data,
+        [NoAlias] in BurstMapSO map,
         float minHeight,
         float maxHeight
     )
     {
+        bool visible = false;
+
         for (int i = 0; i < data.VertexCount; ++i)
         {
             var height = map.GetPixelFloat((float)data.u[i], (float)data.v[i]);
             if (height >= minHeight && height <= maxHeight)
-                return true;
+                visible = true;
         }
 
-        return false;
+        return visible;
     }
 }

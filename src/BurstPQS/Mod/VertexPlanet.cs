@@ -7,7 +7,7 @@ using UnityEngine;
 
 namespace BurstPQS.Mod;
 
-[BurstCompile(FloatMode = FloatMode.Fast)]
+[BurstCompile]
 public class VertexPlanet : PQSMod_VertexPlanet, IBatchPQSMod
 {
     struct BurstLandClass(LandClass lc, BurstSimplex simplex)
@@ -107,18 +107,18 @@ public class VertexPlanet : PQSMod_VertexPlanet, IBatchPQSMod
         }
     }
 
-    [BurstCompile]
+    [BurstCompile(FloatMode = FloatMode.Fast)]
     [BurstPQSAutoPatch]
     static void BuildHeight(
-        in BurstQuadBuildData data,
-        in MemorySpan<double> preSmoothHeights,
-        in BurstSimplex iContinental,
-        in BurstSimplex continentalSmoothing,
-        in RidgedMultifractal continentalSharpness,
+        [NoAlias] in BurstQuadBuildData data,
+        [NoAlias] in MemorySpan<double> preSmoothHeights,
+        [NoAlias] in BurstSimplex iContinental,
+        [NoAlias] in BurstSimplex continentalSmoothing,
+        [NoAlias] in RidgedMultifractal continentalSharpness,
         double continentalSharpnessDeformity,
-        in BurstSimplex continentalSharpnessMap,
+        [NoAlias] in BurstSimplex continentalSharpnessMap,
         double continentalSharpnessMapDeformity,
-        in BurstSimplex iContinentalRuggedness,
+        [NoAlias] in BurstSimplex iContinentalRuggedness,
         double continentalRuggednessDeformity,
         double terrainRidgeBalance,
         double terrainRidgesMax,
@@ -153,7 +153,7 @@ public class VertexPlanet : PQSMod_VertexPlanet, IBatchPQSMod
                 continentalSharpnessDeformity * terrainRidgeBalance,
                 (continental2Height + continentialSharpnessValue) * 0.5
             );
-            double continentialSharpnessMapValue = UtilMath.Clamp(
+            double continentialSharpnessMapValue = MathUtil.Clamp(
                 (continentalSharpnessMap.noise(dir) + 1.0) * 0.5,
                 terrainRidgesMin,
                 terrainRidgesMax
@@ -207,13 +207,13 @@ public class VertexPlanet : PQSMod_VertexPlanet, IBatchPQSMod
         }
     }
 
-    [BurstCompile]
+    [BurstCompile(FloatMode = FloatMode.Fast)]
     [BurstPQSAutoPatch]
     static void BuildVertex(
-        in BurstQuadBuildData data,
-        in MemorySpan<BurstLandClass> landClasses,
-        in MemorySpan<double> continentalHeightPreSmooth,
-        in BurstSimplex terrainType,
+        [NoAlias] in BurstQuadBuildData data,
+        [NoAlias] in MemorySpan<BurstLandClass> landClasses,
+        [NoAlias] in MemorySpan<double> continentalHeightPreSmooth,
+        [NoAlias] in BurstSimplex terrainType,
         double terrainTypeDeformity,
         bool buildHeightColors,
         double sphereRadius,
@@ -236,7 +236,7 @@ public class VertexPlanet : PQSMod_VertexPlanet, IBatchPQSMod
             var dir = data.directionFromCenter[i];
             double h = (data.vertHeight[i] - sphereRadius) / colorDeformity;
             double d1 = terrainType.noiseNormalized(dir);
-            double tHeight = UtilMath.Clamp01(
+            double tHeight = MathUtil.Clamp01(
                 (continentalHeightPreSmooth[i] + d1 * terrainTypeDeformity) * h
             );
 

@@ -19,9 +19,9 @@ public class GnomonicTest : PQSMod_GnomonicTest, IBatchPQSMod
 
     public virtual void OnQuadBuildVertexHeight(in QuadBuildData data) { }
 
-    [BurstCompile]
+    [BurstCompile(FloatMode = FloatMode.Fast)]
     [BurstPQSAutoPatch]
-    static void BuildVertices(in BurstQuadBuildData data)
+    static void BuildVertices([NoAlias] in BurstQuadBuildData data)
     {
         for (int i = 0; i < data.VertexCount; ++i)
         {

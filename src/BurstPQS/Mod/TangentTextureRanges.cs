@@ -26,11 +26,11 @@ public class TangentTextureRanges : PQSMod_TangentTextureRanges, IBatchPQSMod
         }
     }
 
-    [BurstCompile]
+    [BurstCompile(FloatMode = FloatMode.Fast)]
     [BurstPQSAutoPatch]
     static void BuildTangents(
-        in BurstQuadBuildData data,
-        in MemorySpan<float> tangentX,
+        [NoAlias] in BurstQuadBuildData data,
+        [NoAlias] in MemorySpan<float> tangentX,
         double modulo,
         double lowStart,
         double lowEnd,
@@ -38,6 +38,9 @@ public class TangentTextureRanges : PQSMod_TangentTextureRanges, IBatchPQSMod
         double highEnd
     )
     {
+        if (tangentX.Length < data.VertexCount)
+            BurstException.ThrowIndexOutOfRange();
+
         for (int i = 0; i < data.VertexCount; ++i)
         {
             var height = data.vertHeight[i];
@@ -55,15 +58,7 @@ public class TangentTextureRanges : PQSMod_TangentTextureRanges, IBatchPQSMod
 
     static new double SmoothStep(double a, double b, double x)
     {
-        var t = (x - a) / (b - a);
-        if (t < 0.0)
-        {
-            t = 0.0;
-        }
-        else if (t > 1.0)
-        {
-            t = 1.0;
-        }
+        var t = MathUtil.Clamp01((x - a) / (b - a));
         return t * t * (3.0 - 2.0 * t);
     }
 }

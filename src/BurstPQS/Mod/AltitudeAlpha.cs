@@ -1,6 +1,7 @@
 using BurstPQS.Collections;
 using BurstPQS.Util;
 using Unity.Burst;
+using Unity.Mathematics;
 using UnityEngine;
 
 namespace BurstPQS.Mod;
@@ -15,15 +16,15 @@ public class AltitudeAlpha : PQSMod_AltitudeAlpha, IBatchPQSMod
 
     public virtual void OnQuadBuildVertex(in QuadBuildData data)
     {
-        SetAlphas(in data.burstData, sphere.radius, atmosphereDepth, invert);
+        BuildVertices(in data.burstData, sphere.radius, atmosphereDepth, invert);
     }
 
     public virtual void OnQuadBuildVertexHeight(in QuadBuildData data) { }
 
-    [BurstCompile]
+    [BurstCompile(FloatMode = FloatMode.Fast)]
     [BurstPQSAutoPatch]
-    static void SetAlphas(
-        in BurstQuadBuildData data,
+    static void BuildVertices(
+        [NoAlias] in BurstQuadBuildData data,
         double radius,
         double atmosphereDepth,
         bool invert

@@ -14,11 +14,11 @@ public class SmoothLatitudeRange : PQSMod_SmoothLatitudeRange, IBatchPQSMod
         BuildVertexHeight(in data.burstData, new(latitudeRange), smoothToAltitude, sphere.radius);
     }
 
-    [BurstCompile]
+    [BurstCompile(FloatMode = FloatMode.Fast)]
     [BurstPQSAutoPatch]
     static void BuildVertexHeight(
-        in BurstQuadBuildData data,
-        in BurstLerpRange latitudeRange,
+        [NoAlias] in BurstQuadBuildData data,
+        [NoAlias] in BurstLerpRange latitudeRange,
         double smoothToAltitude,
         double sphereRadius
     )

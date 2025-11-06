@@ -1,5 +1,4 @@
 using System;
-using System.ComponentModel.Design;
 using BurstPQS.Collections;
 using BurstPQS.Util;
 using Unity.Burst;
@@ -7,6 +6,7 @@ using UnityEngine;
 
 namespace BurstPQS.Mod;
 
+[BurstCompile]
 public class HeightColorMap2 : PQSMod_HeightColorMap2, IBatchPQSMod
 {
     public struct BurstLandClass(LandClass landClass)
@@ -52,11 +52,11 @@ public class HeightColorMap2 : PQSMod_HeightColorMap2, IBatchPQSMod
 
     public virtual void OnQuadBuildVertexHeight(in QuadBuildData data) { }
 
-    [BurstCompile]
+    [BurstCompile(FloatMode = FloatMode.Fast)]
     [BurstPQSAutoPatch]
     static void BuildVertices(
-        in BurstQuadBuildData data,
-        in MemorySpan<BurstLandClass> classes,
+        [NoAlias] in BurstQuadBuildData data,
+        [NoAlias] in MemorySpan<BurstLandClass> classes,
         double heightMin,
         double heightDelta,
         float blend

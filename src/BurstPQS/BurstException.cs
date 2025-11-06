@@ -1,6 +1,7 @@
 using System;
 using System.Runtime.CompilerServices;
 using System.Runtime.InteropServices;
+using BackgroundResourceProcessing.Shim;
 using Unity.Burst;
 using Unity.Burst.CompilerServices;
 using static BurstPQS.Util.BurstUtil;
@@ -28,15 +29,19 @@ internal static class BurstException
         }
     }
 
-    // static readonly SharedStatic<BurstExceptionVTable> VTableStatic;
-    // static ref BurstExceptionVTable VTable => ref VTableStatic.Data;
-    static BurstExceptionVTable VTable;
+    static readonly SharedStatic<BurstExceptionVTable> VTableStatic;
+    static ref BurstExceptionVTable VTable => ref VTableStatic.Data;
 
     static BurstException()
     {
-        // VTableStatic = SharedStatic<BurstExceptionVTable>.GetOrCreate<BurstExceptionVTable>();
-        // VTableStatic.Data.Init();
-        throw new NotImplementedException();
+        VTableStatic = SharedStatic<BurstExceptionVTable>.GetOrCreate<BurstExceptionVTable>();
+        InitVTable();
+    }
+
+    [BurstDiscard]
+    static void InitVTable()
+    {
+        VTableStatic.Data.Init();
     }
 
     [ModuleInitializer]
@@ -46,10 +51,16 @@ internal static class BurstException
     {
         if (!IsBurstCompiled)
             ThrowIndexOutOfRangeManaged();
-        VTable.ThrowIndexOutOfRange.Invoke();
+        ThrowIndexOutOfRangeImpl();
 
         // Indicate to LLVM that ThrowIndexOutOfRange does not return.
         Hint.Assume(false);
+    }
+
+    [MethodImpl(MethodImplOptions.NoInlining)]
+    static void ThrowIndexOutOfRangeImpl()
+    {
+        VTable.ThrowIndexOutOfRange.Invoke();
     }
 
     [BurstDiscard]
@@ -59,9 +70,15 @@ internal static class BurstException
     {
         if (!IsBurstCompiled)
             ThrowArgumentOutOfRangeManaged();
-        VTable.ThrowArgumentOutOfRange.Invoke();
+        ThrowArgumentOutOfRangeImpl();
 
         Hint.Assume(false);
+    }
+
+    [MethodImpl(MethodImplOptions.NoInlining)]
+    static void ThrowArgumentOutOfRangeImpl()
+    {
+        VTable.ThrowArgumentOutOfRange.Invoke();
     }
 
     [BurstDiscard]

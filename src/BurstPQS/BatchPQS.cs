@@ -70,14 +70,6 @@ public unsafe class BatchPQS : PQS
 
     #region Burst Methods
     #region InitBuildData
-    delegate void InitBuildDataDelegate(
-        in MemorySpan<Vector3> cacheVerts,
-        in Matrix4x4 quadMatrix,
-        in QuadBuildData data,
-        double radius,
-        bool reqVertexMapCoords
-    );
-
     void InitBuildData(PQ quad, in QuadBuildData data)
     {
         fixed (Vector3* pCacheVerts = cacheVerts)
@@ -85,19 +77,19 @@ public unsafe class BatchPQS : PQS
             InitBuildDataBurst(
                 new MemorySpan<Vector3>(pCacheVerts, cacheVerts.Length),
                 in quad.quadMatrix,
-                in data,
+                in data.burstData,
                 radius,
                 reqVertexMapCoods
             );
         }
     }
 
-    [BurstCompile]
+    [BurstCompile(FloatMode = FloatMode.Fast)]
     [BurstPQSAutoPatch]
     static void InitBuildDataBurst(
         in MemorySpan<Vector3> cacheVerts,
         in Matrix4x4 quadMatrix,
-        in QuadBuildData data,
+        in BurstQuadBuildData data,
         double radius,
         bool reqVertexMapCoords
     )
@@ -120,7 +112,7 @@ public unsafe class BatchPQS : PQS
 
         for (int i = 0; i < cacheVertCount; ++i)
         {
-            var latitude = Math.Asin(UtilMath.Clamp01(data.directionFromCenter[i].y));
+            var latitude = Math.Asin(MathUtil.Clamp01(data.directionFromCenter[i].y));
             var directionXZ = new Vector3d(
                 data.directionFromCenter[i].x,
                 0.0,

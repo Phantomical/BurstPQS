@@ -5,7 +5,7 @@ using IModule = LibNoise.IModule;
 
 namespace BurstPQS.Mod;
 
-[BurstCompile(FloatMode = FloatMode.Fast)]
+[BurstCompile]
 public class VertexHeightNoise : PQSMod_VertexHeightNoise, IBatchPQSMod
 {
     public void OnQuadBuildVertexHeight(in QuadBuildData data)
@@ -22,12 +22,12 @@ public class VertexHeightNoise : PQSMod_VertexHeightNoise, IBatchPQSMod
 
     public void OnQuadBuildVertex(in QuadBuildData data) { }
 
-    [BurstCompile]
+    [BurstCompile(FloatMode = FloatMode.Fast)]
     [BurstPQSAutoPatch]
     static void BuildVertexPerlin(in BurstQuadBuildData data, in Perlin noise, float deformity) =>
         BuildVertex(in data, in noise, deformity);
 
-    [BurstCompile]
+    [BurstCompile(FloatMode = FloatMode.Fast)]
     [BurstPQSAutoPatch]
     static void BuildVertexRidgedMultifractal(
         in BurstQuadBuildData data,
@@ -35,7 +35,7 @@ public class VertexHeightNoise : PQSMod_VertexHeightNoise, IBatchPQSMod
         float blend
     ) => BuildVertex(in data, in noise, blend);
 
-    [BurstCompile]
+    [BurstCompile(FloatMode = FloatMode.Fast)]
     [BurstPQSAutoPatch]
     static void BuildVertexBillow(in BurstQuadBuildData data, in Billow noise, float deformity) =>
         BuildVertex(in data, in noise, deformity);

@@ -6,7 +6,7 @@ using IModule = LibNoise.IModule;
 
 namespace BurstPQS.Mod;
 
-[BurstCompile(FloatMode = FloatMode.Fast)]
+[BurstCompile]
 public class VertexColorNoise : PQSMod_VertexColorNoise, IBatchPQSMod
 {
     public void OnQuadBuildVertexHeight(in QuadBuildData data) { }
@@ -23,23 +23,29 @@ public class VertexColorNoise : PQSMod_VertexColorNoise, IBatchPQSMod
             BuildVertex(in data.burstData, noiseMap, blend);
     }
 
-    [BurstCompile]
+    [BurstCompile(FloatMode = FloatMode.Fast)]
     [BurstPQSAutoPatch]
-    static void BuildVertexPerlin(in BurstQuadBuildData data, in Perlin noise, float blend) =>
-        BuildVertex(in data, in noise, blend);
-
-    [BurstCompile]
-    [BurstPQSAutoPatch]
-    static void BuildVertexRidgedMultifractal(
-        in BurstQuadBuildData data,
-        in RidgedMultifractal noise,
+    static void BuildVertexPerlin(
+        [NoAlias] in BurstQuadBuildData data,
+        [NoAlias] in Perlin noise,
         float blend
     ) => BuildVertex(in data, in noise, blend);
 
-    [BurstCompile]
+    [BurstCompile(FloatMode = FloatMode.Fast)]
     [BurstPQSAutoPatch]
-    static void BuildVertexBillow(in BurstQuadBuildData data, in Billow noise, float blend) =>
-        BuildVertex(in data, in noise, blend);
+    static void BuildVertexRidgedMultifractal(
+        [NoAlias] in BurstQuadBuildData data,
+        [NoAlias] in RidgedMultifractal noise,
+        float blend
+    ) => BuildVertex(in data, in noise, blend);
+
+    [BurstCompile(FloatMode = FloatMode.Fast)]
+    [BurstPQSAutoPatch]
+    static void BuildVertexBillow(
+        [NoAlias] in BurstQuadBuildData data,
+        [NoAlias] in Billow noise,
+        float blend
+    ) => BuildVertex(in data, in noise, blend);
 
     static void BuildVertex<N>(in BurstQuadBuildData data, in N noise, float blend)
         where N : IModule
