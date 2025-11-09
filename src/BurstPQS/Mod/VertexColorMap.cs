@@ -4,15 +4,16 @@ using Unity.Burst;
 namespace BurstPQS.Mod;
 
 [BurstCompile]
-public class VertexColorMap : PQSMod_VertexColorMap, IBatchPQSMod
+public class VertexColorMap : BatchPQSMod<PQSMod_VertexColorMap>
 {
-    public void OnQuadBuildVertex(in QuadBuildData data)
+    public VertexColorMap(PQSMod_VertexColorMap mod)
+        : base(mod) { }
+
+    public override void OnQuadBuildVertex(in QuadBuildData data)
     {
-        using var guard = BurstMapSO.Create(vertexColorMap, out var mapSO);
+        using var guard = BurstMapSO.Create(mod.vertexColorMap, out var mapSO);
         BuildVertices(in data.burstData, in mapSO);
     }
-
-    public void OnQuadBuildVertexHeight(in QuadBuildData data) { }
 
     [BurstCompile(FloatMode = FloatMode.Fast)]
     [BurstPQSAutoPatch]

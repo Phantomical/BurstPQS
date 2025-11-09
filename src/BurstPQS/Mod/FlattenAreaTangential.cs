@@ -6,31 +6,27 @@ using UnityEngine;
 namespace BurstPQS.Mod;
 
 [BurstCompile]
-public class FlattenAreaTangential : PQSMod_FlattenAreaTangential, IBatchPQSMod
+public class FlattenAreaTangential : BatchPQSMod<PQSMod_FlattenAreaTangential>
 {
     public FlattenAreaTangential(PQSMod_FlattenAreaTangential mod)
-    {
-        CloneUtil.MemberwiseCopy(mod, this);
-    }
+        : base(mod) { }
 
-    public void OnQuadBuildVertex(in QuadBuildData data) { }
-
-    public void OnQuadBuildVertexHeight(in QuadBuildData data)
+    public override void OnQuadBuildVertexHeight(in QuadBuildData data)
     {
-        if (!quadActive)
+        if (!mod.quadActive)
             return;
 
         var info = new BurstInfo
         {
-            DEBUG_showColors = DEBUG_showColors,
-            flattenToRadius = flattenToRadius,
-            smoothStart = smoothStart,
-            smoothEnd = smoothEnd,
-            angleInner = angleInner,
-            angleOuter = angleOuter,
-            angleQuadInclusion = angleQuadInclusion,
-            angleDelta = angleDelta,
-            posNorm = posNorm,
+            DEBUG_showColors = mod.DEBUG_showColors,
+            flattenToRadius = mod.flattenToRadius,
+            smoothStart = mod.smoothStart,
+            smoothEnd = mod.smoothEnd,
+            angleInner = mod.angleInner,
+            angleOuter = mod.angleOuter,
+            angleQuadInclusion = mod.angleQuadInclusion,
+            angleDelta = mod.angleDelta,
+            posNorm = mod.posNorm,
         };
 
         BuildHeights(in info, in data.burstData);

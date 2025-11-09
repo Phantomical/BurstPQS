@@ -1,25 +1,18 @@
-using BurstPQS.Collections;
 using BurstPQS.Util;
 using Unity.Burst;
-using Unity.Mathematics;
-using UnityEngine;
 
 namespace BurstPQS.Mod;
 
 [BurstCompile]
-public class AltitudeAlpha : PQSMod_AltitudeAlpha, IBatchPQSMod
+public class AltitudeAlpha : BatchPQSMod<PQSMod_AltitudeAlpha>
 {
     public AltitudeAlpha(PQSMod_AltitudeAlpha mod)
-    {
-        CloneUtil.MemberwiseCopy(mod, this);
-    }
+        : base(mod) { }
 
-    public virtual void OnQuadBuildVertex(in QuadBuildData data)
+    public override void OnQuadBuildVertex(in QuadBuildData data)
     {
-        BuildVertices(in data.burstData, sphere.radius, atmosphereDepth, invert);
+        BuildVertices(in data.burstData, mod.sphere.radius, mod.atmosphereDepth, mod.invert);
     }
-
-    public virtual void OnQuadBuildVertexHeight(in QuadBuildData data) { }
 
     [BurstCompile(FloatMode = FloatMode.Fast)]
     [BurstPQSAutoPatch]

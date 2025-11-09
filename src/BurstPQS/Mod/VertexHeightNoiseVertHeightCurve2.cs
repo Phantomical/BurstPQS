@@ -6,34 +6,34 @@ namespace BurstPQS.Mod;
 
 [BurstCompile]
 public class VertexHeightNoiseVertHeightCurve2
-    : PQSMod_VertexHeightNoiseVertHeightCurve2,
-        IBatchPQSMod
+    : BatchPQSMod<PQSMod_VertexHeightNoiseVertHeightCurve2>
 {
-    public void OnQuadBuildVertexHeight(in QuadBuildData data)
+    public VertexHeightNoiseVertHeightCurve2(PQSMod_VertexHeightNoiseVertHeightCurve2 mod)
+        : base(mod) { }
+
+    public override void OnQuadBuildVertexHeight(in QuadBuildData data)
     {
         var p = new Params
         {
-            sphereRadiusMin = sphere.radiusMin,
-            simplexHeightStart = simplexHeightStart,
-            simplexHeightEnd = simplexHeightEnd,
-            deformity = deformity,
-            hDeltaR = hDeltaR,
+            sphereRadiusMin = mod.sphere.radiusMin,
+            simplexHeightStart = mod.simplexHeightStart,
+            simplexHeightEnd = mod.simplexHeightEnd,
+            deformity = mod.deformity,
+            hDeltaR = mod.hDeltaR,
         };
 
-        using var guard1 = BurstSimplex.Create(simplex, out var bsimplex);
-        using var guard2 = BurstAnimationCurve.Create(simplexCurve, out var bcurve);
+        using var guard1 = BurstSimplex.Create(mod.simplex, out var bsimplex);
+        using var guard2 = BurstAnimationCurve.Create(mod.simplexCurve, out var bcurve);
 
         BuildVertex(
             in data.burstData,
-            new(ridgedAdd),
-            new(ridgedSub),
+            new(mod.ridgedAdd),
+            new(mod.ridgedSub),
             in bsimplex,
             in bcurve,
             in p
         );
     }
-
-    public void OnQuadBuildVertex(in QuadBuildData data) { }
 
     struct Params
     {

@@ -6,37 +6,40 @@ namespace BurstPQS.Mod;
 
 [BurstCompile]
 public class VertexHeightNoiseVertHeightCurve3
-    : PQSMod_VertexHeightNoiseVertHeightCurve3,
-        IBatchPQSMod
+    : BatchPQSMod<PQSMod_VertexHeightNoiseVertHeightCurve3>
 {
-    public void OnQuadBuildVertexHeight(in QuadBuildData data)
+    public VertexHeightNoiseVertHeightCurve3(PQSMod_VertexHeightNoiseVertHeightCurve3 mod)
+        : base(mod) { }
+
+    public override void OnQuadBuildVertexHeight(in QuadBuildData data)
     {
         var p = new Params
         {
-            sphereRadiusMin = sphere.radiusMin,
-            inputHeightStart = inputHeightStart,
-            inputHeightEnd = inputHeightEnd,
-            deformityMax = deformityMax,
-            deformityMin = deformityMin,
-            hDeltaR = hDeltaR,
+            sphereRadiusMin = mod.sphere.radiusMin,
+            inputHeightStart = mod.inputHeightStart,
+            inputHeightEnd = mod.inputHeightEnd,
+            deformityMax = mod.deformityMax,
+            deformityMin = mod.deformityMin,
+            hDeltaR = mod.hDeltaR,
         };
 
-        using var guard1 = BurstSimplex.Create(curveMultiplier.fractal, out var bcurveMult);
-        using var guard2 = BurstSimplex.Create(deformity.fractal, out var bdeformity);
-        using var guard3 = BurstAnimationCurve.Create(inputHeightCurve, out var binputHeightCurve);
+        using var guard1 = BurstSimplex.Create(mod.curveMultiplier.fractal, out var bcurveMult);
+        using var guard2 = BurstSimplex.Create(mod.deformity.fractal, out var bdeformity);
+        using var guard3 = BurstAnimationCurve.Create(
+            mod.inputHeightCurve,
+            out var binputHeightCurve
+        );
 
         BuildVertex(
             in data.burstData,
-            new(ridgedAdd.fractal),
-            new(ridgedSub.fractal),
+            new(mod.ridgedAdd.fractal),
+            new(mod.ridgedSub.fractal),
             in bcurveMult,
             in bdeformity,
             in binputHeightCurve,
             in p
         );
     }
-
-    public void OnQuadBuildVertex(in QuadBuildData data) { }
 
     struct Params
     {

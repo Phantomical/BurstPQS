@@ -5,19 +5,15 @@ using UnityEngine;
 namespace BurstPQS.Mod;
 
 [BurstCompile]
-public class GnomonicTest : PQSMod_GnomonicTest, IBatchPQSMod
+public class GnomonicTest : BatchPQSMod<PQSMod_GnomonicTest>
 {
     public GnomonicTest(PQSMod_GnomonicTest mod)
-    {
-        CloneUtil.MemberwiseCopy(mod, this);
-    }
+        : base(mod) { }
 
-    public virtual void OnQuadBuildVertex(in QuadBuildData data)
+    public override void OnQuadBuildVertex(in QuadBuildData data)
     {
         BuildVertices(in data.burstData);
     }
-
-    public virtual void OnQuadBuildVertexHeight(in QuadBuildData data) { }
 
     [BurstCompile(FloatMode = FloatMode.Fast)]
     [BurstPQSAutoPatch]

@@ -1,21 +1,24 @@
 namespace BurstPQS.Mod;
 
-public class VertexHeightMapStep : PQSMod_VertexHeightMapStep, IBatchPQSMod
+public class VertexHeightMapStep : BatchPQSMod<PQSMod_VertexHeightMapStep>
 {
-    public void OnQuadBuildVertex(in QuadBuildData data) { }
+    public VertexHeightMapStep(PQSMod_VertexHeightMapStep mod)
+        : base(mod) { }
 
-    public void OnQuadBuildVertexHeight(in QuadBuildData data)
+    public override void OnQuadBuildVertexHeight(in QuadBuildData data)
     {
         // TODO: Accessing textures in burst is hard for now. Need to build
         //       something that allows working with the raw texture data.
         var vc = data.VertexCount;
         for (int i = 0; i < vc; ++i)
         {
-            double h = heightMap.GetPixelBilinear((float)data.sx[i], (float)data.sy[i]).grayscale;
-            if (h >= coastHeight)
-                data.vertHeight[i] += heightMapOffset + h * heightDeformity;
+            double h = mod
+                .heightMap.GetPixelBilinear((float)data.sx[i], (float)data.sy[i])
+                .grayscale;
+            if (h >= mod.coastHeight)
+                data.vertHeight[i] += mod.heightMapOffset + h * mod.heightDeformity;
             else
-                data.vertHeight[i] += heightMapOffset;
+                data.vertHeight[i] += mod.heightMapOffset;
         }
     }
 }

@@ -4,21 +4,22 @@ using Unity.Burst;
 namespace BurstPQS.Mod;
 
 [BurstCompile]
-public class VertexHeightMap : PQSMod_VertexHeightMap, IBatchPQSMod
+public class VertexHeightMap : BatchPQSMod<PQSMod_VertexHeightMap>
 {
-    public void OnQuadBuildVertex(in QuadBuildData data) { }
+    public VertexHeightMap(PQSMod_VertexHeightMap mod)
+        : base(mod) { }
 
-    public void OnQuadBuildVertexHeight(in QuadBuildData data)
+    public override void OnQuadBuildVertexHeight(in QuadBuildData data)
     {
-        using var guard = BurstMapSO.Create(heightMap, out var mapSO);
-        BuildHeight(in data.burstData, in mapSO, heightMapOffset, heightMapDeformity);
+        using var guard = BurstMapSO.Create(mod.heightMap, out var mapSO);
+        BuildHeight(in data.burstData, in mapSO, mod.heightMapOffset, mod.heightMapDeformity);
     }
 
     [BurstCompile(FloatMode = FloatMode.Fast)]
     [BurstPQSAutoPatch]
     static void BuildHeight(
-        in BurstQuadBuildData data,
-        in BurstMapSO heightMap,
+        [NoAlias] in BurstQuadBuildData data,
+        [NoAlias] in BurstMapSO heightMap,
         double heightMapOffset,
         double heightMapDeformity
     )

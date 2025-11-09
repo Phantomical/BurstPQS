@@ -6,25 +6,26 @@ using Unity.Burst;
 namespace BurstPQS.Mod;
 
 [BurstCompile]
-public class VertexRidgedAltitudeCurve : PQSMod_VertexRidgedAltitudeCurve, IBatchPQSMod
+public class VertexRidgedAltitudeCurve : BatchPQSMod<PQSMod_VertexRidgedAltitudeCurve>
 {
-    public void OnQuadBuildVertex(in QuadBuildData data) { }
+    public VertexRidgedAltitudeCurve(PQSMod_VertexRidgedAltitudeCurve mod)
+        : base(mod) { }
 
-    public void OnQuadBuildVertexHeight(in QuadBuildData data)
+    public override void OnQuadBuildVertexHeight(in QuadBuildData data)
     {
-        using var g0 = BurstSimplex.Create(simplex, out var bsimplex);
-        using var g1 = BurstAnimationCurve.Create(simplexCurve, out var bsimplexCurve);
+        using var g0 = BurstSimplex.Create(mod.simplex, out var bsimplex);
+        using var g1 = BurstAnimationCurve.Create(mod.simplexCurve, out var bsimplexCurve);
 
         BuildHeights(
             in data.burstData,
             in bsimplex,
-            new(ridgedAdd),
+            new(mod.ridgedAdd),
             in bsimplexCurve,
-            simplexHeightStart,
-            sphere != null ? sphere.radiusMax : ridgedMinimum,
-            hDeltaR,
-            ridgedMinimum,
-            deformity
+            mod.simplexHeightStart,
+            mod.sphere != null ? mod.sphere.radiusMax : mod.ridgedMinimum,
+            mod.hDeltaR,
+            mod.ridgedMinimum,
+            mod.deformity
         );
     }
 

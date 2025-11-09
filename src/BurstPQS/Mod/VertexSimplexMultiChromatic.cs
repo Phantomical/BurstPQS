@@ -6,14 +6,17 @@ using UnityEngine;
 namespace BurstPQS.Mod;
 
 [BurstCompile]
-public class VertexSimplexMultiChromatic : PQSMod_VertexSimplexMultiChromatic, IBatchPQSMod
+public class VertexSimplexMultiChromatic : BatchPQSMod<PQSMod_VertexSimplexMultiChromatic>
 {
-    public void OnQuadBuildVertex(in QuadBuildData data)
+    public VertexSimplexMultiChromatic(PQSMod_VertexSimplexMultiChromatic mod)
+        : base(mod) { }
+
+    public override void OnQuadBuildVertex(in QuadBuildData data)
     {
-        using var g0 = BurstSimplex.Create(redSimplex, out var brSimplex);
-        using var g1 = BurstSimplex.Create(blueSimplex, out var bbSimplex);
-        using var g2 = BurstSimplex.Create(greenSimplex, out var bgSimplex);
-        using var g3 = BurstSimplex.Create(alphaSimplex, out var baSimplex);
+        using var g0 = BurstSimplex.Create(mod.redSimplex, out var brSimplex);
+        using var g1 = BurstSimplex.Create(mod.blueSimplex, out var bbSimplex);
+        using var g2 = BurstSimplex.Create(mod.greenSimplex, out var bgSimplex);
+        using var g3 = BurstSimplex.Create(mod.alphaSimplex, out var baSimplex);
 
         BuildVertices(
             in data.burstData,
@@ -21,11 +24,9 @@ public class VertexSimplexMultiChromatic : PQSMod_VertexSimplexMultiChromatic, I
             in bbSimplex,
             in bgSimplex,
             in baSimplex,
-            blend
+            mod.blend
         );
     }
-
-    public void OnQuadBuildVertexHeight(in QuadBuildData data) { }
 
     [BurstCompile(FloatMode = FloatMode.Fast)]
     [BurstPQSAutoPatch]

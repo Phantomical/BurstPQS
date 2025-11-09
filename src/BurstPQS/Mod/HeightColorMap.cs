@@ -1,5 +1,4 @@
 using System;
-using System.ComponentModel.Design;
 using BurstPQS.Collections;
 using BurstPQS.Util;
 using Unity.Burst;
@@ -8,9 +7,9 @@ using UnityEngine;
 namespace BurstPQS.Mod;
 
 [BurstCompile]
-public class HeightColorMap : PQSMod_HeightColorMap, IBatchPQSMod
+public class HeightColorMap : BatchPQSMod<PQSMod_HeightColorMap>
 {
-    public struct BurstLandClass(LandClass landClass)
+    public struct BurstLandClass(PQSMod_HeightColorMap.LandClass landClass)
     {
         public double altStart = landClass.altStart;
         public double altEnd = landClass.altEnd;
@@ -21,20 +20,18 @@ public class HeightColorMap : PQSMod_HeightColorMap, IBatchPQSMod
     public BurstLandClass[] burstLandClasses;
 
     public HeightColorMap(PQSMod_HeightColorMap mod)
-    {
-        CloneUtil.MemberwiseCopy(mod, this);
-    }
+        : base(mod) { }
 
     public override void OnSetup()
     {
         base.OnSetup();
 
-        burstLandClasses = new BurstLandClass[landClasses.Length];
-        for (int i = 0; i < landClasses.Length; ++i)
-            burstLandClasses[i] = new(landClasses[i]);
+        burstLandClasses = new BurstLandClass[mod.landClasses.Length];
+        for (int i = 0; i < mod.landClasses.Length; ++i)
+            burstLandClasses[i] = new(mod.landClasses[i]);
     }
 
-    public virtual unsafe void OnQuadBuildVertex(in QuadBuildData data)
+    public override unsafe void OnQuadBuildVertex(in QuadBuildData data)
     {
         if (burstLandClasses is null)
             throw new NullReferenceException("burstLandClasses was null");
@@ -44,14 +41,12 @@ public class HeightColorMap : PQSMod_HeightColorMap, IBatchPQSMod
             BuildVertices(
                 in data.burstData,
                 new(pClasses, burstLandClasses.Length),
-                sphere.radiusMin,
-                sphere.radiusDelta,
-                blend
+                mod.sphere.radiusMin,
+                mod.sphere.radiusDelta,
+                mod.blend
             );
         }
     }
-
-    public virtual void OnQuadBuildVertexHeight(in QuadBuildData data) { }
 
     [BurstCompile(FloatMode = FloatMode.Fast)]
     [BurstPQSAutoPatch]

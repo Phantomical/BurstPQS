@@ -1,38 +1,38 @@
 using BurstPQS.Noise;
 using BurstPQS.Util;
 using Unity.Burst;
+using UnityEngine;
 using IModule = LibNoise.IModule;
 
 namespace BurstPQS.Mod;
 
 [BurstCompile]
-public class VertexHeightNoiseVertHeightCurve
-    : PQSMod_VertexHeightNoiseVertHeightCurve,
-        IBatchPQSMod
+public class VertexHeightNoiseVertHeightCurve : BatchPQSMod<PQSMod_VertexHeightNoiseVertHeightCurve>
 {
-    public void OnQuadBuildVertexHeight(in QuadBuildData data)
+    public VertexHeightNoiseVertHeightCurve(PQSMod_VertexHeightNoiseVertHeightCurve mod)
+        : base(mod) { }
+
+    public override void OnQuadBuildVertexHeight(in QuadBuildData data)
     {
         var p = new Params
         {
-            sphereRadiusMin = sphere.radiusMin,
-            heightStart = heightStart,
-            heightEnd = heightEnd,
-            deformity = deformity,
+            sphereRadiusMin = mod.sphere.radiusMin,
+            heightStart = mod.heightStart,
+            heightEnd = mod.heightEnd,
+            deformity = mod.deformity,
         };
 
-        using var guard = BurstAnimationCurve.Create(curve, out var bcurve);
+        using var guard = BurstAnimationCurve.Create(mod.curve, out var bcurve);
 
-        if (noiseMap is LibNoise.Perlin perlin)
+        if (mod.noiseMap is LibNoise.Perlin perlin)
             BuildVertexPerlin(in data.burstData, new(perlin), in bcurve, in p);
-        else if (noiseMap is LibNoise.RidgedMultifractal multi)
+        else if (mod.noiseMap is LibNoise.RidgedMultifractal multi)
             BuildVertexRidgedMultifractal(in data.burstData, new(multi), in bcurve, in p);
-        else if (noiseMap is LibNoise.Billow billow)
+        else if (mod.noiseMap is LibNoise.Billow billow)
             BuildVertexBillow(in data.burstData, new(billow), in bcurve, in p);
         else
-            BuildVertex(in data.burstData, noiseMap, in bcurve, in p);
+            BuildVertex(in data.burstData, mod.noiseMap, in bcurve, in p);
     }
-
-    public void OnQuadBuildVertex(in QuadBuildData data) { }
 
     struct Params
     {

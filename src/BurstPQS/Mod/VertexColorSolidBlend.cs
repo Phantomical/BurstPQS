@@ -6,14 +6,15 @@ namespace BurstPQS.Mod;
 
 // This seems to be backwards in the KSP source?
 [BurstCompile]
-public class VertexColorSolidBlend : PQSMod_VertexColorSolid, IBatchPQSMod
+public class VertexColorSolidBlend : BatchPQSMod<PQSMod_VertexColorSolid>
 {
-    public void OnQuadBuildVertex(in QuadBuildData data)
-    {
-        BuildVertex(in data.burstData, in color);
-    }
+    public VertexColorSolidBlend(PQSMod_VertexColorSolid mod)
+        : base(mod) { }
 
-    public void OnQuadBuildVertexHeight(in QuadBuildData data) { }
+    public override void OnQuadBuildVertex(in QuadBuildData data)
+    {
+        BuildVertex(in data.burstData, in mod.color);
+    }
 
     [BurstCompile]
     [BurstPQSAutoPatch]

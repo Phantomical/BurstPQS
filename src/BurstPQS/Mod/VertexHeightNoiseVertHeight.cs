@@ -6,31 +6,32 @@ using IModule = LibNoise.IModule;
 namespace BurstPQS.Mod;
 
 [BurstCompile(FloatMode = FloatMode.Fast)]
-public class VertexHeightNoiseVertHeight : PQSMod_VertexHeightNoiseVertHeight, IBatchPQSMod
+public class VertexHeightNoiseVertHeight : BatchPQSMod<PQSMod_VertexHeightNoiseVertHeight>
 {
-    public void OnQuadBuildVertexHeight(in QuadBuildData data)
+    public VertexHeightNoiseVertHeight(PQSMod_VertexHeightNoiseVertHeight mod)
+        : base(mod) { }
+
+    public override void OnQuadBuildVertexHeight(in QuadBuildData data)
     {
         var p = new Params
         {
-            sphereRadiusMin = sphere.radiusMin,
-            sphereRadiusDelta = sphere.radiusDelta,
-            heightStart = heightStart,
-            heightEnd = heightEnd,
-            hDeltaR = hDeltaR,
-            deformity = deformity,
+            sphereRadiusMin = mod.sphere.radiusMin,
+            sphereRadiusDelta = mod.sphere.radiusDelta,
+            heightStart = mod.heightStart,
+            heightEnd = mod.heightEnd,
+            hDeltaR = mod.hDeltaR,
+            deformity = mod.deformity,
         };
 
-        if (noiseMap is LibNoise.Perlin perlin)
+        if (mod.noiseMap is LibNoise.Perlin perlin)
             BuildVertexPerlin(in data.burstData, new(perlin), in p);
-        else if (noiseMap is LibNoise.RidgedMultifractal multi)
+        else if (mod.noiseMap is LibNoise.RidgedMultifractal multi)
             BuildVertexRidgedMultifractal(in data.burstData, new(multi), in p);
-        else if (noiseMap is LibNoise.Billow billow)
+        else if (mod.noiseMap is LibNoise.Billow billow)
             BuildVertexBillow(in data.burstData, new(billow), in p);
         else
-            BuildVertex(in data.burstData, noiseMap, in p);
+            BuildVertex(in data.burstData, mod.noiseMap, in p);
     }
-
-    public void OnQuadBuildVertex(in QuadBuildData data) { }
 
     struct Params
     {

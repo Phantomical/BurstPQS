@@ -7,11 +7,14 @@ using IModule = LibNoise.IModule;
 namespace BurstPQS.Mod;
 
 [BurstCompile]
-public class VertexHeightNoiseHeightMap : PQSMod_VertexHeightNoiseHeightMap, IBatchPQSMod
+public class VertexHeightNoiseHeightMap : BatchPQSMod<PQSMod_VertexHeightNoiseHeightMap>
 {
     static float[] HeightMapData;
 
-    public unsafe void OnQuadBuildVertexHeight(in QuadBuildData data)
+    public VertexHeightNoiseHeightMap(PQSMod_VertexHeightNoiseHeightMap mod)
+        : base(mod) { }
+
+    public override unsafe void OnQuadBuildVertexHeight(in QuadBuildData data)
     {
         int vc = data.VertexCount;
         if (HeightMapData is null || HeightMapData.Length != vc)
@@ -21,57 +24,55 @@ public class VertexHeightNoiseHeightMap : PQSMod_VertexHeightNoiseHeightMap, IBa
         {
             for (int i = 0; i < vc; ++i)
             {
-                heightMapData[i] = heightMap
-                    .GetPixelBilinear((float)data.sx[i], (float)data.sy[i])
+                heightMapData[i] = mod
+                    .heightMap.GetPixelBilinear((float)data.sx[i], (float)data.sy[i])
                     .grayscale;
             }
 
             var hmap = new MemorySpan<float>(heightMapData, data.VertexCount);
 
-            if (noiseMap is LibNoise.Perlin perlin)
+            if (mod.noiseMap is LibNoise.Perlin perlin)
                 BuildVertexPerlin(
                     in data.burstData,
                     new(perlin),
                     hmap,
-                    heightStart,
-                    heightEnd,
-                    hDeltaR,
-                    deformity
+                    mod.heightStart,
+                    mod.heightEnd,
+                    mod.hDeltaR,
+                    mod.deformity
                 );
-            else if (noiseMap is LibNoise.RidgedMultifractal multi)
+            else if (mod.noiseMap is LibNoise.RidgedMultifractal multi)
                 BuildVertexRidgedMultifractal(
                     in data.burstData,
                     new(multi),
                     hmap,
-                    heightStart,
-                    heightEnd,
-                    hDeltaR,
-                    deformity
+                    mod.heightStart,
+                    mod.heightEnd,
+                    mod.hDeltaR,
+                    mod.deformity
                 );
-            else if (noiseMap is LibNoise.Billow billow)
+            else if (mod.noiseMap is LibNoise.Billow billow)
                 BuildVertexBillow(
                     in data.burstData,
                     new(billow),
                     hmap,
-                    heightStart,
-                    heightEnd,
-                    hDeltaR,
-                    deformity
+                    mod.heightStart,
+                    mod.heightEnd,
+                    mod.hDeltaR,
+                    mod.deformity
                 );
             else
                 BuildVertex(
                     in data.burstData,
-                    noiseMap,
+                    mod.noiseMap,
                     hmap,
-                    heightStart,
-                    heightEnd,
-                    hDeltaR,
-                    deformity
+                    mod.heightStart,
+                    mod.heightEnd,
+                    mod.hDeltaR,
+                    mod.deformity
                 );
         }
     }
-
-    public void OnQuadBuildVertex(in QuadBuildData data) { }
 
     static void BuildVertex<N>(
         in BurstQuadBuildData data,

@@ -9,30 +9,28 @@ using UnityEngine;
 namespace BurstPQS.Mod;
 
 [BurstCompile]
-public class MapDecalTangent : PQSMod_MapDecal, IBatchPQSMod
+public class MapDecalTangent : BatchPQSMod<PQSMod_MapDecalTangent>
 {
-    new bool[] vertActive;
+    bool[] vertActive;
 
-    public MapDecalTangent(PQSMod_MapDecal mod)
-    {
-        CloneUtil.MemberwiseCopy(mod, this);
-    }
+    public MapDecalTangent(PQSMod_MapDecalTangent mod)
+        : base(mod) { }
 
-    public unsafe void OnQuadBuildVertexHeight(in QuadBuildData data)
+    public override unsafe void OnQuadBuildVertexHeight(in QuadBuildData data)
     {
-        if (!quadActive && buildHeight)
+        if (!mod.quadActive && mod.buildHeight)
             return;
 
         if (vertActive is null || vertActive.Length != data.VertexCount)
             vertActive = new bool[data.VertexCount];
 
-        var info = new BurstInfo(this);
+        var info = new BurstInfo(mod);
         BurstMapSO.MapSOGuard? guard = null;
         BurstMapSO? heightMap = null;
 
-        if (this.heightMap is not null)
+        if (mod.heightMap is not null)
         {
-            guard = BurstMapSO.Create(this.heightMap, out var map);
+            guard = BurstMapSO.Create(mod.heightMap, out var map);
             heightMap = map;
         }
 
@@ -44,8 +42,8 @@ public class MapDecalTangent : PQSMod_MapDecal, IBatchPQSMod
                     in data.burstData,
                     in info,
                     heightMap,
-                    sphere.isBuildingMaps,
-                    sphere.radius,
+                    mod.sphere.isBuildingMaps,
+                    mod.sphere.radius,
                     new(pVertActive, vertActive.Length)
                 );
             }
@@ -56,20 +54,20 @@ public class MapDecalTangent : PQSMod_MapDecal, IBatchPQSMod
         }
     }
 
-    public unsafe void OnQuadBuildVertex(in QuadBuildData data)
+    public override unsafe void OnQuadBuildVertex(in QuadBuildData data)
     {
-        if (!quadActive && buildHeight)
+        if (!mod.quadActive && mod.buildHeight)
             return;
         if (vertActive is null)
             return;
 
-        var info = new BurstInfo(this);
+        var info = new BurstInfo(mod);
         BurstMapSO.MapSOGuard? guard = null;
         BurstMapSO? colorMap = null;
 
-        if (this.colorMap is not null)
+        if (mod.colorMap is not null)
         {
-            guard = BurstMapSO.Create(this.colorMap, out var map);
+            guard = BurstMapSO.Create(mod.colorMap, out var map);
             colorMap = map;
         }
 
@@ -81,7 +79,7 @@ public class MapDecalTangent : PQSMod_MapDecal, IBatchPQSMod
                     in data.burstData,
                     in info,
                     colorMap,
-                    sphere.radius,
+                    mod.sphere.radius,
                     new(pVertActive, vertActive.Length)
                 );
             }
@@ -119,7 +117,7 @@ public class MapDecalTangent : PQSMod_MapDecal, IBatchPQSMod
         info.BuildVerts(in data, colorMap, vertActive, sphereRadius);
     }
 
-    struct BurstInfo(MapDecalTangent mod)
+    struct BurstInfo(PQSMod_MapDecalTangent mod)
     {
         public double radius = mod.radius;
 
@@ -131,7 +129,7 @@ public class MapDecalTangent : PQSMod_MapDecal, IBatchPQSMod
 
         public bool absolute = mod.absolute;
 
-        public float absoluteOffset = mod.absoluteOffset;
+        public double absoluteOffset = mod.absoluteOffset;
 
         public float smoothHeight = mod.smoothHeight;
 

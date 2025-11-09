@@ -9,35 +9,18 @@ public interface IBatchPQSMod
     void OnQuadBuildVertexHeight(in QuadBuildData data);
 }
 
-public abstract class BatchPQSMod : PQSMod, IBatchPQSMod
+public abstract class BatchPQSMod : IBatchPQSMod
 {
+    public virtual void OnSetup() { }
+
     public virtual void OnQuadBuildVertex(in QuadBuildData data) { }
 
     public virtual void OnQuadBuildVertexHeight(in QuadBuildData data) { }
+}
 
-    public override unsafe void OnVertexBuild(PQS.VertexBuildData data)
-    {
-        SingleVertexData vdata = default;
-        vdata.CopyFrom(data);
-        QuadBuildData qdata;
-        qdata.buildQuad = data.buildQuad;
-        qdata.burstData = new(data.buildQuad, &vdata, data.vertIndex);
+public abstract class BatchPQSMod<T>(T mod) : BatchPQSMod
+{
+    protected T mod = mod;
 
-        OnQuadBuildVertex(in qdata);
-
-        vdata.CopyTo(data);
-    }
-
-    public override unsafe void OnVertexBuildHeight(PQS.VertexBuildData data)
-    {
-        SingleVertexData vdata = default;
-        vdata.CopyFrom(data);
-        QuadBuildData qdata;
-        qdata.buildQuad = data.buildQuad;
-        qdata.burstData = new(data.buildQuad, &vdata, data.vertIndex);
-
-        OnQuadBuildVertexHeight(in qdata);
-
-        vdata.CopyTo(data);
-    }
+    public T Mod => mod;
 }

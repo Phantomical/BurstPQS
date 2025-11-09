@@ -5,14 +5,15 @@ using UnityEngine;
 namespace BurstPQS.Mod;
 
 [BurstCompile]
-public class VertexColorSolid : PQSMod_VertexColorSolid, IBatchPQSMod
+public class VertexColorSolid : BatchPQSMod<PQSMod_VertexColorSolid>
 {
-    public void OnQuadBuildVertex(in QuadBuildData data)
-    {
-        BuildVertex(in data.burstData, in color, blend);
-    }
+    public VertexColorSolid(PQSMod_VertexColorSolid mod)
+        : base(mod) { }
 
-    public void OnQuadBuildVertexHeight(in QuadBuildData data) { }
+    public override void OnQuadBuildVertex(in QuadBuildData data)
+    {
+        BuildVertex(in data.burstData, in mod.color, mod.blend);
+    }
 
     [BurstCompile(FloatMode = FloatMode.Fast)]
     [BurstPQSAutoPatch]

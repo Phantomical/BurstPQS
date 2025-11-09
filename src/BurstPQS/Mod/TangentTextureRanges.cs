@@ -6,22 +6,23 @@ using Unity.Burst;
 namespace BurstPQS.Mod;
 
 [BurstCompile]
-public class TangentTextureRanges : PQSMod_TangentTextureRanges, IBatchPQSMod
+public class TangentTextureRanges : BatchPQSMod<PQSMod_TangentTextureRanges>
 {
-    public void OnQuadBuildVertexHeight(in QuadBuildData data) { }
+    public TangentTextureRanges(PQSMod_TangentTextureRanges mod)
+        : base(mod) { }
 
-    public unsafe void OnQuadBuildVertex(in QuadBuildData data)
+    public override unsafe void OnQuadBuildVertex(in QuadBuildData data)
     {
-        fixed (float* pTangentX = tangentX)
+        fixed (float* pTangentX = PQSMod_TangentTextureRanges.tangentX)
         {
             BuildTangents(
                 in data.burstData,
-                new(pTangentX, tangentX.Length),
-                modulo,
-                lowStart,
-                lowEnd,
-                highStart,
-                highEnd
+                new(pTangentX, PQSMod_TangentTextureRanges.tangentX.Length),
+                mod.modulo,
+                mod.lowStart,
+                mod.lowEnd,
+                mod.highStart,
+                mod.highEnd
             );
         }
     }
@@ -56,7 +57,7 @@ public class TangentTextureRanges : PQSMod_TangentTextureRanges, IBatchPQSMod
         }
     }
 
-    static new double SmoothStep(double a, double b, double x)
+    static double SmoothStep(double a, double b, double x)
     {
         var t = MathUtil.Clamp01((x - a) / (b - a));
         return t * t * (3.0 - 2.0 * t);

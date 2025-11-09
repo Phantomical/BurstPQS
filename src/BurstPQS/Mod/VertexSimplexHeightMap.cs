@@ -5,22 +5,23 @@ using Unity.Burst;
 namespace BurstPQS.Mod;
 
 [BurstCompile]
-public class VertexSimplexHeightMap : PQSMod_VertexSimplexHeightMap, IBatchPQSMod
+public class VertexSimplexHeightMap : BatchPQSMod<PQSMod_VertexSimplexHeightMap>
 {
-    public void OnQuadBuildVertex(in QuadBuildData data) { }
+    public VertexSimplexHeightMap(PQSMod_VertexSimplexHeightMap mod)
+        : base(mod) { }
 
-    public void OnQuadBuildVertexHeight(in QuadBuildData data)
+    public override void OnQuadBuildVertexHeight(in QuadBuildData data)
     {
-        using var g0 = BurstSimplex.Create(simplex, out var bsimplex);
-        using var g1 = BurstMapSO.Create(heightMap, out var bheightMap);
+        using var g0 = BurstSimplex.Create(mod.simplex, out var bsimplex);
+        using var g1 = BurstMapSO.Create(mod.heightMap, out var bheightMap);
 
         BuildHeights(
             in data.burstData,
             in bsimplex,
             in bheightMap,
-            heightStart,
-            heightEnd,
-            deformity
+            mod.heightStart,
+            mod.heightEnd,
+            mod.deformity
         );
     }
 

@@ -6,16 +6,17 @@ using UnityEngine;
 namespace BurstPQS.Mod;
 
 [BurstCompile]
-public class VertexSimplexNoiseColor : PQSMod_VertexSimplexNoiseColor, IBatchPQSMod
+public class VertexSimplexNoiseColor : BatchPQSMod<PQSMod_VertexSimplexNoiseColor>
 {
-    public void OnQuadBuildVertex(in QuadBuildData data)
+    public VertexSimplexNoiseColor(PQSMod_VertexSimplexNoiseColor mod)
+        : base(mod) { }
+
+    public override void OnQuadBuildVertex(in QuadBuildData data)
     {
-        using var g0 = BurstSimplex.Create(simplex, out var bsimplex);
+        using var g0 = BurstSimplex.Create(mod.simplex, out var bsimplex);
 
-        BuildVertices(in data.burstData, in bsimplex, colorStart, colorEnd, blend);
+        BuildVertices(in data.burstData, in bsimplex, mod.colorStart, mod.colorEnd, mod.blend);
     }
-
-    public void OnQuadBuildVertexHeight(in QuadBuildData data) { }
 
     [BurstCompile(FloatMode = FloatMode.Fast)]
     [BurstPQSAutoPatch]

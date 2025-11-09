@@ -5,13 +5,14 @@ using Unity.Burst;
 namespace BurstPQS.Mod;
 
 [BurstCompile]
-public class VertexVoronoi : PQSMod_VertexVoronoi, IBatchPQSMod
+public class VertexVoronoi : BatchPQSMod<PQSMod_VertexVoronoi>
 {
-    public void OnQuadBuildVertex(in QuadBuildData data) { }
+    public VertexVoronoi(PQSMod_VertexVoronoi mod)
+        : base(mod) { }
 
-    public void OnQuadBuildVertexHeight(in QuadBuildData data)
+    public override void OnQuadBuildVertexHeight(in QuadBuildData data)
     {
-        BuildHeights(in data.burstData, new(voronoi), deformation);
+        BuildHeights(in data.burstData, new(mod.voronoi), mod.deformation);
     }
 
     [BurstCompile(FloatMode = FloatMode.Fast)]

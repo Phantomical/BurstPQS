@@ -7,20 +7,37 @@ using UnityEngine;
 namespace BurstPQS.Mod;
 
 [BurstCompile]
-public class VertexSimplexColorRGB : PQSMod_VertexSimplexColorRGB, IBatchPQSMod
+public class VertexSimplexColorRGB : BatchPQSMod<PQSMod_VertexSimplexColorRGB>
 {
-    public void OnQuadBuildVertex(in QuadBuildData data)
-    {
-        using var g0 = BurstSimplex.Create(simplex, out var bsimplex);
+    public VertexSimplexColorRGB(PQSMod_VertexSimplexColorRGB mod)
+        : base(mod) { }
 
-        BuildVertices(in data.burstData, in bsimplex, rBlend, gBlend, bBlend, blend);
+    public override void OnQuadBuildVertex(in QuadBuildData data)
+    {
+        using var g0 = BurstSimplex.Create(mod.simplex, out var bsimplex);
+
+        BuildVertices(
+            in data.burstData,
+            in bsimplex,
+            mod.rBlend,
+            mod.gBlend,
+            mod.bBlend,
+            mod.blend
+        );
     }
 
-    public void OnQuadBuildVertexHeight(in QuadBuildData data)
+    public override void OnQuadBuildVertexHeight(in QuadBuildData data)
     {
-        using var g0 = BurstSimplex.Create(simplex, out var bsimplex);
+        using var g0 = BurstSimplex.Create(mod.simplex, out var bsimplex);
 
-        BuildVertices(in data.burstData, in bsimplex, rBlend, gBlend, bBlend, blend);
+        BuildVertices(
+            in data.burstData,
+            in bsimplex,
+            mod.rBlend,
+            mod.gBlend,
+            mod.bBlend,
+            mod.blend
+        );
     }
 
     [BurstCompile(FloatMode = FloatMode.Fast)]

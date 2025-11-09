@@ -7,9 +7,9 @@ using UnityEngine;
 namespace BurstPQS.Mod;
 
 [BurstCompile]
-public class HeightColorMapNoise : PQSMod_HeightColorMapNoise, IBatchPQSMod
+public class HeightColorMapNoise : BatchPQSMod<PQSMod_HeightColorMapNoise>
 {
-    public struct BurstLandClass(LandClass landClass)
+    public struct BurstLandClass(PQSMod_HeightColorMapNoise.LandClass landClass)
     {
         public double altStart = landClass.altStart;
         public double altEnd = landClass.altEnd;
@@ -20,20 +20,18 @@ public class HeightColorMapNoise : PQSMod_HeightColorMapNoise, IBatchPQSMod
     public BurstLandClass[] burstLandClasses;
 
     public HeightColorMapNoise(PQSMod_HeightColorMapNoise mod)
-    {
-        CloneUtil.MemberwiseCopy(mod, this);
-    }
+        : base(mod) { }
 
     public override void OnSetup()
     {
         base.OnSetup();
 
-        burstLandClasses = new BurstLandClass[landClasses.Length];
-        for (int i = 0; i < landClasses.Length; ++i)
-            burstLandClasses[i] = new(landClasses[i]);
+        burstLandClasses = new BurstLandClass[mod.landClasses.Length];
+        for (int i = 0; i < mod.landClasses.Length; ++i)
+            burstLandClasses[i] = new(mod.landClasses[i]);
     }
 
-    public virtual unsafe void OnQuadBuildVertex(in QuadBuildData data)
+    public override unsafe void OnQuadBuildVertex(in QuadBuildData data)
     {
         if (burstLandClasses is null)
             throw new NullReferenceException("burstLandClasses was null");
@@ -43,14 +41,12 @@ public class HeightColorMapNoise : PQSMod_HeightColorMapNoise, IBatchPQSMod
             BuildVertices(
                 in data.burstData,
                 new(pClasses, burstLandClasses.Length),
-                sphere.radiusMin,
-                sphere.radiusDelta,
-                blend
+                mod.sphere.radiusMin,
+                mod.sphere.radiusDelta,
+                mod.blend
             );
         }
     }
-
-    public virtual void OnQuadBuildVertexHeight(in QuadBuildData data) { }
 
     [BurstCompile(FloatMode = FloatMode.Fast)]
     [BurstPQSAutoPatch]

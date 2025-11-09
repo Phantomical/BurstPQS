@@ -2,17 +2,13 @@ using BurstPQS.Util;
 
 namespace BurstPQS.Mod;
 
-public class ROCControl : PQSROCControl, IBatchPQSMod
+public class ROCControl : BatchPQSMod<PQSROCControl>
 {
     public ROCControl(PQSROCControl mod)
-    {
-        CloneUtil.MemberwiseCopy(mod, this);
-    }
+        : base(mod) { }
 
-    public void OnQuadBuildVertex(in QuadBuildData data)
+    public override void OnQuadBuildVertex(in QuadBuildData data)
     {
-        allowROCScatter = data.allowScatter[data.VertexCount - 1];
+        mod.allowROCScatter = data.allowScatter[data.VertexCount - 1];
     }
-
-    public void OnQuadBuildVertexHeight(in QuadBuildData data) { }
 }

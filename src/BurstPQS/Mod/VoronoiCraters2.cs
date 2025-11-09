@@ -8,46 +8,54 @@ using UnityEngine;
 namespace BurstPQS.Mod;
 
 [BurstCompile]
-public class VoronoiCraters2 : PQSMod_VoronoiCraters2, IBatchPQSMod
+public class VoronoiCraters2 : BatchPQSMod<PQSMod_VoronoiCraters2>
 {
     float[] rs;
 
-    public unsafe void OnQuadBuildVertexHeight(in QuadBuildData data)
+    public VoronoiCraters2(PQSMod_VoronoiCraters2 mod)
+        : base(mod) { }
+
+    public override unsafe void OnQuadBuildVertexHeight(in QuadBuildData data)
     {
         if (rs is null || rs.Length != data.VertexCount)
             rs = new float[data.VertexCount];
 
-        using var g0 = BurstSimplex.Create(jitterSimplex, out var bjitterSimplex);
-        using var g1 = BurstAnimationCurve.Create(craterCurve, out var bcraterCurve);
-        using var g2 = BurstSimplex.Create(deformationSimplex, out var bdeformationSimplex);
+        using var g0 = BurstSimplex.Create(mod.jitterSimplex, out var bjitterSimplex);
+        using var g1 = BurstAnimationCurve.Create(mod.craterCurve, out var bcraterCurve);
+        using var g2 = BurstSimplex.Create(mod.deformationSimplex, out var bdeformationSimplex);
 
         fixed (float* prs = rs)
         {
             BuildHeights(
                 in data.burstData,
-                new(voronoi),
+                new(mod.voronoi),
                 in bjitterSimplex,
                 in bcraterCurve,
                 in bdeformationSimplex,
                 new(prs, rs.Length),
-                jitter,
-                deformation
+                mod.jitter,
+                mod.deformation
             );
         }
     }
 
-    public unsafe void OnQuadBuildVertex(in QuadBuildData data)
+    public override unsafe void OnQuadBuildVertex(in QuadBuildData data)
     {
         if (rs is null || rs.Length != data.VertexCount)
             throw new InvalidOperationException(
                 "OnQuadBuildVertex called but rs is null or the wrong size"
             );
 
-        using var g0 = BurstGradient.Create(craterColourRamp, out var bcolorRamp);
+        using var g0 = BurstGradient.Create(mod.craterColourRamp, out var bcolorRamp);
 
         fixed (float* prs = rs)
         {
-            BuildVertices(in data.burstData, in bcolorRamp, new(prs, rs.Length), DebugColorMapping);
+            BuildVertices(
+                in data.burstData,
+                in bcolorRamp,
+                new(prs, rs.Length),
+                mod.DebugColorMapping
+            );
         }
     }
 

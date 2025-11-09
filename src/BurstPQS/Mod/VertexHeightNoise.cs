@@ -6,21 +6,22 @@ using IModule = LibNoise.IModule;
 namespace BurstPQS.Mod;
 
 [BurstCompile]
-public class VertexHeightNoise : PQSMod_VertexHeightNoise, IBatchPQSMod
+public class VertexHeightNoise : BatchPQSMod<PQSMod_VertexHeightNoise>
 {
-    public void OnQuadBuildVertexHeight(in QuadBuildData data)
-    {
-        if (noiseMap is LibNoise.Perlin perlin)
-            BuildVertexPerlin(in data.burstData, new(perlin), deformity);
-        else if (noiseMap is LibNoise.RidgedMultifractal multi)
-            BuildVertexRidgedMultifractal(in data.burstData, new(multi), deformity);
-        else if (noiseMap is LibNoise.Billow billow)
-            BuildVertexBillow(in data.burstData, new(billow), deformity);
-        else
-            BuildVertex(in data.burstData, noiseMap, deformity);
-    }
+    public VertexHeightNoise(PQSMod_VertexHeightNoise mod)
+        : base(mod) { }
 
-    public void OnQuadBuildVertex(in QuadBuildData data) { }
+    public override void OnQuadBuildVertexHeight(in QuadBuildData data)
+    {
+        if (mod.noiseMap is LibNoise.Perlin perlin)
+            BuildVertexPerlin(in data.burstData, new(perlin), mod.deformity);
+        else if (mod.noiseMap is LibNoise.RidgedMultifractal multi)
+            BuildVertexRidgedMultifractal(in data.burstData, new(multi), mod.deformity);
+        else if (mod.noiseMap is LibNoise.Billow billow)
+            BuildVertexBillow(in data.burstData, new(billow), mod.deformity);
+        else
+            BuildVertex(in data.burstData, mod.noiseMap, mod.deformity);
+    }
 
     [BurstCompile(FloatMode = FloatMode.Fast)]
     [BurstPQSAutoPatch]

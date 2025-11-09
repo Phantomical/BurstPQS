@@ -5,19 +5,21 @@ using Unity.Burst;
 namespace BurstPQS.Mod;
 
 [BurstCompile]
-public class AltitudeUV : PQSMod_AltitudeUV, IBatchPQSMod
+public class AltitudeUV : BatchPQSMod<PQSMod_AltitudeUV>
 {
     public AltitudeUV(PQSMod_AltitudeUV mod)
-    {
-        CloneUtil.MemberwiseCopy(mod, this);
-    }
+        : base(mod) { }
 
-    public void OnQuadBuildVertex(in QuadBuildData data)
+    public override void OnQuadBuildVertex(in QuadBuildData data)
     {
-        BuildVertices(in data.burstData, sphere.radius, atmosphereHeight, oceanDepth, invert);
+        BuildVertices(
+            in data.burstData,
+            mod.sphere.radius,
+            mod.atmosphereHeight,
+            mod.oceanDepth,
+            mod.invert
+        );
     }
-
-    public void OnQuadBuildVertexHeight(in QuadBuildData data) { }
 
     [BurstCompile(FloatMode = FloatMode.Fast)]
     [BurstPQSAutoPatch]

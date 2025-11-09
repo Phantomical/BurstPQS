@@ -4,20 +4,21 @@ using Unity.Burst;
 namespace BurstPQS.Mod;
 
 [BurstCompile]
-public class RemoveQuadMap : PQSMod_RemoveQuadMap, IBatchPQSMod
+public class RemoveQuadMap : BatchPQSMod<PQSMod_RemoveQuadMap>
 {
     public RemoveQuadMap(PQSMod_RemoveQuadMap mod)
-    {
-        CloneUtil.MemberwiseCopy(mod, this);
-    }
+        : base(mod) { }
 
-    public void OnQuadBuildVertex(in QuadBuildData data)
+    public override void OnQuadBuildVertex(in QuadBuildData data)
     {
-        using var guard = BurstMapSO.Create(map, out var mapSO);
-        quadVisible = ShouldBeVisible(in data.burstData, in mapSO, minHeight, maxHeight);
+        using var guard = BurstMapSO.Create(mod.map, out var mapSO);
+        mod.quadVisible = ShouldBeVisible(
+            in data.burstData,
+            in mapSO,
+            mod.minHeight,
+            mod.maxHeight
+        );
     }
-
-    public void OnQuadBuildVertexHeight(in QuadBuildData data) { }
 
     [BurstCompile(FloatMode = FloatMode.Fast)]
     [BurstPQSAutoPatch]

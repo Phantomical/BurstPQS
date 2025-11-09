@@ -7,20 +7,21 @@ using IModule = LibNoise.IModule;
 namespace BurstPQS.Mod;
 
 [BurstCompile]
-public class VertexColorNoise : PQSMod_VertexColorNoise, IBatchPQSMod
+public class VertexColorNoise : BatchPQSMod<PQSMod_VertexColorNoise>
 {
-    public void OnQuadBuildVertexHeight(in QuadBuildData data) { }
+    public VertexColorNoise(PQSMod_VertexColorNoise mod)
+        : base(mod) { }
 
-    public void OnQuadBuildVertex(in QuadBuildData data)
+    public override void OnQuadBuildVertex(in QuadBuildData data)
     {
-        if (noiseMap is LibNoise.Perlin perlin)
-            BuildVertexPerlin(in data.burstData, new(perlin), blend);
-        else if (noiseMap is LibNoise.RidgedMultifractal multi)
-            BuildVertexRidgedMultifractal(in data.burstData, new(multi), blend);
-        else if (noiseMap is LibNoise.Billow billow)
-            BuildVertexBillow(in data.burstData, new(billow), blend);
+        if (mod.noiseMap is LibNoise.Perlin perlin)
+            BuildVertexPerlin(in data.burstData, new(perlin), mod.blend);
+        else if (mod.noiseMap is LibNoise.RidgedMultifractal multi)
+            BuildVertexRidgedMultifractal(in data.burstData, new(multi), mod.blend);
+        else if (mod.noiseMap is LibNoise.Billow billow)
+            BuildVertexBillow(in data.burstData, new(billow), mod.blend);
         else
-            BuildVertex(in data.burstData, noiseMap, blend);
+            BuildVertex(in data.burstData, mod.noiseMap, mod.blend);
     }
 
     [BurstCompile(FloatMode = FloatMode.Fast)]

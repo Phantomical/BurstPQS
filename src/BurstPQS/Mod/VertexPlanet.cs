@@ -8,9 +8,12 @@ using UnityEngine;
 namespace BurstPQS.Mod;
 
 [BurstCompile]
-public class VertexPlanet : PQSMod_VertexPlanet, IBatchPQSMod
+public class VertexPlanet : BatchPQSMod<PQSMod_VertexPlanet>
 {
-    struct BurstLandClass(LandClass lc, BurstSimplex simplex)
+    public VertexPlanet(PQSMod_VertexPlanet mod)
+        : base(mod) { }
+
+    struct BurstLandClass(PQSMod_VertexPlanet.LandClass lc, BurstSimplex simplex)
     {
         public double fractalStart = lc.fractalStart;
         public double fractalEnd = lc.fractalEnd;
@@ -30,33 +33,33 @@ public class VertexPlanet : PQSMod_VertexPlanet, IBatchPQSMod
         base.OnSetup();
 
         DisposeGuards();
-        burstLandClasses = new BurstLandClass[landClasses.Length];
-        landClassGuards = new BurstSimplex.Guard[landClasses.Length];
+        burstLandClasses = new BurstLandClass[mod.landClasses.Length];
+        landClassGuards = new BurstSimplex.Guard[mod.landClasses.Length];
 
-        for (int i = 0; i < landClasses.Length; ++i)
+        for (int i = 0; i < mod.landClasses.Length; ++i)
         {
-            var lc = landClasses[i];
+            var lc = mod.landClasses[i];
             landClassGuards[i] = BurstSimplex.Create(lc.colorNoiseMap.simplex, out var simplex);
             burstLandClasses[i] = new(lc, simplex);
         }
     }
 
-    public unsafe void OnQuadBuildVertexHeight(in QuadBuildData data)
+    public override unsafe void OnQuadBuildVertexHeight(in QuadBuildData data)
     {
         if (preSmoothHeights is null || preSmoothHeights.Length != data.VertexCount)
             preSmoothHeights = new double[data.VertexCount];
 
-        using var g0 = BurstSimplex.Create(this.continental.simplex, out var continental);
+        using var g0 = BurstSimplex.Create(mod.continental.simplex, out var continental);
         using var g1 = BurstSimplex.Create(
-            this.continentalSmoothing.simplex,
+            mod.continentalSmoothing.simplex,
             out var continentalSmoothing
         );
         using var g2 = BurstSimplex.Create(
-            this.continentalSharpnessMap.simplex,
+            mod.continentalSharpnessMap.simplex,
             out var continentalSharpnessMap
         );
         using var g3 = BurstSimplex.Create(
-            this.continentalRuggedness.simplex,
+            mod.continentalRuggedness.simplex,
             out var continentalRuggedness
         );
 
@@ -67,29 +70,29 @@ public class VertexPlanet : PQSMod_VertexPlanet, IBatchPQSMod
                 new(pPreSmoothHeights, preSmoothHeights.Length),
                 in continental,
                 in continentalSmoothing,
-                new((LibNoise.RidgedMultifractal)continentalSharpness.noise),
-                continentalSharpness.deformity,
+                new((LibNoise.RidgedMultifractal)mod.continentalSharpness.noise),
+                mod.continentalSharpness.deformity,
                 in continentalSharpnessMap,
-                this.continentalSharpnessMap.deformity,
+                mod.continentalSharpnessMap.deformity,
                 in continentalRuggedness,
-                this.continentalRuggedness.deformity,
-                terrainRidgeBalance,
-                terrainRidgesMax,
-                terrainRidgesMin,
-                terrainShapeStart,
-                terrainShapeEnd,
-                oceanLevel,
-                oceanDepth,
-                oceanStep,
-                oceanSnap,
-                deformity
+                mod.continentalRuggedness.deformity,
+                mod.terrainRidgeBalance,
+                mod.terrainRidgesMax,
+                mod.terrainRidgesMin,
+                mod.terrainShapeStart,
+                mod.terrainShapeEnd,
+                mod.oceanLevel,
+                mod.oceanDepth,
+                mod.oceanStep,
+                mod.oceanSnap,
+                mod.deformity
             );
         }
     }
 
-    public unsafe void OnQuadBuildVertex(in QuadBuildData data)
+    public override unsafe void OnQuadBuildVertex(in QuadBuildData data)
     {
-        using var g0 = BurstSimplex.Create(this.terrainType.simplex, out var terrainType);
+        using var g0 = BurstSimplex.Create(mod.terrainType.simplex, out var terrainType);
 
         fixed (BurstLandClass* pLandClasses = burstLandClasses)
         fixed (double* pPreSmoothHeights = preSmoothHeights)
@@ -99,10 +102,10 @@ public class VertexPlanet : PQSMod_VertexPlanet, IBatchPQSMod
                 new(pLandClasses, burstLandClasses.Length),
                 new(pPreSmoothHeights, preSmoothHeights.Length),
                 in terrainType,
-                this.terrainType.deformity,
-                buildHeightColors,
-                sphere.radius,
-                colorDeformity
+                mod.terrainType.deformity,
+                mod.buildHeightColors,
+                mod.sphere.radius,
+                mod.colorDeformity
             );
         }
     }
@@ -148,7 +151,7 @@ public class VertexPlanet : PQSMod_VertexPlanet, IBatchPQSMod
                 - continentalSmoothing.persistence * continental2Height;
             double continentialHeight = continental.noiseNormalized(dir);
             double continentialSharpnessValue = (continentalSharpness.GetValue(dir) + 1.0) * 0.5;
-            continentialSharpnessValue *= Lerp(
+            continentialSharpnessValue *= MathUtil.Lerp(
                 continentalSharpnessDeformity,
                 continentalSharpnessDeformity * terrainRidgeBalance,
                 (continental2Height + continentialSharpnessValue) * 0.5
@@ -158,7 +161,7 @@ public class VertexPlanet : PQSMod_VertexPlanet, IBatchPQSMod
                 terrainRidgesMin,
                 terrainRidgesMax
             );
-            continentialSharpnessValue += Lerp(
+            continentialSharpnessValue += MathUtil.Lerp(
                 0.0,
                 continentialSharpnessValue,
                 continentialSharpnessMapValue

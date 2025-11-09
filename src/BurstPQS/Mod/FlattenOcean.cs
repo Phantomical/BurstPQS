@@ -6,18 +6,14 @@ using Unity.Burst;
 namespace BurstPQS.Mod;
 
 [BurstCompile]
-public class FlattenOcean : PQSMod_FlattenOcean, IBatchPQSMod
+public class FlattenOcean : BatchPQSMod<PQSMod_FlattenOcean>
 {
     public FlattenOcean(PQSMod_FlattenOcean mod)
-    {
-        CloneUtil.MemberwiseCopy(mod, this);
-    }
+        : base(mod) { }
 
-    public virtual void OnQuadBuildVertex(in QuadBuildData data) { }
-
-    public virtual void OnQuadBuildVertexHeight(in QuadBuildData data)
+    public override void OnQuadBuildVertexHeight(in QuadBuildData data)
     {
-        BuildHeights(data.vertHeight, oceanRad);
+        BuildHeights(data.vertHeight, mod.oceanRad);
     }
 
     [BurstCompile(FloatMode = FloatMode.Fast)]

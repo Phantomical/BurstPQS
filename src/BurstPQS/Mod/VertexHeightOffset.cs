@@ -5,13 +5,14 @@ using Unity.Burst;
 namespace BurstPQS.Mod;
 
 [BurstCompile]
-public class VertexHeightOffset : PQSMod_VertexHeightOffset, IBatchPQSMod
+public class VertexHeightOffset : BatchPQSMod<PQSMod_VertexHeightOffset>
 {
-    public void OnQuadBuildVertex(in QuadBuildData data) { }
+    public VertexHeightOffset(PQSMod_VertexHeightOffset mod)
+        : base(mod) { }
 
-    public void OnQuadBuildVertexHeight(in QuadBuildData data)
+    public override void OnQuadBuildVertexHeight(in QuadBuildData data)
     {
-        BuildHeights(data.vertHeight, offset);
+        BuildHeights(data.vertHeight, mod.offset);
     }
 
     [BurstCompile]

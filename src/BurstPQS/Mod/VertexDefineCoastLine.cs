@@ -4,13 +4,14 @@ using Unity.Burst;
 namespace BurstPQS.Mod;
 
 [BurstCompile]
-public class VertexDefineCoastLine : PQSMod_VertexDefineCoastLine, IBatchPQSMod
+public class VertexDefineCoastLine : BatchPQSMod<PQSMod_VertexDefineCoastLine>
 {
-    public void OnQuadBuildVertex(in QuadBuildData data) { }
+    public VertexDefineCoastLine(PQSMod_VertexDefineCoastLine mod)
+        : base(mod) { }
 
-    public void OnQuadBuildVertexHeight(in QuadBuildData data)
+    public override void OnQuadBuildVertexHeight(in QuadBuildData data)
     {
-        BuildHeight(in data.burstData, oceanRadius, depthOffset);
+        BuildHeight(in data.burstData, mod.oceanRadius, mod.depthOffset);
     }
 
     [BurstCompile(FloatMode = FloatMode.Fast)]

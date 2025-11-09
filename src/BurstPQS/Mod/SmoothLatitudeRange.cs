@@ -5,13 +5,19 @@ using Unity.Burst;
 namespace BurstPQS.Mod;
 
 [BurstCompile]
-public class SmoothLatitudeRange : PQSMod_SmoothLatitudeRange, IBatchPQSMod
+public class SmoothLatitudeRange : BatchPQSMod<PQSMod_SmoothLatitudeRange>
 {
-    public void OnQuadBuildVertex(in QuadBuildData data) { }
+    public SmoothLatitudeRange(PQSMod_SmoothLatitudeRange mod)
+        : base(mod) { }
 
-    public void OnQuadBuildVertexHeight(in QuadBuildData data)
+    public override void OnQuadBuildVertexHeight(in QuadBuildData data)
     {
-        BuildVertexHeight(in data.burstData, new(latitudeRange), smoothToAltitude, sphere.radius);
+        BuildVertexHeight(
+            in data.burstData,
+            new(mod.latitudeRange),
+            mod.smoothToAltitude,
+            mod.sphere.radius
+        );
     }
 
     [BurstCompile(FloatMode = FloatMode.Fast)]

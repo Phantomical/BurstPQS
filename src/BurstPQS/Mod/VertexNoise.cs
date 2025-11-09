@@ -6,25 +6,26 @@ using Unity.Burst;
 namespace BurstPQS.Mod;
 
 [BurstCompile]
-public class VertexNoise : PQSMod_VertexNoise, IBatchPQSMod
+public class VertexNoise : BatchPQSMod<PQSMod_VertexNoise>
 {
-    public void OnQuadBuildVertex(in QuadBuildData data) { }
+    public VertexNoise(PQSMod_VertexNoise mod)
+        : base(mod) { }
 
-    public void OnQuadBuildVertexHeight(in QuadBuildData data)
+    public override void OnQuadBuildVertexHeight(in QuadBuildData data)
     {
-        var control = (LibNoise.Perlin)terrainHeightMap.ControlModule;
-        var input = (ScaleBiasOutput)terrainHeightMap.SourceModule1;
+        var control = (LibNoise.Perlin)mod.terrainHeightMap.ControlModule;
+        var input = (ScaleBiasOutput)mod.terrainHeightMap.SourceModule1;
         var billow = (LibNoise.Billow)input.SourceModule;
-        var ridged = (LibNoise.RidgedMultifractal)terrainHeightMap.SourceModule2;
+        var ridged = (LibNoise.RidgedMultifractal)mod.terrainHeightMap.SourceModule2;
 
         var noise = new Select<Perlin, ScaleBiasOutput<Billow>, RidgedMultifractal>(
-            terrainHeightMap,
+            mod.terrainHeightMap,
             new(control),
             new(input, new(billow)),
             new(ridged)
         );
 
-        BuildHeight(in data.burstData, in noise, sphere.radius, noiseDeformity);
+        BuildHeight(in data.burstData, in noise, mod.sphere.radius, mod.noiseDeformity);
     }
 
     [BurstCompile(FloatMode = FloatMode.Fast)]

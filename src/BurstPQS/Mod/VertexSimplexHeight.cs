@@ -5,15 +5,16 @@ using Unity.Burst;
 namespace BurstPQS.Mod;
 
 [BurstCompile]
-public class VertexSimplexHeight : PQSMod_VertexSimplexHeight, IBatchPQSMod
+public class VertexSimplexHeight : BatchPQSMod<PQSMod_VertexSimplexHeight>
 {
-    public void OnQuadBuildVertex(in QuadBuildData data) { }
+    public VertexSimplexHeight(PQSMod_VertexSimplexHeight mod)
+        : base(mod) { }
 
-    public void OnQuadBuildVertexHeight(in QuadBuildData data)
+    public override void OnQuadBuildVertexHeight(in QuadBuildData data)
     {
-        using var g0 = BurstSimplex.Create(simplex, out var bsimplex);
+        using var g0 = BurstSimplex.Create(mod.simplex, out var bsimplex);
 
-        BuildHeights(in data.burstData, in bsimplex, deformity);
+        BuildHeights(in data.burstData, in bsimplex, mod.deformity);
     }
 
     [BurstCompile(FloatMode = FloatMode.Fast)]
