@@ -18,7 +18,9 @@ public class VertexSimplexColorRGB : PQSMod_VertexSimplexColorRGB, IBatchPQSMod
 
     public void OnQuadBuildVertexHeight(in QuadBuildData data)
     {
-        
+        using var g0 = BurstSimplex.Create(simplex, out var bsimplex);
+
+        BuildVertices(in data.burstData, in bsimplex, rBlend, gBlend, bBlend, blend);
     }
 
     [BurstCompile(FloatMode = FloatMode.Fast)]
