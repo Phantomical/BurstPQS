@@ -10,7 +10,7 @@ public class VertexHeightOffset : BatchPQSMod<PQSMod_VertexHeightOffset>
     public VertexHeightOffset(PQSMod_VertexHeightOffset mod)
         : base(mod) { }
 
-    public override void OnQuadBuildVertexHeight(in QuadBuildData data)
+    public override void OnBatchVertexBuildHeight(in QuadBuildData data)
     {
         BuildHeights(data.vertHeight, mod.offset);
     }

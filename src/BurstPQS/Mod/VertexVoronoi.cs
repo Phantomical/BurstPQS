@@ -10,7 +10,7 @@ public class VertexVoronoi : BatchPQSMod<PQSMod_VertexVoronoi>
     public VertexVoronoi(PQSMod_VertexVoronoi mod)
         : base(mod) { }
 
-    public override void OnQuadBuildVertexHeight(in QuadBuildData data)
+    public override void OnBatchVertexBuildHeight(in QuadBuildData data)
     {
         BuildHeights(in data.burstData, new(mod.voronoi), mod.deformation);
     }

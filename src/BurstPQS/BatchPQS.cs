@@ -1,4 +1,5 @@
 using System;
+using System.Collections.Generic;
 using BurstPQS.Collections;
 using BurstPQS.Util;
 using Unity.Burst;
@@ -9,8 +10,9 @@ using UnityEngine;
 namespace BurstPQS;
 
 [BurstCompile]
-public unsafe class BatchPQS : PQS
+public unsafe class BatchPQS : Component
 {
+    private PQS pqs;
     private IBatchPQSMod[] batchMods;
 
     void Awake()
@@ -19,13 +21,11 @@ public unsafe class BatchPQS : PQS
         // ourselves, and then destroy it immediately.
         var pqs = GetComponent<PQS>();
 
-        MemberwiseCloneFrom(pqs);
-
         pqs.enabled = false;
         DestroyImmediate(pqs);
     }
 
-    public new bool BuildQuad(PQ quad)
+    public bool BuildQuad(PQ quad)
     {
         if (quad.isBuilt)
             return false;
@@ -35,36 +35,36 @@ public unsafe class BatchPQS : PQS
         if (quad == null || quad.gameObject == null)
             return false;
 
-        buildQuad = quad;
-        Mod_OnQuadPreBuild(quad);
+        pqs.buildQuad = quad;
+        pqs.Mod_OnQuadPreBuild(quad);
 
         using var buffer = new OwnedBuffer(
-            BurstQuadBuildData.GetRequiredBufferSize(cacheVertCount),
+            BurstQuadBuildData.GetRequiredBufferSize(PQS.cacheVertCount),
             Allocator.TempJob
         );
         buffer.Clear();
 
         QuadBuildData data = default;
         data.buildQuad = quad;
-        data.burstData = new(quad, buffer.Data, buffer.Length, cacheVertCount);
+        data.burstData = new(quad, buffer.Data, buffer.Length, PQS.cacheVertCount);
 
         InitBuildData(quad, in data);
 
         foreach (var mod in batchMods)
-            mod.OnQuadBuildVertexHeight(in data);
+            mod.OnBatchVertexBuildHeight(in data);
         foreach (var mod in batchMods)
-            mod.OnQuadBuildVertex(in data);
+            mod.OnBatchVertexBuild(in data);
 
-        if (!isFakeBuild)
+        if (!pqs.isFakeBuild)
             BuildVertices(in data);
 
-        buildQuad.mesh.vertices = buildQuad.verts;
-        buildQuad.mesh.triangles = cacheIndices[0];
-        buildQuad.mesh.RecalculateBounds();
-        buildQuad.edgeState = EdgeState.Reset;
-        Mod_OnMeshBuild();
-        Mod_OnQuadBuilt(quad);
-        buildQuad = null;
+        pqs.buildQuad.mesh.vertices = pqs.buildQuad.verts;
+        pqs.buildQuad.mesh.triangles = PQS.cacheIndices[0];
+        pqs.buildQuad.mesh.RecalculateBounds();
+        pqs.buildQuad.edgeState = PQS.EdgeState.Reset;
+        pqs.Mod_OnMeshBuild();
+        pqs.Mod_OnQuadBuilt(quad);
+        pqs.buildQuad = null;
         return true;
     }
 
@@ -72,14 +72,14 @@ public unsafe class BatchPQS : PQS
     #region InitBuildData
     void InitBuildData(PQ quad, in QuadBuildData data)
     {
-        fixed (Vector3* pCacheVerts = cacheVerts)
+        fixed (Vector3* pCacheVerts = PQS.cacheVerts)
         {
             InitBuildDataBurst(
-                new MemorySpan<Vector3>(pCacheVerts, cacheVerts.Length),
+                new MemorySpan<Vector3>(pCacheVerts, PQS.cacheVerts.Length),
                 in quad.quadMatrix,
                 in data.burstData,
-                radius,
-                reqVertexMapCoods
+                pqs.radius,
+                pqs.reqVertexMapCoods
             );
         }
     }
@@ -171,39 +171,39 @@ public unsafe class BatchPQS : PQS
 
     unsafe void BuildVertices(in QuadBuildData data)
     {
-        fixed (Vector3d* pverts = verts)
+        fixed (Vector3d* pverts = PQS.verts)
         fixed (Vector3* pQuadVerts = data.buildQuad.verts)
-        fixed (Vector3* pNormals = normals)
-        fixed (Color* pColors = cacheColors)
-        fixed (Vector2* pUvs = uvs)
-        fixed (Vector2* pCacheUVs = cacheUVs)
-        fixed (Vector2* pCacheUV2s = cacheUV2s)
-        fixed (Vector2* pCacheUV3s = cacheUV3s)
-        fixed (Vector2* pCacheUV4s = cacheUV4s)
+        fixed (Vector3* pNormals = PQS.normals)
+        fixed (Color* pColors = PQS.cacheColors)
+        fixed (Vector2* pUvs = PQS.uvs)
+        fixed (Vector2* pCacheUVs = PQS.cacheUVs)
+        fixed (Vector2* pCacheUV2s = PQS.cacheUV2s)
+        fixed (Vector2* pCacheUV3s = PQS.cacheUV3s)
+        fixed (Vector2* pCacheUV4s = PQS.cacheUV4s)
         {
             var opts = new BuildVerticesOptions
             {
-                surfaceRelativeQuads = surfaceRelativeQuads,
-                reqCustomNormals = reqCustomNormals,
-                reqColorChannel = reqColorChannel,
-                reqSphereUV = reqSphereUV,
-                reqUVQuad = reqUVQuad,
-                reqUV2 = reqUV2,
-                reqUV3 = reqUV3,
-                reqUV4 = reqUV4,
+                surfaceRelativeQuads = pqs.surfaceRelativeQuads,
+                reqCustomNormals = pqs.reqCustomNormals,
+                reqColorChannel = pqs.reqColorChannel,
+                reqSphereUV = pqs.reqSphereUV,
+                reqUVQuad = pqs.reqUVQuad,
+                reqUV2 = pqs.reqUV2,
+                reqUV3 = pqs.reqUV3,
+                reqUV4 = pqs.reqUV4,
 
                 uvSW = data.buildQuad.uvSW,
                 uvDelta = data.buildQuad.uvDelta,
 
-                verts = new(pverts, verts.Length),
+                verts = new(pverts, PQS.verts.Length),
                 quadVerts = new(pQuadVerts, data.buildQuad.verts.Length),
-                normals = new(pNormals, normals.Length),
-                colors = new(pColors, cacheColors.Length),
-                uvs = new(pUvs, uvs.Length),
-                cacheUVs = new(pCacheUV2s, cacheUVs.Length),
-                cacheUV2s = new(pCacheUV2s, cacheUV2s.Length),
-                cacheUV3s = new(pCacheUV3s, cacheUV3s.Length),
-                cacheUV4s = new(pCacheUV4s, cacheUV4s.Length),
+                normals = new(pNormals, PQS.normals.Length),
+                colors = new(pColors, PQS.cacheColors.Length),
+                uvs = new(pUvs, PQS.uvs.Length),
+                cacheUVs = new(pCacheUV2s, PQS.cacheUVs.Length),
+                cacheUV2s = new(pCacheUV2s, PQS.cacheUV2s.Length),
+                cacheUV3s = new(pCacheUV3s, PQS.cacheUV3s.Length),
+                cacheUV4s = new(pCacheUV4s, PQS.cacheUV4s.Length),
 
                 pqsTransform = transform.localToWorldMatrix,
                 invQuadTransform = data.buildQuad.transform.worldToLocalMatrix,
@@ -211,8 +211,8 @@ public unsafe class BatchPQS : PQS
 
             BuildVerticesBurst(in data.burstData, in opts, out var outputs);
 
-            buildQuad.meshVertMax = outputs.meshVertMax;
-            buildQuad.meshVertMin = outputs.meshVertMin;
+            pqs.buildQuad.meshVertMax = outputs.meshVertMax;
+            pqs.buildQuad.meshVertMin = outputs.meshVertMin;
         }
     }
 
@@ -317,18 +317,15 @@ public unsafe class BatchPQS : PQS
     #region Method Injections
     internal void PostSetupMods()
     {
-        batchMods = new IBatchPQSMod[mods.Length];
-        for (int i = 0; i < batchMods.Length; ++i)
+        List<BatchPQSMod> batchMods = new(pqs.mods.Length);
+        foreach (var mod in pqs.mods)
         {
-            if (mods[i] is IBatchPQSMod batchMod)
-                batchMods[i] = batchMod;
-            else
-                batchMods[i] = new Mod.Shim(mods[i]);
+            var batchMod = BatchPQSMod.Create(mod);
+            if (batchMod is not null)
+                batchMods.Add(batchMod);
         }
-    }
-    #endregion
 
-    #region PQS Memberwise Clone
-    private void MemberwiseCloneFrom(PQS instance) => CloneUtil.MemberwiseCopy(instance, this);
+        this.batchMods = [.. batchMods];
+    }
     #endregion
 }

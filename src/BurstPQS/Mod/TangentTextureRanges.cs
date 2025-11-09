@@ -11,7 +11,7 @@ public class TangentTextureRanges : BatchPQSMod<PQSMod_TangentTextureRanges>
     public TangentTextureRanges(PQSMod_TangentTextureRanges mod)
         : base(mod) { }
 
-    public override unsafe void OnQuadBuildVertex(in QuadBuildData data)
+    public override unsafe void OnBatchVertexBuild(in QuadBuildData data)
     {
         fixed (float* pTangentX = PQSMod_TangentTextureRanges.tangentX)
         {

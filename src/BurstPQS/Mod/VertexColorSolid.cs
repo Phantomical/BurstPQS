@@ -10,7 +10,7 @@ public class VertexColorSolid : BatchPQSMod<PQSMod_VertexColorSolid>
     public VertexColorSolid(PQSMod_VertexColorSolid mod)
         : base(mod) { }
 
-    public override void OnQuadBuildVertex(in QuadBuildData data)
+    public override void OnBatchVertexBuild(in QuadBuildData data)
     {
         BuildVertex(in data.burstData, in mod.color, mod.blend);
     }

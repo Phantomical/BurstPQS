@@ -9,7 +9,7 @@ public class RemoveQuadMap : BatchPQSMod<PQSMod_RemoveQuadMap>
     public RemoveQuadMap(PQSMod_RemoveQuadMap mod)
         : base(mod) { }
 
-    public override void OnQuadBuildVertex(in QuadBuildData data)
+    public override void OnBatchVertexBuild(in QuadBuildData data)
     {
         using var guard = BurstMapSO.Create(mod.map, out var mapSO);
         mod.quadVisible = ShouldBeVisible(

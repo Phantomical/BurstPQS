@@ -12,7 +12,7 @@ public class VertexColorNoise : BatchPQSMod<PQSMod_VertexColorNoise>
     public VertexColorNoise(PQSMod_VertexColorNoise mod)
         : base(mod) { }
 
-    public override void OnQuadBuildVertex(in QuadBuildData data)
+    public override void OnBatchVertexBuild(in QuadBuildData data)
     {
         if (mod.noiseMap is LibNoise.Perlin perlin)
             BuildVertexPerlin(in data.burstData, new(perlin), mod.blend);

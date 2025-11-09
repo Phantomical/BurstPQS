@@ -10,7 +10,7 @@ public class GnomonicTest : BatchPQSMod<PQSMod_GnomonicTest>
     public GnomonicTest(PQSMod_GnomonicTest mod)
         : base(mod) { }
 
-    public override void OnQuadBuildVertex(in QuadBuildData data)
+    public override void OnBatchVertexBuild(in QuadBuildData data)
     {
         BuildVertices(in data.burstData);
     }

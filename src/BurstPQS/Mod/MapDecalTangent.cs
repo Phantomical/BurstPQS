@@ -16,7 +16,7 @@ public class MapDecalTangent : BatchPQSMod<PQSMod_MapDecalTangent>
     public MapDecalTangent(PQSMod_MapDecalTangent mod)
         : base(mod) { }
 
-    public override unsafe void OnQuadBuildVertexHeight(in QuadBuildData data)
+    public override unsafe void OnBatchVertexBuildHeight(in QuadBuildData data)
     {
         if (!mod.quadActive && mod.buildHeight)
             return;
@@ -54,7 +54,7 @@ public class MapDecalTangent : BatchPQSMod<PQSMod_MapDecalTangent>
         }
     }
 
-    public override unsafe void OnQuadBuildVertex(in QuadBuildData data)
+    public override unsafe void OnBatchVertexBuild(in QuadBuildData data)
     {
         if (!mod.quadActive && mod.buildHeight)
             return;

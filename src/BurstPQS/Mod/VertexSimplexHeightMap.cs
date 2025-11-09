@@ -10,7 +10,7 @@ public class VertexSimplexHeightMap : BatchPQSMod<PQSMod_VertexSimplexHeightMap>
     public VertexSimplexHeightMap(PQSMod_VertexSimplexHeightMap mod)
         : base(mod) { }
 
-    public override void OnQuadBuildVertexHeight(in QuadBuildData data)
+    public override void OnBatchVertexBuildHeight(in QuadBuildData data)
     {
         using var g0 = BurstSimplex.Create(mod.simplex, out var bsimplex);
         using var g1 = BurstMapSO.Create(mod.heightMap, out var bheightMap);

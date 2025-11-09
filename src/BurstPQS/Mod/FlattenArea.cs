@@ -11,7 +11,7 @@ public class FlattenArea : BatchPQSMod<PQSMod_FlattenArea>
     public FlattenArea(PQSMod_FlattenArea mod)
         : base(mod) { }
 
-    public override void OnQuadBuildVertexHeight(in QuadBuildData data)
+    public override void OnBatchVertexBuildHeight(in QuadBuildData data)
     {
         if (!mod.overrideQuadBuildCheck && !mod.quadActive)
             return;

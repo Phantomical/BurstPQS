@@ -10,7 +10,7 @@ public class SmoothLatitudeRange : BatchPQSMod<PQSMod_SmoothLatitudeRange>
     public SmoothLatitudeRange(PQSMod_SmoothLatitudeRange mod)
         : base(mod) { }
 
-    public override void OnQuadBuildVertexHeight(in QuadBuildData data)
+    public override void OnBatchVertexBuildHeight(in QuadBuildData data)
     {
         BuildVertexHeight(
             in data.burstData,

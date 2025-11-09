@@ -9,7 +9,7 @@ public class VertexHeightMap : BatchPQSMod<PQSMod_VertexHeightMap>
     public VertexHeightMap(PQSMod_VertexHeightMap mod)
         : base(mod) { }
 
-    public override void OnQuadBuildVertexHeight(in QuadBuildData data)
+    public override void OnBatchVertexBuildHeight(in QuadBuildData data)
     {
         using var guard = BurstMapSO.Create(mod.heightMap, out var mapSO);
         BuildHeight(in data.burstData, in mapSO, mod.heightMapOffset, mod.heightMapDeformity);

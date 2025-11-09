@@ -14,7 +14,7 @@ public class VertexHeightNoiseHeightMap : BatchPQSMod<PQSMod_VertexHeightNoiseHe
     public VertexHeightNoiseHeightMap(PQSMod_VertexHeightNoiseHeightMap mod)
         : base(mod) { }
 
-    public override unsafe void OnQuadBuildVertexHeight(in QuadBuildData data)
+    public override unsafe void OnBatchVertexBuildHeight(in QuadBuildData data)
     {
         int vc = data.VertexCount;
         if (HeightMapData is null || HeightMapData.Length != vc)

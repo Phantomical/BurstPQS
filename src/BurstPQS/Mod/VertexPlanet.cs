@@ -44,7 +44,7 @@ public class VertexPlanet : BatchPQSMod<PQSMod_VertexPlanet>
         }
     }
 
-    public override unsafe void OnQuadBuildVertexHeight(in QuadBuildData data)
+    public override unsafe void OnBatchVertexBuildHeight(in QuadBuildData data)
     {
         if (preSmoothHeights is null || preSmoothHeights.Length != data.VertexCount)
             preSmoothHeights = new double[data.VertexCount];
@@ -90,7 +90,7 @@ public class VertexPlanet : BatchPQSMod<PQSMod_VertexPlanet>
         }
     }
 
-    public override unsafe void OnQuadBuildVertex(in QuadBuildData data)
+    public override unsafe void OnBatchVertexBuild(in QuadBuildData data)
     {
         using var g0 = BurstSimplex.Create(mod.terrainType.simplex, out var terrainType);
 

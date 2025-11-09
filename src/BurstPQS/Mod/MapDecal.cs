@@ -15,7 +15,7 @@ public class MapDecal : BatchPQSMod<PQSMod_MapDecal>
     public MapDecal(PQSMod_MapDecal mod)
         : base(mod) { }
 
-    public override unsafe void OnQuadBuildVertexHeight(in QuadBuildData data)
+    public override unsafe void OnBatchVertexBuildHeight(in QuadBuildData data)
     {
         if (!mod.quadActive && mod.buildHeight)
             return;
@@ -53,7 +53,7 @@ public class MapDecal : BatchPQSMod<PQSMod_MapDecal>
         }
     }
 
-    public override unsafe void OnQuadBuildVertex(in QuadBuildData data)
+    public override unsafe void OnBatchVertexBuild(in QuadBuildData data)
     {
         if (!mod.quadActive && mod.buildHeight)
             return;

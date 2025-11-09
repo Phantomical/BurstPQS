@@ -5,7 +5,7 @@ public class VertexHeightMapStep : BatchPQSMod<PQSMod_VertexHeightMapStep>
     public VertexHeightMapStep(PQSMod_VertexHeightMapStep mod)
         : base(mod) { }
 
-    public override void OnQuadBuildVertexHeight(in QuadBuildData data)
+    public override void OnBatchVertexBuildHeight(in QuadBuildData data)
     {
         // TODO: Accessing textures in burst is hard for now. Need to build
         //       something that allows working with the raw texture data.

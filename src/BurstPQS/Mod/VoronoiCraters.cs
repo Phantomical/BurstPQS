@@ -15,7 +15,7 @@ public class VoronoiCraters : BatchPQSMod<PQSMod_VoronoiCraters>
 
     float[] rs;
 
-    public override unsafe void OnQuadBuildVertexHeight(in QuadBuildData data)
+    public override unsafe void OnBatchVertexBuildHeight(in QuadBuildData data)
     {
         if (rs is null || rs.Length != data.VertexCount)
             rs = new float[data.VertexCount];
@@ -40,7 +40,7 @@ public class VoronoiCraters : BatchPQSMod<PQSMod_VoronoiCraters>
         }
     }
 
-    public override unsafe void OnQuadBuildVertex(in QuadBuildData data)
+    public override unsafe void OnBatchVertexBuild(in QuadBuildData data)
     {
         if (rs is null || rs.Length != data.VertexCount)
             throw new InvalidOperationException(

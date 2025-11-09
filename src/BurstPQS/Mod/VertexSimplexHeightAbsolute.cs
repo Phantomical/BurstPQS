@@ -10,7 +10,7 @@ public class VertexSimplexHeightAbsolute : BatchPQSMod<PQSMod_VertexSimplexHeigh
     public VertexSimplexHeightAbsolute(PQSMod_VertexSimplexHeightAbsolute mod)
         : base(mod) { }
 
-    public override void OnQuadBuildVertexHeight(in QuadBuildData data)
+    public override void OnBatchVertexBuildHeight(in QuadBuildData data)
     {
         using var g0 = BurstSimplex.Create(mod.simplex, out var bsimplex);
 

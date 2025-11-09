@@ -11,7 +11,7 @@ public class VertexNoise : BatchPQSMod<PQSMod_VertexNoise>
     public VertexNoise(PQSMod_VertexNoise mod)
         : base(mod) { }
 
-    public override void OnQuadBuildVertexHeight(in QuadBuildData data)
+    public override void OnBatchVertexBuildHeight(in QuadBuildData data)
     {
         var control = (LibNoise.Perlin)mod.terrainHeightMap.ControlModule;
         var input = (ScaleBiasOutput)mod.terrainHeightMap.SourceModule1;

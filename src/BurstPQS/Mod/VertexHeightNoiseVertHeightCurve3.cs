@@ -11,7 +11,7 @@ public class VertexHeightNoiseVertHeightCurve3
     public VertexHeightNoiseVertHeightCurve3(PQSMod_VertexHeightNoiseVertHeightCurve3 mod)
         : base(mod) { }
 
-    public override void OnQuadBuildVertexHeight(in QuadBuildData data)
+    public override void OnBatchVertexBuildHeight(in QuadBuildData data)
     {
         var p = new Params
         {

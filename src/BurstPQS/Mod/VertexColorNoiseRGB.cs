@@ -12,7 +12,7 @@ public class VertexColorNoiseRGB : BatchPQSMod<PQSMod_VertexColorNoiseRGB>
     public VertexColorNoiseRGB(PQSMod_VertexColorNoiseRGB mod)
         : base(mod) { }
 
-    public override void OnQuadBuildVertex(in QuadBuildData data)
+    public override void OnBatchVertexBuild(in QuadBuildData data)
     {
         var blend = new Blends
         {

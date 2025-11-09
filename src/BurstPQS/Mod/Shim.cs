@@ -11,7 +11,7 @@ namespace BurstPQS.Mod;
 /// It does not forward any of the other callbacks and shouldn't be used outside
 /// of forwarding batched callbacks.
 /// </summary>
-internal sealed class Shim : IBatchPQSMod
+internal sealed class Shim : BatchPQSMod
 {
     struct OverrideInfo
     {
@@ -19,19 +19,26 @@ internal sealed class Shim : IBatchPQSMod
         public bool onVertexBuildHeightOverridden;
     }
 
-    static readonly Dictionary<Type, OverrideInfo> OverrideInfoCache = [];
-
     readonly PQSMod mod;
     readonly OverrideInfo info;
 
-    public Shim(PQSMod mod)
+    Shim(PQSMod mod, OverrideInfo info)
     {
         this.mod = mod;
-        this.info = GetOverrideInfo(mod.GetType());
+        this.info = info;
+    }
+
+    internal static new Shim Create(PQSMod mod)
+    {
+        var info = GetOverrideInfo(mod.GetType());
+        if (!info.onVertexBuildOverridden && !info.onVertexBuildHeightOverridden)
+            return null;
+
+        return new(mod, info);
     }
 
     #region BatchPQSMod
-    public void OnQuadBuildVertex(in QuadBuildData data)
+    public override void OnBatchVertexBuild(in QuadBuildData data)
     {
         if (!info.onVertexBuildOverridden)
             return;
@@ -49,7 +56,7 @@ internal sealed class Shim : IBatchPQSMod
         }
     }
 
-    public void OnQuadBuildVertexHeight(in QuadBuildData data)
+    public override void OnBatchVertexBuildHeight(in QuadBuildData data)
     {
         if (!info.onVertexBuildHeightOverridden)
             return;
@@ -69,6 +76,8 @@ internal sealed class Shim : IBatchPQSMod
     #endregion
 
     #region Override Info
+    static readonly Dictionary<Type, OverrideInfo> OverrideInfoCache = [];
+
     static OverrideInfo GetOverrideInfo(Type type)
     {
         if (OverrideInfoCache.TryGetValue(type, out var info))

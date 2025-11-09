@@ -10,7 +10,7 @@ public class AltitudeUV : BatchPQSMod<PQSMod_AltitudeUV>
     public AltitudeUV(PQSMod_AltitudeUV mod)
         : base(mod) { }
 
-    public override void OnQuadBuildVertex(in QuadBuildData data)
+    public override void OnBatchVertexBuild(in QuadBuildData data)
     {
         BuildVertices(
             in data.burstData,

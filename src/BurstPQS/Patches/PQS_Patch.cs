@@ -8,8 +8,8 @@ internal static class PQS_SetupMods_Patch
 {
     static void Postfix(PQS __instance)
     {
-        if (__instance is BatchPQS pqs)
-            pqs.PostSetupMods();
+        var batchPQS = __instance.gameObject.AddOrGetComponent<BatchPQS>();
+        batchPQS.PostSetupMods();
     }
 }
 
@@ -19,10 +19,11 @@ internal static class PQS_BuildQuad_Patch
 {
     static bool Prefix(PQS __instance, PQ quad, ref bool __result)
     {
-        if (__instance is not BatchPQS pqs)
+        var batchPQS = __instance.GetComponent<BatchPQS>();
+        if (batchPQS is null)
             return true;
 
-        __result = pqs.BuildQuad(quad);
+        __result = batchPQS.BuildQuad(quad);
         return false;
     }
 }

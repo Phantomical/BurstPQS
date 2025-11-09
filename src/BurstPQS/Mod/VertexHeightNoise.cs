@@ -11,7 +11,7 @@ public class VertexHeightNoise : BatchPQSMod<PQSMod_VertexHeightNoise>
     public VertexHeightNoise(PQSMod_VertexHeightNoise mod)
         : base(mod) { }
 
-    public override void OnQuadBuildVertexHeight(in QuadBuildData data)
+    public override void OnBatchVertexBuildHeight(in QuadBuildData data)
     {
         if (mod.noiseMap is LibNoise.Perlin perlin)
             BuildVertexPerlin(in data.burstData, new(perlin), mod.deformity);
