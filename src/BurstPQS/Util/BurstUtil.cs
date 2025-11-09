@@ -67,4 +67,8 @@ public static class BurstUtil
     public static Vector3 ConvertVector(float3 v) => new(v.x, v.y, v.z);
 
     public static Vector4 ConvertVector(float4 v) => new(v.x, v.y, v.z, v.w);
+
+    public static Color ConvertColor(float4 c) => new(c.x, c.y, c.z, c.w);
+
+    public static float4 ConvertColor(Color c) => new(c.r, c.g, c.b, c.a);
 }
