@@ -25,7 +25,7 @@ public class MapDecalTangent : BatchPQSMod<PQSMod_MapDecalTangent>
             vertActive = new bool[data.VertexCount];
 
         var info = new BurstInfo(mod);
-        BurstMapSO.MapSOGuard? guard = null;
+        BurstMapSO.Guard? guard = null;
         BurstMapSO? heightMap = null;
 
         if (mod.heightMap is not null)
@@ -62,7 +62,7 @@ public class MapDecalTangent : BatchPQSMod<PQSMod_MapDecalTangent>
             return;
 
         var info = new BurstInfo(mod);
-        BurstMapSO.MapSOGuard? guard = null;
+        BurstMapSO.Guard? guard = null;
         BurstMapSO? colorMap = null;
 
         if (mod.colorMap is not null)

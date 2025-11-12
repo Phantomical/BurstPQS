@@ -17,12 +17,7 @@ public unsafe class BatchPQS : Component
 
     void Awake()
     {
-        // Get the PQS component that we are replacing, copy all its members to
-        // ourselves, and then destroy it immediately.
-        var pqs = GetComponent<PQS>();
-
-        pqs.enabled = false;
-        DestroyImmediate(pqs);
+        pqs = GetComponent<PQS>();
     }
 
     public bool BuildQuad(PQ quad)

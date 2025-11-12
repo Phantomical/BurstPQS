@@ -1,13 +1,14 @@
 using System;
-using BurstPQS.Collections;
-using KSP.UI;
+using System.Runtime.InteropServices;
+using Unity.Burst;
 using Unity.Collections.LowLevel.Unsafe;
-using Unity.Mathematics;
 using UnityEngine;
+
+#pragma warning disable CS8500 // This takes the address of, gets the size of, or declares a pointer to a managed type
 
 namespace BurstPQS.Util;
 
-public struct BurstMapSO
+public readonly unsafe struct BurstMapSO : IBurstMapSO
 {
     public struct HeightAlpha(float height, float alpha)
     {
@@ -26,266 +27,123 @@ public struct BurstMapSO
         }
     }
 
-    struct BilinearCoords<T>
+    public struct Guard : IDisposable
     {
-        public int minX;
-        public int maxX;
-        public T midX;
-        public T centerX;
+        internal ulong gcHandle;
 
-        public int minY;
-        public int maxY;
-        public T midY;
-        public T centerY;
-    }
-
-    public struct MapSOGuard : IDisposable
-    {
-        internal ulong handle;
-
-        public void Dispose()
+        public readonly void Dispose()
         {
-            UnsafeUtility.ReleaseGCObject(handle);
-            handle = 0;
+            UnsafeUtility.ReleaseGCObject(gcHandle);
         }
     }
 
-    const float Byte2Float = 0.003921569f;
-    const float Float2Byte = 255f;
+    readonly MapSO* mapSO;
 
-    public int Width { get; private set; }
-    public int Height { get; private set; }
-    public int BitsPerPixel { get; private set; }
-    public int RowWidth { get; private set; }
-    public readonly MapSO.MapDepth Depth => (MapSO.MapDepth)BitsPerPixel;
-    public readonly int Size => data.Length;
+    readonly FunctionPointer<GetPixelColorDelegate> GetPixelColorFp;
+    readonly FunctionPointer<GetPixelColor32Delegate> GetPixelColor32Fp;
+    readonly FunctionPointer<GetPixelFloatDelegate> GetPixelFloatFp;
+    readonly FunctionPointer<GetPixelHeightAlphaDelegate> GetPixelHeightAlphaFp;
 
-    readonly ReadOnlyMemorySpan<byte> data;
-
-    private BurstMapSO(MapSO mapSO, ReadOnlyMemorySpan<byte> data)
+    private BurstMapSO(MapSO* mapSO)
     {
-        Width = mapSO.Width;
-        Height = mapSO.Height;
-        BitsPerPixel = mapSO.BitsPerPixel;
-        RowWidth = mapSO.RowWidth;
-        this.data = data;
+        this.mapSO = mapSO;
+        this.GetPixelColorFp = Functions.GetPixelColorFp;
+        this.GetPixelColor32Fp = Functions.GetPixelColor32Fp;
+        this.GetPixelFloatFp = Functions.GetPixelFloatFp;
+        this.GetPixelHeightAlphaFp = Functions.GetPixelHeightAlphaFp;
     }
 
-    /// <summary>
-    /// Create a new <see cref="BurstMapSO"/> struct that can be used to access
-    /// the provided <see cref="MapSO"/> object from within burst.
-    /// </summary>
-    ///
-    /// <remarks>
-    /// <para>
-    /// Make sure to dispose of the returned <see cref="MapSOGuard"/> once you
-    /// are done with the <see cref="BurstMapSO"/>. If you don't, then the map
-    /// data will be leaked.
-    /// </para>
-    ///
-    /// <para>
-    /// The recommended patttern to do this is:
-    /// <code>
-    /// using var guard = BurstMapSO.Create(mapSO, out var burstMapSO);
-    /// </code>
-    /// </para>
-    /// </remarks>
-    public static unsafe MapSOGuard Create(MapSO mapSO, out BurstMapSO burst)
+    public static Guard Create(MapSO mapSO, out BurstMapSO burst)
     {
-        if (mapSO.GetType() != typeof(MapSO))
-            throw new InvalidOperationException(
-                "Cannot use BurstMapSO with derived subclasses of MapSO"
+        MapSO* ptr = (MapSO*)UnsafeUtility.PinGCObjectAndGetAddress(mapSO, out var gcHandle);
+        burst = new(ptr);
+        return new() { gcHandle = gcHandle };
+    }
+
+    delegate void GetPixelColorDelegate(MapSO* gcHandle, float x, float y, out Color color);
+    delegate void GetPixelColor32Delegate(MapSO* gcHandle, float x, float y, out Color32 color);
+    delegate float GetPixelFloatDelegate(MapSO* gcHandle, float x, float y);
+    delegate void GetPixelHeightAlphaDelegate(
+        MapSO* gcHandle,
+        float x,
+        float y,
+        out BurstMapSO.HeightAlpha value
+    );
+
+    // This needs to be in a separate class so that burst doesn't try to evaluate
+    // its static constructor.
+    static class Functions
+    {
+        public static readonly FunctionPointer<GetPixelColorDelegate> GetPixelColorFp;
+        public static readonly FunctionPointer<GetPixelColor32Delegate> GetPixelColor32Fp;
+        public static readonly FunctionPointer<GetPixelFloatDelegate> GetPixelFloatFp;
+        public static readonly FunctionPointer<GetPixelHeightAlphaDelegate> GetPixelHeightAlphaFp;
+
+        static void GetPixelColor(MapSO* mapSO, float x, float y, out Color color) =>
+            color = mapSO->GetPixelColor(x, y);
+
+        static void GetPixelColor32(MapSO* mapSO, float x, float y, out Color32 color) =>
+            color = mapSO->GetPixelColor32(x, y);
+
+        static float GetPixelFloat(MapSO* mapSO, float x, float y) => mapSO->GetPixelFloat(x, y);
+
+        static void GetPixelHeightAlpha(
+            MapSO* mapSO,
+            float x,
+            float y,
+            out BurstMapSO.HeightAlpha ha
+        )
+        {
+            var heightAlpha = mapSO->GetPixelHeightAlpha(x, y);
+            ha = new(heightAlpha.height, heightAlpha.alpha);
+        }
+
+        static Functions()
+        {
+            GetPixelColorFp = new(
+                Marshal.GetFunctionPointerForDelegate<GetPixelColorDelegate>(GetPixelColor)
             );
-
-        var data = UnsafeUtility.PinGCArrayAndGetDataAddress(mapSO._data, out var handle);
-        var guard = new MapSOGuard { handle = handle };
-        var span = new MemorySpan<byte>((byte*)data, mapSO._data.Length);
-        burst = new(mapSO, span);
-
-        return guard;
-    }
-
-    readonly BilinearCoords<float> ConstructBilinearCoords(float x, float y)
-    {
-        BilinearCoords<float> coords;
-        x = Mathf.Abs(x - Mathf.Floor(x));
-        y = Mathf.Abs(y - Mathf.Floor(y));
-
-        coords.centerX = x * Width;
-        coords.centerY = y * Height;
-
-        coords.minX = Mathf.FloorToInt(coords.centerX);
-        coords.maxX = Mathf.CeilToInt(coords.centerX);
-
-        coords.minY = Mathf.FloorToInt(coords.centerY);
-        coords.maxY = Mathf.CeilToInt(coords.centerY);
-
-        coords.midX = coords.centerX - coords.minX;
-        coords.midY = coords.centerY - coords.minY;
-
-        if (coords.maxX == Width)
-            coords.maxX = 0;
-        if (coords.maxY == Height)
-            coords.maxY = 0;
-
-        return coords;
-    }
-
-    readonly int PixelIndex(int x, int y)
-    {
-        return x * BitsPerPixel + y * RowWidth;
-    }
-
-    public readonly float GreyFloat(int x, int y)
-    {
-        return Byte2Float * data[PixelIndex(x, y)];
-    }
-
-    public readonly byte GetPixelByte(int x, int y)
-    {
-        if (x < 0)
-            x = Width - x;
-        else if (x >= Width)
-            x -= Width;
-
-        if (y < 0)
-            y = Height - y;
-        else if (y >= Height)
-            y -= Height;
-
-        return data[PixelIndex(x, y)];
-    }
-
-    public readonly float GetPixelFloat(int x, int y)
-    {
-        var ret = 0f;
-        var index = PixelIndex(x, y);
-
-        for (int i = 0; i < BitsPerPixel; ++i)
-            ret += data[index + i];
-
-        ret /= BitsPerPixel;
-        ret *= Byte2Float;
-        return ret;
-    }
-
-    public readonly Color GetPixelColor(int x, int y)
-    {
-        var index = PixelIndex(x, y);
-        float val;
-
-        switch (BitsPerPixel)
-        {
-            case 4:
-                return new(
-                    Byte2Float * data[index],
-                    Byte2Float * data[index + 1],
-                    Byte2Float * data[index + 2],
-                    Byte2Float * data[index + 3]
-                );
-            case 3:
-                return new(
-                    Byte2Float * data[index],
-                    Byte2Float * data[index + 1],
-                    Byte2Float * data[index + 2],
-                    1f
-                );
-            case 2:
-                val = Byte2Float * data[index];
-                return new(val, val, val, Byte2Float * data[index + 1]);
-            case 1:
-            default:
-                val = Byte2Float * data[index];
-                return new(val, val, val, 1f);
+            GetPixelColor32Fp = new(
+                Marshal.GetFunctionPointerForDelegate<GetPixelColor32Delegate>(GetPixelColor32)
+            );
+            GetPixelFloatFp = new(
+                Marshal.GetFunctionPointerForDelegate<GetPixelFloatDelegate>(GetPixelFloat)
+            );
+            GetPixelHeightAlphaFp = new(
+                Marshal.GetFunctionPointerForDelegate<GetPixelHeightAlphaDelegate>(
+                    GetPixelHeightAlpha
+                )
+            );
         }
     }
 
-    public readonly Color32 GetPixelColor32(int x, int y)
-    {
-        var index = PixelIndex(x, y);
-        byte val;
-
-        switch (BitsPerPixel)
-        {
-            case 4:
-                return new(data[index], data[index + 1], data[index + 2], data[index + 3]);
-            case 3:
-                return new(data[index], data[index + 1], data[index + 2], byte.MaxValue);
-            case 2:
-                val = data[index];
-                return new Color(val, val, val, data[index + 1]); // this looks like a bug in the KSP source
-            case 1:
-            default:
-                val = data[index];
-                return new(val, val, val, byte.MaxValue);
-        }
-    }
-
-    public readonly HeightAlpha GetPixelHeightAlpha(int x, int y)
-    {
-        var index = PixelIndex(x, y);
-
-        return BitsPerPixel switch
-        {
-            4 => new(Byte2Float * data[index], Byte2Float * data[index + 3]),
-            2 => new(Byte2Float * data[index], Byte2Float * data[index + 1]),
-            _ => new(Byte2Float * data[index], 1f),
-        };
-    }
+    public readonly float GetPixelFloat(float x, float y) => GetPixelFloatFp.Invoke(mapSO, x, y);
 
     public readonly Color GetPixelColor(float x, float y)
     {
-        var c = ConstructBilinearCoords(x, y);
-        return Color.Lerp(
-            Color.Lerp(GetPixelColor(c.minX, c.minY), GetPixelColor(c.maxX, c.minY), c.midX),
-            Color.Lerp(GetPixelColor(c.minX, c.maxY), GetPixelColor(c.maxX, c.maxY), c.midX),
-            c.midY
-        );
+        GetPixelColorFp.Invoke(mapSO, x, y, out var color);
+        return color;
     }
 
-    public readonly float GetPixelFloat(float x, float y)
+    public readonly Color32 GetPixelColor32(float x, float y)
     {
-        var c = ConstructBilinearCoords(x, y);
-        if (BitsPerPixel == 1)
-        {
-            return Mathf.Lerp(
-                Mathf.Lerp(GreyFloat(c.minX, c.minY), GreyFloat(c.maxX, c.minY), c.midX),
-                Mathf.Lerp(GreyFloat(c.minX, c.maxY), GreyFloat(c.maxX, c.maxY), c.midX),
-                c.midY
-            );
-        }
-        else
-        {
-            return Mathf.Lerp(
-                Mathf.Lerp(GetPixelFloat(c.minX, c.minY), GetPixelFloat(c.maxX, c.minY), c.midX),
-                Mathf.Lerp(GetPixelFloat(c.minX, c.maxY), GetPixelFloat(c.maxX, c.maxY), c.midX),
-                c.midY
-            );
-        }
+        GetPixelColor32Fp.Invoke(mapSO, x, y, out var color);
+        return color;
     }
 
-    public readonly HeightAlpha GetPixelHeightAlpha(float x, float y)
+    public readonly BurstMapSO.HeightAlpha GetPixelHeightAlpha(float x, float y)
     {
-        var c = ConstructBilinearCoords(x, y);
-        return HeightAlpha.Lerp(
-            HeightAlpha.Lerp(
-                GetPixelHeightAlpha(c.minX, c.minY),
-                GetPixelHeightAlpha(c.maxX, c.minY),
-                c.midX
-            ),
-            HeightAlpha.Lerp(
-                GetPixelHeightAlpha(c.minX, c.maxY),
-                GetPixelHeightAlpha(c.maxX, c.maxY),
-                c.midX
-            ),
-            c.midY
-        );
+        GetPixelHeightAlphaFp.Invoke(mapSO, x, y, out var ha);
+        return ha;
     }
 
     public readonly Color GetPixelColor(double x, double y) => GetPixelColor((float)x, (float)y);
 
     public readonly float GetPixelFloat(double x, double y) => GetPixelFloat((float)x, (float)y);
 
-    public readonly HeightAlpha GetPixelHeightAlpha(double x, double y) =>
+    public readonly Color32 GetPixelColor32(double x, double y) =>
+        GetPixelColor32((float)x, (float)y);
+
+    public readonly BurstMapSO.HeightAlpha GetPixelHeightAlpha(double x, double y) =>
         GetPixelHeightAlpha((float)x, (float)y);
 }
