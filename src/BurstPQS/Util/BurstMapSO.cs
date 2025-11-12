@@ -78,11 +78,11 @@ public readonly unsafe struct BurstMapSO : IBurstMapSO
         return new() { gcHandle = gcHandle, alloc = ptr };
     }
 
-    delegate void GetPixelColorDelegate(MapSO* gcHandle, float x, float y, out Color color);
-    delegate void GetPixelColor32Delegate(MapSO* gcHandle, float x, float y, out Color32 color);
-    delegate float GetPixelFloatDelegate(MapSO* gcHandle, float x, float y);
+    delegate void GetPixelColorDelegate(void* gcHandle, float x, float y, out Color color);
+    delegate void GetPixelColor32Delegate(void* gcHandle, float x, float y, out Color32 color);
+    delegate float GetPixelFloatDelegate(void* gcHandle, float x, float y);
     delegate void GetPixelHeightAlphaDelegate(
-        MapSO* gcHandle,
+        void* gcHandle,
         float x,
         float y,
         out HeightAlpha value
@@ -97,22 +97,18 @@ public readonly unsafe struct BurstMapSO : IBurstMapSO
         public static readonly FunctionPointer<GetPixelFloatDelegate> GetPixelFloatFp;
         public static readonly FunctionPointer<GetPixelHeightAlphaDelegate> GetPixelHeightAlphaFp;
 
-        static void GetPixelColor(MapSO* mapSO, float x, float y, out Color color) =>
-            color = mapSO->GetPixelColor(x, y);
+        static void GetPixelColor(void* mapSO, float x, float y, out Color color) =>
+            color = ((MapSO*)mapSO)->GetPixelColor(x, y);
 
-        static void GetPixelColor32(MapSO* mapSO, float x, float y, out Color32 color) =>
-            color = mapSO->GetPixelColor32(x, y);
+        static void GetPixelColor32(void* mapSO, float x, float y, out Color32 color) =>
+            color = ((MapSO*)mapSO)->GetPixelColor32(x, y);
 
-        static float GetPixelFloat(MapSO* mapSO, float x, float y) => mapSO->GetPixelFloat(x, y);
+        static float GetPixelFloat(void* mapSO, float x, float y) =>
+            ((MapSO*)mapSO)->GetPixelFloat(x, y);
 
-        static void GetPixelHeightAlpha(
-            MapSO* mapSO,
-            float x,
-            float y,
-            out BurstMapSO.HeightAlpha ha
-        )
+        static void GetPixelHeightAlpha(void* mapSO, float x, float y, out HeightAlpha ha)
         {
-            var heightAlpha = mapSO->GetPixelHeightAlpha(x, y);
+            var heightAlpha = ((MapSO*)mapSO)->GetPixelHeightAlpha(x, y);
             ha = new(heightAlpha.height, heightAlpha.alpha);
         }
 
@@ -197,9 +193,9 @@ public readonly unsafe struct BurstMapSO : IBurstMapSO
         Plain,
     }
 
-    struct GenericMapSO(MapSO* mapSO)
+    struct GenericMapSO(void* mapSO)
     {
-        public MapSO* mapSO = mapSO;
+        public void* mapSO = mapSO;
 
         readonly FunctionPointer<GetPixelColorDelegate> GetPixelColorFp = Functions.GetPixelColorFp;
         readonly FunctionPointer<GetPixelColor32Delegate> GetPixelColor32Fp =
