@@ -1,5 +1,7 @@
 using System.Runtime.CompilerServices;
 using Unity.Burst;
+using Unity.Collections;
+using Unity.Collections.LowLevel.Unsafe;
 using Unity.Mathematics;
 using UnityEngine;
 
@@ -20,6 +22,14 @@ public static class BurstUtil
             Managed(ref burst);
             return burst;
         }
+    }
+
+    public static unsafe T* Alloc<T>(T value, Allocator alloc = Allocator.Temp)
+        where T : unmanaged
+    {
+        T* ptr = (T*)UnsafeUtility.Malloc(sizeof(T), UnsafeUtility.AlignOf<T>(), alloc);
+        *ptr = value;
+        return ptr;
     }
 
     // csharpier-ignore
