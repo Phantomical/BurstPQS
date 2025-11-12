@@ -54,8 +54,8 @@ public readonly unsafe struct BurstMapSO : IBurstMapSO
 
     public static Guard Create(MapSO mapSO, out BurstMapSO burst)
     {
-        ulong gcHandle = 0;
-        void* ptr = null;
+        ulong gcHandle;
+        void* ptr;
         MapSOType type;
         if (mapSO.GetType() == typeof(MapSO))
         {
