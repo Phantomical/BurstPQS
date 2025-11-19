@@ -8,7 +8,7 @@ using Unity.Mathematics;
 namespace BurstPQS.Mod;
 
 [BurstCompile]
-public class VertexHeightOblate : BatchPQSMod<PQSMod_VertexHeightOblate>
+public class VertexHeightOblate : BatchPQSModV1<PQSMod_VertexHeightOblate>
 {
     public VertexHeightOblate(PQSMod_VertexHeightOblate mod)
         : base(mod) { }

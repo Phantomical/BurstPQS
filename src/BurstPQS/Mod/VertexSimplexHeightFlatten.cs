@@ -5,7 +5,7 @@ using Unity.Burst;
 namespace BurstPQS.Mod;
 
 [BurstCompile]
-public class VertexSimplexHeightFlatten : BatchPQSMod<PQSMod_VertexSimplexHeightFlatten>
+public class VertexSimplexHeightFlatten : BatchPQSModV1<PQSMod_VertexSimplexHeightFlatten>
 {
     public VertexSimplexHeightFlatten(PQSMod_VertexSimplexHeightFlatten mod)
         : base(mod) { }

@@ -6,7 +6,7 @@ using UnityEngine;
 namespace BurstPQS.Mod;
 
 [BurstCompile]
-public class FlattenArea : BatchPQSMod<PQSMod_FlattenArea>
+public class FlattenArea : BatchPQSModV1<PQSMod_FlattenArea>
 {
     public FlattenArea(PQSMod_FlattenArea mod)
         : base(mod) { }

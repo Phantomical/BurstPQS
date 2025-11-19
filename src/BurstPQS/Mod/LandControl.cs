@@ -10,7 +10,7 @@ namespace BurstPQS.Mod;
 
 [BurstCompile]
 [BatchPQSMod(typeof(PQSLandControl))]
-public class LandControl : BatchPQSMod<PQSLandControl>
+public class LandControl : BatchPQSModV1<PQSLandControl>
 {
     public readonly struct BurstLerpRange(PQSLandControl.LerpRange range)
     {

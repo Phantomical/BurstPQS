@@ -7,7 +7,7 @@ using IModule = LibNoise.IModule;
 namespace BurstPQS.Mod;
 
 [BurstCompile]
-public class VertexColorNoiseRGB : BatchPQSMod<PQSMod_VertexColorNoiseRGB>
+public class VertexColorNoiseRGB : BatchPQSModV1<PQSMod_VertexColorNoiseRGB>
 {
     public VertexColorNoiseRGB(PQSMod_VertexColorNoiseRGB mod)
         : base(mod) { }

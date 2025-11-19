@@ -4,7 +4,7 @@ using Unity.Burst;
 namespace BurstPQS.Mod;
 
 [BurstCompile]
-public class VertexColorMap : BatchPQSMod<PQSMod_VertexColorMap>
+public class VertexColorMap : BatchPQSModV1<PQSMod_VertexColorMap>
 {
     public VertexColorMap(PQSMod_VertexColorMap mod)
         : base(mod) { }

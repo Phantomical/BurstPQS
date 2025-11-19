@@ -6,7 +6,7 @@ using Unity.Burst;
 namespace BurstPQS.Mod;
 
 [BurstCompile]
-public class FlattenOcean : BatchPQSMod<PQSMod_FlattenOcean>
+public class FlattenOcean : BatchPQSModV1<PQSMod_FlattenOcean>
 {
     public FlattenOcean(PQSMod_FlattenOcean mod)
         : base(mod) { }

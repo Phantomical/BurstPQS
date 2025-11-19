@@ -4,7 +4,7 @@ using Unity.Burst;
 namespace BurstPQS.Mod;
 
 [BurstCompile]
-public class AltitudeAlpha : BatchPQSMod<PQSMod_AltitudeAlpha>
+public class AltitudeAlpha : BatchPQSModV1<PQSMod_AltitudeAlpha>
 {
     public AltitudeAlpha(PQSMod_AltitudeAlpha mod)
         : base(mod) { }

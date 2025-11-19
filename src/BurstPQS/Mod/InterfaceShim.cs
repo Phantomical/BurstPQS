@@ -1,8 +1,8 @@
 namespace BurstPQS.Mod;
 
-public sealed class InterfaceShim(IBatchPQSMod mod) : BatchPQSMod
+public sealed class InterfaceShim(IBatchPQSModV1 mod) : BatchPQSModV1
 {
-    readonly IBatchPQSMod mod = mod;
+    readonly IBatchPQSModV1 mod = mod;
 
     public override void OnBatchVertexBuild(in QuadBuildData data) =>
         mod.OnBatchVertexBuild(in data);

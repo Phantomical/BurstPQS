@@ -1,6 +1,6 @@
 namespace BurstPQS.Mod;
 
-public class VertexHeightMapStep : BatchPQSMod<PQSMod_VertexHeightMapStep>
+public class VertexHeightMapStep : BatchPQSModV1<PQSMod_VertexHeightMapStep>
 {
     public VertexHeightMapStep(PQSMod_VertexHeightMapStep mod)
         : base(mod) { }

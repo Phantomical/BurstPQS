@@ -8,7 +8,7 @@ using UnityEngine;
 namespace BurstPQS.Mod;
 
 [BurstCompile]
-public class MapDecal : BatchPQSMod<PQSMod_MapDecal>
+public class MapDecal : BatchPQSModV1<PQSMod_MapDecal>
 {
     bool[] vertActive;
 

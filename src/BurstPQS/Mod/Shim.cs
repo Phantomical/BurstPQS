@@ -5,13 +5,13 @@ namespace BurstPQS.Mod;
 
 /// <summary>
 /// This is a special shim type that forwards the callbacks from
-/// <see cref="BatchPQSMod"/> to the equivalent per-vertex ones on
+/// <see cref="BatchPQSModV1"/> to the equivalent per-vertex ones on
 /// <see cref="PQSMod"/>.
 ///
 /// It does not forward any of the other callbacks and shouldn't be used outside
 /// of forwarding batched callbacks.
 /// </summary>
-internal sealed class Shim : BatchPQSMod
+internal sealed class Shim : BatchPQSModV1
 {
     struct OverrideInfo
     {

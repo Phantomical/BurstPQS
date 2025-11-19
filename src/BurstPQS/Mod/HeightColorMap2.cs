@@ -7,7 +7,7 @@ using UnityEngine;
 namespace BurstPQS.Mod;
 
 [BurstCompile]
-public class HeightColorMap2 : BatchPQSMod<PQSMod_HeightColorMap2>
+public class HeightColorMap2 : BatchPQSModV1<PQSMod_HeightColorMap2>
 {
     public struct BurstLandClass(PQSMod_HeightColorMap2.LandClass landClass)
     {

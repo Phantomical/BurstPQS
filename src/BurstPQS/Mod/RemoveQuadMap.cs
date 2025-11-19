@@ -4,7 +4,7 @@ using Unity.Burst;
 namespace BurstPQS.Mod;
 
 [BurstCompile]
-public class RemoveQuadMap : BatchPQSMod<PQSMod_RemoveQuadMap>
+public class RemoveQuadMap : BatchPQSModV1<PQSMod_RemoveQuadMap>
 {
     public RemoveQuadMap(PQSMod_RemoveQuadMap mod)
         : base(mod) { }

@@ -5,7 +5,7 @@ using Unity.Burst;
 namespace BurstPQS.Mod;
 
 [BurstCompile]
-public class VertexHeightOffset : BatchPQSMod<PQSMod_VertexHeightOffset>
+public class VertexHeightOffset : BatchPQSModV1<PQSMod_VertexHeightOffset>
 {
     public VertexHeightOffset(PQSMod_VertexHeightOffset mod)
         : base(mod) { }

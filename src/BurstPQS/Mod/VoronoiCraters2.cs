@@ -8,7 +8,7 @@ using UnityEngine;
 namespace BurstPQS.Mod;
 
 [BurstCompile]
-public class VoronoiCraters2 : BatchPQSMod<PQSMod_VoronoiCraters2>
+public class VoronoiCraters2 : BatchPQSModV1<PQSMod_VoronoiCraters2>
 {
     float[] rs;
 

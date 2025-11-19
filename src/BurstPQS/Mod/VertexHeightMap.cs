@@ -4,7 +4,7 @@ using Unity.Burst;
 namespace BurstPQS.Mod;
 
 [BurstCompile]
-public class VertexHeightMap : BatchPQSMod<PQSMod_VertexHeightMap>
+public class VertexHeightMap : BatchPQSModV1<PQSMod_VertexHeightMap>
 {
     public VertexHeightMap(PQSMod_VertexHeightMap mod)
         : base(mod) { }

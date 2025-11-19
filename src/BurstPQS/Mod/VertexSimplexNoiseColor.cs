@@ -6,7 +6,7 @@ using UnityEngine;
 namespace BurstPQS.Mod;
 
 [BurstCompile]
-public class VertexSimplexNoiseColor : BatchPQSMod<PQSMod_VertexSimplexNoiseColor>
+public class VertexSimplexNoiseColor : BatchPQSModV1<PQSMod_VertexSimplexNoiseColor>
 {
     public VertexSimplexNoiseColor(PQSMod_VertexSimplexNoiseColor mod)
         : base(mod) { }

@@ -5,7 +5,7 @@ using UnityEngine;
 namespace BurstPQS.Mod;
 
 [BurstCompile]
-public class VertexColorSolid : BatchPQSMod<PQSMod_VertexColorSolid>
+public class VertexColorSolid : BatchPQSModV1<PQSMod_VertexColorSolid>
 {
     public VertexColorSolid(PQSMod_VertexColorSolid mod)
         : base(mod) { }

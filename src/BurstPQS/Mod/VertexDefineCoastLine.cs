@@ -4,7 +4,7 @@ using Unity.Burst;
 namespace BurstPQS.Mod;
 
 [BurstCompile]
-public class VertexDefineCoastLine : BatchPQSMod<PQSMod_VertexDefineCoastLine>
+public class VertexDefineCoastLine : BatchPQSModV1<PQSMod_VertexDefineCoastLine>
 {
     public VertexDefineCoastLine(PQSMod_VertexDefineCoastLine mod)
         : base(mod) { }

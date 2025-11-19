@@ -5,7 +5,7 @@ using Unity.Burst;
 namespace BurstPQS.Mod;
 
 [BurstCompile]
-public class SmoothLatitudeRange : BatchPQSMod<PQSMod_SmoothLatitudeRange>
+public class SmoothLatitudeRange : BatchPQSModV1<PQSMod_SmoothLatitudeRange>
 {
     public SmoothLatitudeRange(PQSMod_SmoothLatitudeRange mod)
         : base(mod) { }

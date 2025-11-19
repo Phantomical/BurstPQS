@@ -6,7 +6,7 @@ using IModule = LibNoise.IModule;
 namespace BurstPQS.Mod;
 
 [BurstCompile(FloatMode = FloatMode.Fast)]
-public class VertexHeightNoiseVertHeight : BatchPQSMod<PQSMod_VertexHeightNoiseVertHeight>
+public class VertexHeightNoiseVertHeight : BatchPQSModV1<PQSMod_VertexHeightNoiseVertHeight>
 {
     public VertexHeightNoiseVertHeight(PQSMod_VertexHeightNoiseVertHeight mod)
         : base(mod) { }

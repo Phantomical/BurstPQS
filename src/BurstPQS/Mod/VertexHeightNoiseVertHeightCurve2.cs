@@ -6,7 +6,7 @@ namespace BurstPQS.Mod;
 
 [BurstCompile]
 public class VertexHeightNoiseVertHeightCurve2
-    : BatchPQSMod<PQSMod_VertexHeightNoiseVertHeightCurve2>
+    : BatchPQSModV1<PQSMod_VertexHeightNoiseVertHeightCurve2>
 {
     public VertexHeightNoiseVertHeightCurve2(PQSMod_VertexHeightNoiseVertHeightCurve2 mod)
         : base(mod) { }

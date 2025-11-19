@@ -6,7 +6,7 @@ using UnityEngine;
 namespace BurstPQS.Mod;
 
 [BurstCompile]
-public class VertexSimplexMultiChromatic : BatchPQSMod<PQSMod_VertexSimplexMultiChromatic>
+public class VertexSimplexMultiChromatic : BatchPQSModV1<PQSMod_VertexSimplexMultiChromatic>
 {
     public VertexSimplexMultiChromatic(PQSMod_VertexSimplexMultiChromatic mod)
         : base(mod) { }

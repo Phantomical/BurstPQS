@@ -5,7 +5,7 @@ using Unity.Burst;
 namespace BurstPQS.Mod;
 
 [BurstCompile]
-public class VertexVoronoi : BatchPQSMod<PQSMod_VertexVoronoi>
+public class VertexVoronoi : BatchPQSModV1<PQSMod_VertexVoronoi>
 {
     public VertexVoronoi(PQSMod_VertexVoronoi mod)
         : base(mod) { }

@@ -2,7 +2,7 @@ using BurstPQS.Util;
 
 namespace BurstPQS.Mod;
 
-public class ROCControl : BatchPQSMod<PQSROCControl>
+public class ROCControl : BatchPQSModV1<PQSROCControl>
 {
     public ROCControl(PQSROCControl mod)
         : base(mod) { }

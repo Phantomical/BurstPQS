@@ -7,7 +7,7 @@ using IModule = LibNoise.IModule;
 namespace BurstPQS.Mod;
 
 [BurstCompile]
-public class VertexHeightNoiseHeightMap : BatchPQSMod<PQSMod_VertexHeightNoiseHeightMap>
+public class VertexHeightNoiseHeightMap : BatchPQSModV1<PQSMod_VertexHeightNoiseHeightMap>
 {
     static float[] HeightMapData;
 

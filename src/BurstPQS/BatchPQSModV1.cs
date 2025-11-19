@@ -5,14 +5,14 @@ using UnityEngine;
 
 namespace BurstPQS;
 
-public interface IBatchPQSMod
+public interface IBatchPQSModV1
 {
     void OnBatchVertexBuild(in QuadBuildData data);
 
     void OnBatchVertexBuildHeight(in QuadBuildData data);
 }
 
-public abstract class BatchPQSMod : IBatchPQSMod, IDisposable
+public abstract class BatchPQSModV1 : IBatchPQSModV1, IDisposable
 {
     public virtual void OnSetup() { }
 
@@ -31,10 +31,10 @@ public abstract class BatchPQSMod : IBatchPQSMod, IDisposable
     static readonly Dictionary<Type, Type> ModTypes = [];
 
     /// <summary>
-    /// Register a <see cref="BatchPQSMod"/> adapter for a <see cref="PQSMod"/>
+    /// Register a <see cref="BatchPQSModV1"/> adapter for a <see cref="PQSMod"/>
     /// type.
     /// </summary>
-    /// <param name="batchMod">The type of the <see cref="BatchPQSMod"/> adapter.</param>
+    /// <param name="batchMod">The type of the <see cref="BatchPQSModV1"/> adapter.</param>
     /// <param name="mod">The type of the <see cref="PQSMod"/>.</param>
     /// <exception cref="ArgumentException"></exception>
     public static void RegisterBatchPQSMod(Type batchMod, Type mod)
@@ -42,7 +42,7 @@ public abstract class BatchPQSMod : IBatchPQSMod, IDisposable
         if (!typeof(PQSMod).IsAssignableFrom(mod))
             throw new ArgumentException("type does not inherit from PQSMod", nameof(mod));
 
-        var batchPqsModType = typeof(BatchPQSMod<>).MakeGenericType(mod);
+        var batchPqsModType = typeof(BatchPQSModV1<>).MakeGenericType(mod);
         if (!batchPqsModType.IsAssignableFrom(batchMod))
             throw new ArgumentException(
                 $"type does not inherit from {batchPqsModType.Name}",
@@ -68,19 +68,19 @@ public abstract class BatchPQSMod : IBatchPQSMod, IDisposable
     }
 
     /// <summary>
-    /// Create a <see cref="BatchPQSMod"/> adapter for a <see cref="PQSMod"/>.
+    /// Create a <see cref="BatchPQSModV1"/> adapter for a <see cref="PQSMod"/>.
     /// If no adapter is configured it will either create a <see cref="Shim"/>
     /// or return null, if none of <c>OnVertexBuild</c> and <c>OnVertexBuildHeight</c>
     /// is override.
     /// </summary>
-    public static BatchPQSMod Create(PQSMod mod)
+    public static BatchPQSModV1 Create(PQSMod mod)
     {
         var type = mod.GetType();
 
         if (ModTypes.TryGetValue(type, out var batchMod))
-            return (BatchPQSMod)Activator.CreateInstance(batchMod, [mod]);
+            return (BatchPQSModV1)Activator.CreateInstance(batchMod, [mod]);
 
-        if (mod is IBatchPQSMod interfaceMod)
+        if (mod is IBatchPQSModV1 interfaceMod)
             return new InterfaceShim(interfaceMod);
 
         return Shim.Create(mod);
@@ -88,7 +88,7 @@ public abstract class BatchPQSMod : IBatchPQSMod, IDisposable
     #endregion
 }
 
-public abstract class BatchPQSMod<T>(T mod) : BatchPQSMod
+public abstract class BatchPQSModV1<T>(T mod) : BatchPQSModV1
     where T : PQSMod
 {
     protected T mod = mod;

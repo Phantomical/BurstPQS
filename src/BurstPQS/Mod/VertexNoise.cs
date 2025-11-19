@@ -6,7 +6,7 @@ using Unity.Burst;
 namespace BurstPQS.Mod;
 
 [BurstCompile]
-public class VertexNoise : BatchPQSMod<PQSMod_VertexNoise>
+public class VertexNoise : BatchPQSModV1<PQSMod_VertexNoise>
 {
     public VertexNoise(PQSMod_VertexNoise mod)
         : base(mod) { }

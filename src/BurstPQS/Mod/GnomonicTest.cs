@@ -5,7 +5,7 @@ using UnityEngine;
 namespace BurstPQS.Mod;
 
 [BurstCompile]
-public class GnomonicTest : BatchPQSMod<PQSMod_GnomonicTest>
+public class GnomonicTest : BatchPQSModV1<PQSMod_GnomonicTest>
 {
     public GnomonicTest(PQSMod_GnomonicTest mod)
         : base(mod) { }

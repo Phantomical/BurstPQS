@@ -6,7 +6,7 @@ using UnityEngine;
 namespace BurstPQS.Mod;
 
 [BurstCompile]
-public class FlattenAreaTangential : BatchPQSMod<PQSMod_FlattenAreaTangential>
+public class FlattenAreaTangential : BatchPQSModV1<PQSMod_FlattenAreaTangential>
 {
     public FlattenAreaTangential(PQSMod_FlattenAreaTangential mod)
         : base(mod) { }

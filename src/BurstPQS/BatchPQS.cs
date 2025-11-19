@@ -13,7 +13,7 @@ namespace BurstPQS;
 public unsafe class BatchPQS : MonoBehaviour
 {
     private PQS pqs;
-    private BatchPQSMod[] batchMods;
+    private BatchPQSModV1[] batchMods;
 
     void Awake()
     {
@@ -327,10 +327,10 @@ public unsafe class BatchPQS : MonoBehaviour
     #region Method Injections
     internal void PostSetupMods()
     {
-        List<BatchPQSMod> batchMods = new(pqs.mods.Length);
+        List<BatchPQSModV1> batchMods = new(pqs.mods.Length);
         foreach (var mod in pqs.mods)
         {
-            var batchMod = BatchPQSMod.Create(mod);
+            var batchMod = BatchPQSModV1.Create(mod);
             if (batchMod is not null)
                 batchMods.Add(batchMod);
         }
