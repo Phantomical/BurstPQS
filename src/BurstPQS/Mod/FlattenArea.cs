@@ -11,7 +11,7 @@ public class FlattenArea : BatchPQSModV1<PQSMod_FlattenArea>
     public FlattenArea(PQSMod_FlattenArea mod)
         : base(mod) { }
 
-    public override void OnBatchVertexBuildHeight(in QuadBuildData data)
+    public override void OnBatchVertexBuildHeight(in QuadBuildDataV1 data)
     {
         if (!mod.overrideQuadBuildCheck && !mod.quadActive)
             return;
@@ -35,7 +35,7 @@ public class FlattenArea : BatchPQSModV1<PQSMod_FlattenArea>
 
     [BurstCompile(FloatMode = FloatMode.Fast)]
     [BurstPQSAutoPatch]
-    static void BuildHeights([NoAlias] in BurstInfo info, [NoAlias] in BurstQuadBuildData data) =>
+    static void BuildHeights([NoAlias] in BurstInfo info, [NoAlias] in BurstQuadBuildDataV1 data) =>
         info.Execute(in data);
 
     struct BurstInfo
@@ -52,7 +52,7 @@ public class FlattenArea : BatchPQSModV1<PQSMod_FlattenArea>
         public double smoothStart;
         public double smoothEnd;
 
-        public readonly void Execute(in BurstQuadBuildData data)
+        public readonly void Execute(in BurstQuadBuildDataV1 data)
         {
             for (int i = 0; i < data.VertexCount; ++i)
             {

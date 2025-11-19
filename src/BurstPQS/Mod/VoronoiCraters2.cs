@@ -15,7 +15,7 @@ public class VoronoiCraters2 : BatchPQSModV1<PQSMod_VoronoiCraters2>
     public VoronoiCraters2(PQSMod_VoronoiCraters2 mod)
         : base(mod) { }
 
-    public override unsafe void OnBatchVertexBuildHeight(in QuadBuildData data)
+    public override unsafe void OnBatchVertexBuildHeight(in QuadBuildDataV1 data)
     {
         if (rs is null || rs.Length != data.VertexCount)
             rs = new float[data.VertexCount];
@@ -39,7 +39,7 @@ public class VoronoiCraters2 : BatchPQSModV1<PQSMod_VoronoiCraters2>
         }
     }
 
-    public override unsafe void OnBatchVertexBuild(in QuadBuildData data)
+    public override unsafe void OnBatchVertexBuild(in QuadBuildDataV1 data)
     {
         if (rs is null || rs.Length != data.VertexCount)
             throw new InvalidOperationException(
@@ -62,7 +62,7 @@ public class VoronoiCraters2 : BatchPQSModV1<PQSMod_VoronoiCraters2>
     [BurstCompile(FloatMode = FloatMode.Fast)]
     [BurstPQSAutoPatch]
     static void BuildHeights(
-        [NoAlias] in BurstQuadBuildData data,
+        [NoAlias] in BurstQuadBuildDataV1 data,
         [NoAlias] in BurstVoronoi voronoi,
         [NoAlias] in BurstSimplex jitterSimplex,
         [NoAlias] in BurstAnimationCurve craterCurve,
@@ -92,7 +92,7 @@ public class VoronoiCraters2 : BatchPQSModV1<PQSMod_VoronoiCraters2>
     [BurstCompile(FloatMode = FloatMode.Fast)]
     [BurstPQSAutoPatch]
     static void BuildVertices(
-        [NoAlias] in BurstQuadBuildData data,
+        [NoAlias] in BurstQuadBuildDataV1 data,
         [NoAlias] in BurstGradient craterColorRamp,
         [NoAlias] in MemorySpan<float> rs,
         bool debugColorMapping

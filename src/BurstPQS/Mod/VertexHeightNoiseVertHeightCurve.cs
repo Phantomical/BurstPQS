@@ -12,7 +12,7 @@ public class VertexHeightNoiseVertHeightCurve : BatchPQSModV1<PQSMod_VertexHeigh
     public VertexHeightNoiseVertHeightCurve(PQSMod_VertexHeightNoiseVertHeightCurve mod)
         : base(mod) { }
 
-    public override void OnBatchVertexBuildHeight(in QuadBuildData data)
+    public override void OnBatchVertexBuildHeight(in QuadBuildDataV1 data)
     {
         var p = new Params
         {
@@ -43,7 +43,7 @@ public class VertexHeightNoiseVertHeightCurve : BatchPQSModV1<PQSMod_VertexHeigh
     }
 
     static void BuildVertex<N>(
-        [NoAlias] in BurstQuadBuildData data,
+        [NoAlias] in BurstQuadBuildDataV1 data,
         [NoAlias] in N noise,
         [NoAlias] in BurstAnimationCurve curve,
         [NoAlias] in Params p
@@ -72,7 +72,7 @@ public class VertexHeightNoiseVertHeightCurve : BatchPQSModV1<PQSMod_VertexHeigh
     [BurstCompile(FloatMode = FloatMode.Fast)]
     [BurstPQSAutoPatch]
     static void BuildVertexPerlin(
-        in BurstQuadBuildData data,
+        in BurstQuadBuildDataV1 data,
         in Perlin noise,
         in BurstAnimationCurve curve,
         in Params p
@@ -81,7 +81,7 @@ public class VertexHeightNoiseVertHeightCurve : BatchPQSModV1<PQSMod_VertexHeigh
     [BurstCompile(FloatMode = FloatMode.Fast)]
     [BurstPQSAutoPatch]
     static void BuildVertexRidgedMultifractal(
-        in BurstQuadBuildData data,
+        in BurstQuadBuildDataV1 data,
         in RidgedMultifractal noise,
         in BurstAnimationCurve curve,
         in Params p
@@ -90,7 +90,7 @@ public class VertexHeightNoiseVertHeightCurve : BatchPQSModV1<PQSMod_VertexHeigh
     [BurstCompile(FloatMode = FloatMode.Fast)]
     [BurstPQSAutoPatch]
     static void BuildVertexBillow(
-        in BurstQuadBuildData data,
+        in BurstQuadBuildDataV1 data,
         in Billow noise,
         in BurstAnimationCurve curve,
         in Params p

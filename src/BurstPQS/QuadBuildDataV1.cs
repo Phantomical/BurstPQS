@@ -13,10 +13,10 @@ using VehiclePhysics;
 
 namespace BurstPQS;
 
-public struct QuadBuildData
+public struct QuadBuildDataV1
 {
     public PQ buildQuad;
-    public BurstQuadBuildData burstData;
+    public BurstQuadBuildDataV1 burstData;
 
     public readonly int VertexCount => burstData.VertexCount;
     public readonly MemorySpan<Vector3d> globalV => burstData.globalV;
@@ -40,8 +40,8 @@ public struct QuadBuildData
     public readonly MemorySpan<double> latitude => burstData.latitude;
     public readonly MemorySpan<FixedArray6<PQS.GnomonicUV>> gnomonicUVs => burstData.gnomonicUVs;
 
-    public readonly BurstQuadBuildData.SX sx => burstData.sx;
-    public readonly BurstQuadBuildData.SY sy => burstData.sy;
+    public readonly BurstQuadBuildDataV1.SX sx => burstData.sx;
+    public readonly BurstQuadBuildDataV1.SY sy => burstData.sy;
 
     public readonly void CopyTo(PQS.VertexBuildData vbdata, int index)
     {
@@ -54,7 +54,7 @@ public struct QuadBuildData
         burstData.CopyFrom(vbdata, index);
 }
 
-public unsafe struct BurstQuadBuildData
+public unsafe struct BurstQuadBuildDataV1
 {
     readonly int _vertexCount;
     readonly int _baseIndex;
@@ -160,7 +160,7 @@ public unsafe struct BurstQuadBuildData
     public readonly SX sx => new(in this);
     public readonly SY sy => new(in this);
 
-    internal BurstQuadBuildData(
+    internal BurstQuadBuildDataV1(
         PQ quad,
         void* buffer,
         int buflen,
@@ -220,7 +220,7 @@ public unsafe struct BurstQuadBuildData
         _allowScatter = TakeElements<bool>();
     }
 
-    internal BurstQuadBuildData(PQ quad, SingleVertexData* buf, int baseIndex)
+    internal BurstQuadBuildDataV1(PQ quad, SingleVertexData* buf, int baseIndex)
         : this(quad, buf, sizeof(SingleVertexData), 1, baseIndex) { }
 
     public readonly void CopyTo(PQS.VertexBuildData vbdata, int index)
@@ -331,7 +331,7 @@ public unsafe struct BurstQuadBuildData
     }
 
     [method: MethodImpl(MethodImplOptions.AggressiveInlining)]
-    public readonly struct SY(in BurstQuadBuildData data)
+    public readonly struct SY(in BurstQuadBuildDataV1 data)
     {
         readonly MemorySpan<double> latitude = data.latitude;
 
@@ -348,7 +348,7 @@ public unsafe struct BurstQuadBuildData
     }
 
     [method: MethodImpl(MethodImplOptions.AggressiveInlining)]
-    public readonly struct SX(in BurstQuadBuildData data)
+    public readonly struct SX(in BurstQuadBuildDataV1 data)
     {
         readonly MemorySpan<double> longitude = data.longitude;
 
@@ -371,7 +371,7 @@ internal static class QuadBuildDataExt
 
     static int GetCachedElementSize()
     {
-        var type = typeof(BurstQuadBuildData);
+        var type = typeof(BurstQuadBuildDataV1);
         int size = 0;
 
         foreach (var prop in type.GetProperties())

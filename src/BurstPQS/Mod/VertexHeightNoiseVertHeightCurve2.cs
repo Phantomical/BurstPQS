@@ -11,7 +11,7 @@ public class VertexHeightNoiseVertHeightCurve2
     public VertexHeightNoiseVertHeightCurve2(PQSMod_VertexHeightNoiseVertHeightCurve2 mod)
         : base(mod) { }
 
-    public override void OnBatchVertexBuildHeight(in QuadBuildData data)
+    public override void OnBatchVertexBuildHeight(in QuadBuildDataV1 data)
     {
         var p = new Params
         {
@@ -47,7 +47,7 @@ public class VertexHeightNoiseVertHeightCurve2
     [BurstCompile(FloatMode = FloatMode.Fast)]
     [BurstPQSAutoPatch]
     static void BuildVertex(
-        [NoAlias] in BurstQuadBuildData data,
+        [NoAlias] in BurstQuadBuildDataV1 data,
         [NoAlias] in RidgedMultifractal ridgedAdd,
         [NoAlias] in RidgedMultifractal ridgedSub,
         [NoAlias] in BurstSimplex simplex,

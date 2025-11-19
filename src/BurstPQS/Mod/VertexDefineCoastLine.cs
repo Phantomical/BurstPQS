@@ -9,7 +9,7 @@ public class VertexDefineCoastLine : BatchPQSModV1<PQSMod_VertexDefineCoastLine>
     public VertexDefineCoastLine(PQSMod_VertexDefineCoastLine mod)
         : base(mod) { }
 
-    public override void OnBatchVertexBuildHeight(in QuadBuildData data)
+    public override void OnBatchVertexBuildHeight(in QuadBuildDataV1 data)
     {
         BuildHeight(in data.burstData, mod.oceanRadius, mod.depthOffset);
     }
@@ -17,7 +17,7 @@ public class VertexDefineCoastLine : BatchPQSModV1<PQSMod_VertexDefineCoastLine>
     [BurstCompile(FloatMode = FloatMode.Fast)]
     [BurstPQSAutoPatch]
     static void BuildHeight(
-        [NoAlias] in BurstQuadBuildData data,
+        [NoAlias] in BurstQuadBuildDataV1 data,
         double oceanRadius,
         double depthOffset
     )

@@ -11,7 +11,7 @@ public class FlattenOcean : BatchPQSModV1<PQSMod_FlattenOcean>
     public FlattenOcean(PQSMod_FlattenOcean mod)
         : base(mod) { }
 
-    public override void OnBatchVertexBuildHeight(in QuadBuildData data)
+    public override void OnBatchVertexBuildHeight(in QuadBuildDataV1 data)
     {
         BuildHeights(data.vertHeight, mod.oceanRad);
     }

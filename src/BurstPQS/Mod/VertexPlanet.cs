@@ -44,7 +44,7 @@ public class VertexPlanet : BatchPQSModV1<PQSMod_VertexPlanet>
         }
     }
 
-    public override unsafe void OnBatchVertexBuildHeight(in QuadBuildData data)
+    public override unsafe void OnBatchVertexBuildHeight(in QuadBuildDataV1 data)
     {
         if (preSmoothHeights is null || preSmoothHeights.Length != data.VertexCount)
             preSmoothHeights = new double[data.VertexCount];
@@ -90,7 +90,7 @@ public class VertexPlanet : BatchPQSModV1<PQSMod_VertexPlanet>
         }
     }
 
-    public override unsafe void OnBatchVertexBuild(in QuadBuildData data)
+    public override unsafe void OnBatchVertexBuild(in QuadBuildDataV1 data)
     {
         using var g0 = BurstSimplex.Create(mod.terrainType.simplex, out var terrainType);
 
@@ -113,7 +113,7 @@ public class VertexPlanet : BatchPQSModV1<PQSMod_VertexPlanet>
     [BurstCompile(FloatMode = FloatMode.Fast)]
     [BurstPQSAutoPatch]
     static void BuildHeight(
-        [NoAlias] in BurstQuadBuildData data,
+        [NoAlias] in BurstQuadBuildDataV1 data,
         [NoAlias] in MemorySpan<double> preSmoothHeights,
         [NoAlias] in BurstSimplex iContinental,
         [NoAlias] in BurstSimplex continentalSmoothing,
@@ -213,7 +213,7 @@ public class VertexPlanet : BatchPQSModV1<PQSMod_VertexPlanet>
     [BurstCompile(FloatMode = FloatMode.Fast)]
     [BurstPQSAutoPatch]
     static void BuildVertex(
-        [NoAlias] in BurstQuadBuildData data,
+        [NoAlias] in BurstQuadBuildDataV1 data,
         [NoAlias] in MemorySpan<BurstLandClass> landClasses,
         [NoAlias] in MemorySpan<double> continentalHeightPreSmooth,
         [NoAlias] in BurstSimplex terrainType,

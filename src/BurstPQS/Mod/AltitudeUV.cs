@@ -10,7 +10,7 @@ public class AltitudeUV : BatchPQSModV1<PQSMod_AltitudeUV>
     public AltitudeUV(PQSMod_AltitudeUV mod)
         : base(mod) { }
 
-    public override void OnBatchVertexBuild(in QuadBuildData data)
+    public override void OnBatchVertexBuild(in QuadBuildDataV1 data)
     {
         BuildVertices(
             in data.burstData,
@@ -24,7 +24,7 @@ public class AltitudeUV : BatchPQSModV1<PQSMod_AltitudeUV>
     [BurstCompile(FloatMode = FloatMode.Fast)]
     [BurstPQSAutoPatch]
     static void BuildVertices(
-        [NoAlias] in BurstQuadBuildData data,
+        [NoAlias] in BurstQuadBuildDataV1 data,
         double radius,
         double atmosphereHeight,
         double oceanDepth,

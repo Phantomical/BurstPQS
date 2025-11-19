@@ -7,9 +7,9 @@ namespace BurstPQS;
 
 public interface IBatchPQSModV1
 {
-    void OnBatchVertexBuild(in QuadBuildData data);
+    void OnBatchVertexBuild(in QuadBuildDataV1 data);
 
-    void OnBatchVertexBuildHeight(in QuadBuildData data);
+    void OnBatchVertexBuildHeight(in QuadBuildDataV1 data);
 }
 
 public abstract class BatchPQSModV1 : IBatchPQSModV1, IDisposable
@@ -23,9 +23,9 @@ public abstract class BatchPQSModV1 : IBatchPQSModV1, IDisposable
     /// called once
     /// </summary>
     /// <param name="data"></param>
-    public virtual void OnBatchVertexBuild(in QuadBuildData data) { }
+    public virtual void OnBatchVertexBuild(in QuadBuildDataV1 data) { }
 
-    public virtual void OnBatchVertexBuildHeight(in QuadBuildData data) { }
+    public virtual void OnBatchVertexBuildHeight(in QuadBuildDataV1 data) { }
 
     #region Registry
     static readonly Dictionary<Type, Type> ModTypes = [];

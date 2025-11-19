@@ -11,7 +11,7 @@ public class VertexSimplexNoiseColor : BatchPQSModV1<PQSMod_VertexSimplexNoiseCo
     public VertexSimplexNoiseColor(PQSMod_VertexSimplexNoiseColor mod)
         : base(mod) { }
 
-    public override void OnBatchVertexBuild(in QuadBuildData data)
+    public override void OnBatchVertexBuild(in QuadBuildDataV1 data)
     {
         using var g0 = BurstSimplex.Create(mod.simplex, out var bsimplex);
 
@@ -21,7 +21,7 @@ public class VertexSimplexNoiseColor : BatchPQSModV1<PQSMod_VertexSimplexNoiseCo
     [BurstCompile(FloatMode = FloatMode.Fast)]
     [BurstPQSAutoPatch]
     static void BuildVertices(
-        [NoAlias] in BurstQuadBuildData data,
+        [NoAlias] in BurstQuadBuildDataV1 data,
         [NoAlias] in BurstSimplex simplex,
         in Color iColorStart,
         in Color iColorEnd,

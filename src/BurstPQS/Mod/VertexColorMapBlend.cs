@@ -10,7 +10,7 @@ public class VertexColorMapBlend : BatchPQSModV1<PQSMod_VertexColorMapBlend>
     public VertexColorMapBlend(PQSMod_VertexColorMapBlend mod)
         : base(mod) { }
 
-    public override void OnBatchVertexBuild(in QuadBuildData data)
+    public override void OnBatchVertexBuild(in QuadBuildDataV1 data)
     {
         using var guard = BurstMapSO.Create(mod.vertexColorMap, out var mapSO);
         BuildVertices(in data.burstData, in mapSO, mod.blend);
@@ -19,7 +19,7 @@ public class VertexColorMapBlend : BatchPQSModV1<PQSMod_VertexColorMapBlend>
     [BurstCompile(FloatMode = FloatMode.Fast)]
     [BurstPQSAutoPatch]
     static void BuildVertices(
-        [NoAlias] in BurstQuadBuildData data,
+        [NoAlias] in BurstQuadBuildDataV1 data,
         [NoAlias] in BurstMapSO vertexColorMap,
         float blend
     )

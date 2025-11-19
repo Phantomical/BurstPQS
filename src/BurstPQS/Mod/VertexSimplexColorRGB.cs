@@ -12,7 +12,7 @@ public class VertexSimplexColorRGB : BatchPQSModV1<PQSMod_VertexSimplexColorRGB>
     public VertexSimplexColorRGB(PQSMod_VertexSimplexColorRGB mod)
         : base(mod) { }
 
-    public override void OnBatchVertexBuild(in QuadBuildData data)
+    public override void OnBatchVertexBuild(in QuadBuildDataV1 data)
     {
         using var g0 = BurstSimplex.Create(mod.simplex, out var bsimplex);
 
@@ -26,7 +26,7 @@ public class VertexSimplexColorRGB : BatchPQSModV1<PQSMod_VertexSimplexColorRGB>
         );
     }
 
-    public override void OnBatchVertexBuildHeight(in QuadBuildData data)
+    public override void OnBatchVertexBuildHeight(in QuadBuildDataV1 data)
     {
         using var g0 = BurstSimplex.Create(mod.simplex, out var bsimplex);
 
@@ -43,7 +43,7 @@ public class VertexSimplexColorRGB : BatchPQSModV1<PQSMod_VertexSimplexColorRGB>
     [BurstCompile(FloatMode = FloatMode.Fast)]
     [BurstPQSAutoPatch]
     public void BuildVertices(
-        [NoAlias] in BurstQuadBuildData data,
+        [NoAlias] in BurstQuadBuildDataV1 data,
         [NoAlias] in BurstSimplex simplex,
         float rBlend,
         float gBlend,

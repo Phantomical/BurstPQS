@@ -10,14 +10,14 @@ public class GnomonicTest : BatchPQSModV1<PQSMod_GnomonicTest>
     public GnomonicTest(PQSMod_GnomonicTest mod)
         : base(mod) { }
 
-    public override void OnBatchVertexBuild(in QuadBuildData data)
+    public override void OnBatchVertexBuild(in QuadBuildDataV1 data)
     {
         BuildVertices(in data.burstData);
     }
 
     [BurstCompile(FloatMode = FloatMode.Fast)]
     [BurstPQSAutoPatch]
-    static void BuildVertices([NoAlias] in BurstQuadBuildData data)
+    static void BuildVertices([NoAlias] in BurstQuadBuildDataV1 data)
     {
         for (int i = 0; i < data.VertexCount; ++i)
         {

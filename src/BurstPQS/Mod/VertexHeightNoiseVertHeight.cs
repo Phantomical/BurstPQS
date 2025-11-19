@@ -11,7 +11,7 @@ public class VertexHeightNoiseVertHeight : BatchPQSModV1<PQSMod_VertexHeightNois
     public VertexHeightNoiseVertHeight(PQSMod_VertexHeightNoiseVertHeight mod)
         : base(mod) { }
 
-    public override void OnBatchVertexBuildHeight(in QuadBuildData data)
+    public override void OnBatchVertexBuildHeight(in QuadBuildDataV1 data)
     {
         var p = new Params
         {
@@ -44,7 +44,7 @@ public class VertexHeightNoiseVertHeight : BatchPQSModV1<PQSMod_VertexHeightNois
     }
 
     static void BuildVertex<N>(
-        [NoAlias] in BurstQuadBuildData data,
+        [NoAlias] in BurstQuadBuildDataV1 data,
         [NoAlias] in N noise,
         [NoAlias] in Params p
     )
@@ -67,19 +67,19 @@ public class VertexHeightNoiseVertHeight : BatchPQSModV1<PQSMod_VertexHeightNois
 
     [BurstCompile(FloatMode = FloatMode.Fast)]
     [BurstPQSAutoPatch]
-    static void BuildVertexPerlin(in BurstQuadBuildData data, in Perlin noise, in Params p) =>
+    static void BuildVertexPerlin(in BurstQuadBuildDataV1 data, in Perlin noise, in Params p) =>
         BuildVertex(in data, in noise, p);
 
     [BurstCompile(FloatMode = FloatMode.Fast)]
     [BurstPQSAutoPatch]
     static void BuildVertexRidgedMultifractal(
-        in BurstQuadBuildData data,
+        in BurstQuadBuildDataV1 data,
         in RidgedMultifractal noise,
         in Params p
     ) => BuildVertex(in data, in noise, p);
 
     [BurstCompile(FloatMode = FloatMode.Fast)]
     [BurstPQSAutoPatch]
-    static void BuildVertexBillow(in BurstQuadBuildData data, in Billow noise, in Params p) =>
+    static void BuildVertexBillow(in BurstQuadBuildDataV1 data, in Billow noise, in Params p) =>
         BuildVertex(in data, in noise, p);
 }

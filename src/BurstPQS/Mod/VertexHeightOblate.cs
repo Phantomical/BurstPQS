@@ -13,14 +13,14 @@ public class VertexHeightOblate : BatchPQSModV1<PQSMod_VertexHeightOblate>
     public VertexHeightOblate(PQSMod_VertexHeightOblate mod)
         : base(mod) { }
 
-    public override void OnBatchVertexBuildHeight(in QuadBuildData data)
+    public override void OnBatchVertexBuildHeight(in QuadBuildDataV1 data)
     {
         BuildHeight(in data.burstData, mod.height, mod.pow);
     }
 
     [BurstCompile]
     [BurstPQSAutoPatch]
-    static void BuildHeight(in BurstQuadBuildData data, double height, double pow)
+    static void BuildHeight(in BurstQuadBuildDataV1 data, double height, double pow)
     {
         int i = 0;
         for (; i + 4 <= data.VertexCount; i += 4)

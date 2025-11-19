@@ -16,7 +16,7 @@ public class MapDecalTangent : BatchPQSModV1<PQSMod_MapDecalTangent>
     public MapDecalTangent(PQSMod_MapDecalTangent mod)
         : base(mod) { }
 
-    public override unsafe void OnBatchVertexBuildHeight(in QuadBuildData data)
+    public override unsafe void OnBatchVertexBuildHeight(in QuadBuildDataV1 data)
     {
         if (!mod.quadActive && mod.buildHeight)
             return;
@@ -54,7 +54,7 @@ public class MapDecalTangent : BatchPQSModV1<PQSMod_MapDecalTangent>
         }
     }
 
-    public override unsafe void OnBatchVertexBuild(in QuadBuildData data)
+    public override unsafe void OnBatchVertexBuild(in QuadBuildDataV1 data)
     {
         if (!mod.quadActive && mod.buildHeight)
             return;
@@ -93,7 +93,7 @@ public class MapDecalTangent : BatchPQSModV1<PQSMod_MapDecalTangent>
     [BurstCompile(FloatMode = FloatMode.Fast)]
     [BurstPQSAutoPatch]
     static void BuildHeights(
-        [NoAlias] in BurstQuadBuildData data,
+        [NoAlias] in BurstQuadBuildDataV1 data,
         [NoAlias] in BurstInfo info,
         [NoAlias] in NullableWrap<BurstMapSO> heightMap,
         bool sphereIsBuildingMaps,
@@ -107,7 +107,7 @@ public class MapDecalTangent : BatchPQSModV1<PQSMod_MapDecalTangent>
     [BurstCompile(FloatMode = FloatMode.Fast)]
     [BurstPQSAutoPatch]
     static void BuildVerts(
-        [NoAlias] in BurstQuadBuildData data,
+        [NoAlias] in BurstQuadBuildDataV1 data,
         [NoAlias] in BurstInfo info,
         [NoAlias] in NullableWrap<BurstMapSO> colorMap,
         double sphereRadius,
@@ -157,7 +157,7 @@ public class MapDecalTangent : BatchPQSModV1<PQSMod_MapDecalTangent>
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public readonly void BuildHeights(
-            in BurstQuadBuildData data,
+            in BurstQuadBuildDataV1 data,
             BurstMapSO? nHeightMap,
             bool sphereIsBuildingMaps,
             double sphereRadius,
@@ -217,7 +217,7 @@ public class MapDecalTangent : BatchPQSModV1<PQSMod_MapDecalTangent>
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public readonly void BuildVerts(
-            in BurstQuadBuildData data,
+            in BurstQuadBuildDataV1 data,
             BurstMapSO? nColorMap,
             MemorySpan<bool> vertActive,
             double sphereRadius

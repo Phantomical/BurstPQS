@@ -31,7 +31,7 @@ public class HeightColorMap2 : BatchPQSModV1<PQSMod_HeightColorMap2>
             burstLandClasses[i] = new(mod.landClasses[i]);
     }
 
-    public override unsafe void OnBatchVertexBuild(in QuadBuildData data)
+    public override unsafe void OnBatchVertexBuild(in QuadBuildDataV1 data)
     {
         if (burstLandClasses is null)
             throw new NullReferenceException("burstLandClasses was null");
@@ -51,7 +51,7 @@ public class HeightColorMap2 : BatchPQSModV1<PQSMod_HeightColorMap2>
     [BurstCompile(FloatMode = FloatMode.Fast)]
     [BurstPQSAutoPatch]
     static void BuildVertices(
-        [NoAlias] in BurstQuadBuildData data,
+        [NoAlias] in BurstQuadBuildDataV1 data,
         [NoAlias] in MemorySpan<BurstLandClass> classes,
         double heightMin,
         double heightDelta,

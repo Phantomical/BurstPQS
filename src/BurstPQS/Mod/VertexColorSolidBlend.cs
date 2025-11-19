@@ -11,14 +11,14 @@ public class VertexColorSolidBlend : BatchPQSModV1<PQSMod_VertexColorSolid>
     public VertexColorSolidBlend(PQSMod_VertexColorSolid mod)
         : base(mod) { }
 
-    public override void OnBatchVertexBuild(in QuadBuildData data)
+    public override void OnBatchVertexBuild(in QuadBuildDataV1 data)
     {
         BuildVertex(in data.burstData, in mod.color);
     }
 
     [BurstCompile]
     [BurstPQSAutoPatch]
-    static void BuildVertex([NoAlias] in BurstQuadBuildData data, in Color color)
+    static void BuildVertex([NoAlias] in BurstQuadBuildDataV1 data, in Color color)
     {
         data.vertColor.Fill(color);
     }

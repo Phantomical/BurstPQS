@@ -11,7 +11,7 @@ public class FlattenAreaTangential : BatchPQSModV1<PQSMod_FlattenAreaTangential>
     public FlattenAreaTangential(PQSMod_FlattenAreaTangential mod)
         : base(mod) { }
 
-    public override void OnBatchVertexBuildHeight(in QuadBuildData data)
+    public override void OnBatchVertexBuildHeight(in QuadBuildDataV1 data)
     {
         if (!mod.quadActive)
             return;
@@ -34,7 +34,7 @@ public class FlattenAreaTangential : BatchPQSModV1<PQSMod_FlattenAreaTangential>
 
     [BurstCompile(FloatMode = FloatMode.Fast)]
     [BurstPQSAutoPatch]
-    static void BuildHeights([NoAlias] in BurstInfo info, [NoAlias] in BurstQuadBuildData data) =>
+    static void BuildHeights([NoAlias] in BurstInfo info, [NoAlias] in BurstQuadBuildDataV1 data) =>
         info.Execute(in data);
 
     struct BurstInfo
@@ -50,7 +50,7 @@ public class FlattenAreaTangential : BatchPQSModV1<PQSMod_FlattenAreaTangential>
         public double angleDelta;
         public Vector3d posNorm;
 
-        public readonly void Execute(in BurstQuadBuildData data)
+        public readonly void Execute(in BurstQuadBuildDataV1 data)
         {
             for (int i = 0; i < data.VertexCount; ++i)
             {

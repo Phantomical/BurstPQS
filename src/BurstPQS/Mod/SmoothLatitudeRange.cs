@@ -10,7 +10,7 @@ public class SmoothLatitudeRange : BatchPQSModV1<PQSMod_SmoothLatitudeRange>
     public SmoothLatitudeRange(PQSMod_SmoothLatitudeRange mod)
         : base(mod) { }
 
-    public override void OnBatchVertexBuildHeight(in QuadBuildData data)
+    public override void OnBatchVertexBuildHeight(in QuadBuildDataV1 data)
     {
         BuildVertexHeight(
             in data.burstData,
@@ -23,7 +23,7 @@ public class SmoothLatitudeRange : BatchPQSModV1<PQSMod_SmoothLatitudeRange>
     [BurstCompile(FloatMode = FloatMode.Fast)]
     [BurstPQSAutoPatch]
     static void BuildVertexHeight(
-        [NoAlias] in BurstQuadBuildData data,
+        [NoAlias] in BurstQuadBuildDataV1 data,
         [NoAlias] in BurstLerpRange latitudeRange,
         double smoothToAltitude,
         double sphereRadius

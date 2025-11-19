@@ -86,7 +86,7 @@ public class LandControl : BatchPQSModV1<PQSLandControl>
             guard.Dispose();
     }
 
-    public override unsafe void OnBatchVertexBuildHeight(in QuadBuildData data)
+    public override unsafe void OnBatchVertexBuildHeight(in QuadBuildDataV1 data)
     {
         int lcActiveCount = data.VertexCount * burstLandClasses.Length;
         if (lcActive is null || lcActive.Length != lcActiveCount)
@@ -126,7 +126,7 @@ public class LandControl : BatchPQSModV1<PQSLandControl>
         }
     }
 
-    public override unsafe void OnBatchVertexBuild(in QuadBuildData data)
+    public override unsafe void OnBatchVertexBuild(in QuadBuildDataV1 data)
     {
         fixed (ulong* plcActive = lcActive)
         {
@@ -136,7 +136,7 @@ public class LandControl : BatchPQSModV1<PQSLandControl>
 
     [BurstCompile]
     static void BuildHeights(
-        in BurstQuadBuildData data,
+        in BurstQuadBuildDataV1 data,
         in MemorySpan<BurstLandClass> landClasses,
         in BitSpan lcActive,
         in MemorySpan<double> lcDeltas,
@@ -223,7 +223,7 @@ public class LandControl : BatchPQSModV1<PQSLandControl>
     }
 
     void BuildVertices(
-        QuadBuildData data,
+        QuadBuildDataV1 data,
         in BitSpan lcActive,
         double[] lcDeltas,
         double[] vHeights

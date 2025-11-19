@@ -11,7 +11,7 @@ public class VertexHeightNoise : BatchPQSModV1<PQSMod_VertexHeightNoise>
     public VertexHeightNoise(PQSMod_VertexHeightNoise mod)
         : base(mod) { }
 
-    public override void OnBatchVertexBuildHeight(in QuadBuildData data)
+    public override void OnBatchVertexBuildHeight(in QuadBuildDataV1 data)
     {
         if (mod.noiseMap is LibNoise.Perlin perlin)
             BuildVertexPerlin(in data.burstData, new(perlin), mod.deformity);
@@ -25,23 +25,23 @@ public class VertexHeightNoise : BatchPQSModV1<PQSMod_VertexHeightNoise>
 
     [BurstCompile(FloatMode = FloatMode.Fast)]
     [BurstPQSAutoPatch]
-    static void BuildVertexPerlin(in BurstQuadBuildData data, in Perlin noise, float deformity) =>
+    static void BuildVertexPerlin(in BurstQuadBuildDataV1 data, in Perlin noise, float deformity) =>
         BuildVertex(in data, in noise, deformity);
 
     [BurstCompile(FloatMode = FloatMode.Fast)]
     [BurstPQSAutoPatch]
     static void BuildVertexRidgedMultifractal(
-        in BurstQuadBuildData data,
+        in BurstQuadBuildDataV1 data,
         in RidgedMultifractal noise,
         float blend
     ) => BuildVertex(in data, in noise, blend);
 
     [BurstCompile(FloatMode = FloatMode.Fast)]
     [BurstPQSAutoPatch]
-    static void BuildVertexBillow(in BurstQuadBuildData data, in Billow noise, float deformity) =>
+    static void BuildVertexBillow(in BurstQuadBuildDataV1 data, in Billow noise, float deformity) =>
         BuildVertex(in data, in noise, deformity);
 
-    static void BuildVertex<N>(in BurstQuadBuildData data, in N noise, float deformity)
+    static void BuildVertex<N>(in BurstQuadBuildDataV1 data, in N noise, float deformity)
         where N : IModule
     {
         for (int i = 0; i < data.VertexCount; ++i)

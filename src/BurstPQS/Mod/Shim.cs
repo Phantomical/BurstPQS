@@ -38,7 +38,7 @@ internal sealed class Shim : BatchPQSModV1
     }
 
     #region BatchPQSMod
-    public override void OnBatchVertexBuild(in QuadBuildData data)
+    public override void OnBatchVertexBuild(in QuadBuildDataV1 data)
     {
         if (!info.onVertexBuildOverridden)
             return;
@@ -56,7 +56,7 @@ internal sealed class Shim : BatchPQSModV1
         }
     }
 
-    public override void OnBatchVertexBuildHeight(in QuadBuildData data)
+    public override void OnBatchVertexBuildHeight(in QuadBuildDataV1 data)
     {
         if (!info.onVertexBuildHeightOverridden)
             return;

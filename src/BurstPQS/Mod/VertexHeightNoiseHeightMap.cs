@@ -14,7 +14,7 @@ public class VertexHeightNoiseHeightMap : BatchPQSModV1<PQSMod_VertexHeightNoise
     public VertexHeightNoiseHeightMap(PQSMod_VertexHeightNoiseHeightMap mod)
         : base(mod) { }
 
-    public override unsafe void OnBatchVertexBuildHeight(in QuadBuildData data)
+    public override unsafe void OnBatchVertexBuildHeight(in QuadBuildDataV1 data)
     {
         int vc = data.VertexCount;
         if (HeightMapData is null || HeightMapData.Length != vc)
@@ -75,7 +75,7 @@ public class VertexHeightNoiseHeightMap : BatchPQSModV1<PQSMod_VertexHeightNoise
     }
 
     static void BuildVertex<N>(
-        in BurstQuadBuildData data,
+        in BurstQuadBuildDataV1 data,
         in N noise,
         in MemorySpan<float> heightMapData,
         float heightStart,
@@ -101,7 +101,7 @@ public class VertexHeightNoiseHeightMap : BatchPQSModV1<PQSMod_VertexHeightNoise
     [BurstCompile(FloatMode = FloatMode.Fast)]
     [BurstPQSAutoPatch]
     static void BuildVertexPerlin(
-        in BurstQuadBuildData data,
+        in BurstQuadBuildDataV1 data,
         in Perlin noise,
         in MemorySpan<float> heightMapData,
         float heightStart,
@@ -122,7 +122,7 @@ public class VertexHeightNoiseHeightMap : BatchPQSModV1<PQSMod_VertexHeightNoise
     [BurstCompile(FloatMode = FloatMode.Fast)]
     [BurstPQSAutoPatch]
     static void BuildVertexRidgedMultifractal(
-        in BurstQuadBuildData data,
+        in BurstQuadBuildDataV1 data,
         in RidgedMultifractal noise,
         in MemorySpan<float> heightMapData,
         float heightStart,
@@ -143,7 +143,7 @@ public class VertexHeightNoiseHeightMap : BatchPQSModV1<PQSMod_VertexHeightNoise
     [BurstCompile(FloatMode = FloatMode.Fast)]
     [BurstPQSAutoPatch]
     static void BuildVertexBillow(
-        in BurstQuadBuildData data,
+        in BurstQuadBuildDataV1 data,
         in Billow noise,
         in MemorySpan<float> heightMapData,
         float heightStart,

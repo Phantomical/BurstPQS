@@ -10,7 +10,7 @@ public class VertexSimplexHeightFlatten : BatchPQSModV1<PQSMod_VertexSimplexHeig
     public VertexSimplexHeightFlatten(PQSMod_VertexSimplexHeightFlatten mod)
         : base(mod) { }
 
-    public override void OnBatchVertexBuildHeight(in QuadBuildData data)
+    public override void OnBatchVertexBuildHeight(in QuadBuildDataV1 data)
     {
         using var g0 = BurstSimplex.Create(mod.simplex, out var bsimplex);
 
@@ -20,7 +20,7 @@ public class VertexSimplexHeightFlatten : BatchPQSModV1<PQSMod_VertexSimplexHeig
     [BurstCompile(FloatMode = FloatMode.Fast)]
     [BurstPQSAutoPatch]
     static void BuildHeights(
-        [NoAlias] in BurstQuadBuildData data,
+        [NoAlias] in BurstQuadBuildDataV1 data,
         [NoAlias] in BurstSimplex simplex,
         double deformity,
         double cutoff

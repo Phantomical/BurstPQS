@@ -49,12 +49,12 @@ public unsafe class BatchPQS : MonoBehaviour
         pqs.Mod_OnQuadPreBuild(quad);
 
         using var buffer = new OwnedBuffer(
-            BurstQuadBuildData.GetRequiredBufferSize(PQS.cacheVertCount),
+            BurstQuadBuildDataV1.GetRequiredBufferSize(PQS.cacheVertCount),
             Allocator.TempJob
         );
         buffer.Clear();
 
-        QuadBuildData data = default;
+        QuadBuildDataV1 data = default;
         data.buildQuad = quad;
         data.burstData = new(quad, buffer.Data, buffer.Length, PQS.cacheVertCount);
 
@@ -80,7 +80,7 @@ public unsafe class BatchPQS : MonoBehaviour
 
     #region Burst Methods
     #region InitBuildData
-    void InitBuildData(PQ quad, in QuadBuildData data)
+    void InitBuildData(PQ quad, in QuadBuildDataV1 data)
     {
         fixed (Vector3* pCacheVerts = PQS.cacheVerts)
         {
@@ -99,7 +99,7 @@ public unsafe class BatchPQS : MonoBehaviour
     static void InitBuildDataBurst(
         in MemorySpan<Vector3> cacheVerts,
         in Matrix4x4 quadMatrix,
-        in BurstQuadBuildData data,
+        in BurstQuadBuildDataV1 data,
         double radius,
         bool reqVertexMapCoords
     )
@@ -179,7 +179,7 @@ public unsafe class BatchPQS : MonoBehaviour
         public double meshVertMax;
     }
 
-    unsafe void BuildVertices(in QuadBuildData data)
+    unsafe void BuildVertices(in QuadBuildDataV1 data)
     {
         fixed (Vector3d* pverts = PQS.verts)
         fixed (Vector3* pQuadVerts = data.buildQuad.verts)
@@ -229,7 +229,7 @@ public unsafe class BatchPQS : MonoBehaviour
     [BurstCompile]
     [BurstPQSAutoPatch]
     static void BuildVerticesBurst(
-        in BurstQuadBuildData data,
+        in BurstQuadBuildDataV1 data,
         in BuildVerticesOptions opts,
         out BuildVerticesOutputs outputs
     )
