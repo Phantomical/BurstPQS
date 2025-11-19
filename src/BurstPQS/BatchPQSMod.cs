@@ -1,7 +1,7 @@
 using System;
 using Unity.Jobs;
 
-namespace BurstPQS.V2;
+namespace BurstPQS;
 
 /// <summary>
 /// Interface for the stateful part of a BatchPQSMod.
@@ -15,7 +15,7 @@ namespace BurstPQS.V2;
 ///
 /// If your PQSMod is stateless then you can can just directly implement this
 /// interface and avoid needing to create a new object. You can also key off the
-/// <see cref="QuadBuildDataV2"/> instance, though this is not the recommended
+/// <see cref="QuadBuildData"/> instance, though this is not the recommended
 /// way to do this.
 /// </remarks>
 public interface IBatchPQSModState
@@ -31,7 +31,7 @@ public interface IBatchPQSModState
     /// The returned job handle should include all jobs created by this step
     /// that refer to any data stored in <paramref name="data"/>.
     /// </remarks>
-    JobHandle ScheduleBuildHeights(QuadBuildDataV2 data, JobHandle handle);
+    JobHandle ScheduleBuildHeights(QuadBuildData data, JobHandle handle);
 
     /// <summary>
     /// Schedule a job to be run as part of building the vertices themselves.
@@ -44,7 +44,7 @@ public interface IBatchPQSModState
     /// The returned job handle should include all jobs created by this step
     /// that refer to any data stored in <paramref name="data"/>.
     /// </remarks>
-    JobHandle ScheduleBuildVertices(QuadBuildDataV2 data, JobHandle handle);
+    JobHandle ScheduleBuildVertices(QuadBuildData data, JobHandle handle);
 
     /// <summary>
     /// Called on the main thread when the all the vertices have been built for
@@ -52,7 +52,7 @@ public interface IBatchPQSModState
     /// and to dispose of any native resources that weren't disposed of after the
     /// job completed.
     /// </summary>
-    void OnBuildComplete(QuadBuildDataV2 data);
+    void OnBuildComplete(QuadBuildData data);
 }
 
 public abstract class BatchPQSMod : IDisposable
@@ -81,7 +81,7 @@ public abstract class BatchPQSMod : IDisposable
     /// </summary>
     /// <param name="data"></param>
     /// <returns></returns>
-    public abstract IBatchPQSModState GetState(QuadBuildDataV2 data);
+    public abstract IBatchPQSModState GetState(QuadBuildData data);
 }
 
 public abstract class BatchPQSMod<T>(T mod) : BatchPQSMod

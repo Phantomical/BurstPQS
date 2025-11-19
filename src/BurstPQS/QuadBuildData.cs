@@ -1,6 +1,4 @@
 using System;
-using System.Collections;
-using System.Collections.Generic;
 using System.Runtime.CompilerServices;
 using BurstPQS.Collections;
 using Unity.Burst;
@@ -11,12 +9,12 @@ using UnityEngine;
 
 #pragma warning disable IDE1006 // Naming Styles
 
-namespace BurstPQS.V2;
+namespace BurstPQS;
 
-public class QuadBuildDataV2
+public class QuadBuildData
 {
     public PQ buildQuad;
-    public BurstQuadBuildDataV2 burst;
+    public BurstQuadBuildData burst;
 
     public int VertexCount => burst.VertexCount;
     public MemorySpan<Vector3d> globalV => burst.globalV;
@@ -40,11 +38,11 @@ public class QuadBuildDataV2
     public MemorySpan<double> latitude => burst.latitude;
     public MemorySpan<FixedArray6<PQS.GnomonicUV>> gnomonicUVs => burst.gnomonicUVs;
 
-    public BurstQuadBuildDataV2.SX sx => burst.sx;
-    public BurstQuadBuildDataV2.SY sy => burst.sy;
+    public BurstQuadBuildData.SX sx => burst.sx;
+    public BurstQuadBuildData.SY sy => burst.sy;
 }
 
-public unsafe struct BurstQuadBuildDataV2 : IDisposable
+public unsafe struct BurstQuadBuildData : IDisposable
 {
     #region Fields
     int _vertexCount;
@@ -140,7 +138,7 @@ public unsafe struct BurstQuadBuildDataV2 : IDisposable
     public readonly Sphere sphere;
     #endregion
 
-    public BurstQuadBuildDataV2(PQS sphere, int vertexCount)
+    public BurstQuadBuildData(PQS sphere, int vertexCount)
     {
         if (sphere is null)
             throw new ArgumentNullException(nameof(sphere));
@@ -170,7 +168,7 @@ public unsafe struct BurstQuadBuildDataV2 : IDisposable
     #region Access Structs
 
     [method: MethodImpl(MethodImplOptions.AggressiveInlining)]
-    public readonly struct SY(in BurstQuadBuildDataV2 data)
+    public readonly struct SY(in BurstQuadBuildData data)
     {
         readonly MemorySpan<double> latitude = data.latitude;
 
@@ -187,7 +185,7 @@ public unsafe struct BurstQuadBuildDataV2 : IDisposable
     }
 
     [method: MethodImpl(MethodImplOptions.AggressiveInlining)]
-    public readonly struct SX(in BurstQuadBuildDataV2 data)
+    public readonly struct SX(in BurstQuadBuildData data)
     {
         readonly MemorySpan<double> longitude = data.longitude;
 
