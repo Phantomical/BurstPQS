@@ -241,6 +241,83 @@ public unsafe class BatchPQS : MonoBehaviour
     #endregion
 
     #region BuildVertices
+    [BurstCompile]
+    struct BuildVerticesJob : IJob
+    {
+        public BurstQuadBuildData data;
+
+        [WriteOnly]
+        public NativeArray<Vector3d> verts;
+
+        [WriteOnly]
+        public NativeArray<Vector3> quadVerts;
+
+        [WriteOnly]
+        public NativeArray<Vector2> uvs;
+
+        public Matrix4x4 pqsTransform;
+        public Matrix4x4 inverseQuadTransform;
+
+        public bool surfaceRelativeQuads;
+        public bool reqCustomNormals;
+        public bool reqColorChannel;
+        public bool reqSphereUV;
+        public bool reqUVQuad;
+        public bool reqUV2;
+        public bool reqUV3;
+        public bool reqUV4;
+
+        public Vector2 uvSW;
+        public Vector2 uvDelta;
+
+        public void Execute()
+        {
+            var vertexCount = data.VertexCount;
+            if (surfaceRelativeQuads)
+                BuildVertexSurfaceRelative();
+            else
+                BuildVertexHeight();
+
+            //
+            // if (!reqCustomNormals)
+            // {
+            //     for (int i = 0; i < vertexCount; ++i)
+            //         normals[i] = data.directionFromCenter[i];
+            // }
+
+            throw new NotImplementedException();
+        }
+
+        void BuildVertexHeight()
+        {
+            for (int i = 0; i < data.VertexCount; ++i)
+            {
+                var vert = data.directionFromCenter[i] * data.vertHeight[i];
+                verts[i] = vert;
+                quadVerts[i] = vert;
+            }
+        }
+
+        void BuildVertexSurfaceRelative()
+        {
+            float4x4 pqsTransform = BurstUtil.ConvertMatrix(this.pqsTransform);
+            float4x4 inverseQuadTransform = BurstUtil.ConvertMatrix(this.inverseQuadTransform);
+
+            for (int i = 0; i < data.VertexCount; ++i)
+            {
+                var vert = data.directionFromCenter[i] * data.vertHeight[i];
+                var prel = math.mul(
+                    pqsTransform,
+                    new float4(BurstUtil.ConvertVector((Vector3)vert), 1f)
+                );
+                var srel = math.mul(inverseQuadTransform, new float4(prel.xyz, 1f));
+
+                verts[i] = vert;
+                quadVerts[i] = BurstUtil.ConvertVector(srel.xyz);
+            }
+        }
+    }
+
     struct BuildVerticesOptions
     {
         public bool surfaceRelativeQuads;
