@@ -1,3 +1,5 @@
+#define CRASH_ON_EXCEPTION
+
 using System;
 using System.Runtime.CompilerServices;
 using System.Runtime.InteropServices;
@@ -58,9 +60,14 @@ internal static class BurstException
     }
 
     [MethodImpl(MethodImplOptions.NoInlining)]
+    [IgnoreWarning(1310)]
     static void ThrowIndexOutOfRangeImpl()
     {
+#if CRASH_ON_EXCEPTION
+        throw new IndexOutOfRangeException();
+#else
         VTable.ThrowIndexOutOfRange.Invoke();
+#endif
     }
 
     [BurstDiscard]
@@ -76,9 +83,14 @@ internal static class BurstException
     }
 
     [MethodImpl(MethodImplOptions.NoInlining)]
+    [IgnoreWarning(1310)]
     static void ThrowArgumentOutOfRangeImpl()
     {
+#if CRASH_ON_EXCEPTION
+        throw new ArgumentOutOfRangeException();
+#else
         VTable.ThrowArgumentOutOfRange.Invoke();
+#endif
     }
 
     [BurstDiscard]

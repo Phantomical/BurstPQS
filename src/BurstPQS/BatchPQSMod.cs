@@ -12,9 +12,11 @@ public interface IBatchPQSMod
     void OnBatchVertexBuildHeight(in QuadBuildData data);
 }
 
-public abstract class BatchPQSMod : IBatchPQSMod
+public abstract class BatchPQSMod : IBatchPQSMod, IDisposable
 {
     public virtual void OnSetup() { }
+
+    public virtual void Dispose() { }
 
     /// <summary>
     /// A callback, like <see cref="PQSMod.OnVertexBuild"/> except that it gets
@@ -92,4 +94,11 @@ public abstract class BatchPQSMod<T>(T mod) : BatchPQSMod
     protected T mod = mod;
 
     public T Mod => mod;
+
+    public override string ToString()
+    {
+        if (mod is null)
+            return $"null ({GetType().Name})";
+        return $"{mod.name} ({GetType().Name})";
+    }
 }

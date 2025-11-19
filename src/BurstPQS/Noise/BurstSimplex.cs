@@ -27,8 +27,10 @@ public unsafe struct BurstSimplex
 
     public static Guard Create(Simplex simplex, out BurstSimplex burst)
     {
-        if (simplex.perm.Length != 0x100)
-            throw new ArgumentException("simplex perm array was not the correct length");
+        if (simplex.perm.Length != 512)
+            throw new ArgumentException(
+                $"simplex perm array was not the correct length (expected {512} but got {simplex.perm.Length} instead)"
+            );
 
         var perm = UnsafeUtility.PinGCArrayAndGetDataAddress(simplex.perm, out var gcHandle);
 

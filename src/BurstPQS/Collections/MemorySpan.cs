@@ -56,7 +56,7 @@ public readonly unsafe struct MemorySpan<T> : IEnumerable<T>
         // This bit makes codegen quite a bit worse
         if (!BurstUtil.IsBurstCompiled)
         {
-            if (data is not null && length > 0)
+            if (data is null && length > 0)
                 BurstException.ThrowArgumentOutOfRange();
         }
 

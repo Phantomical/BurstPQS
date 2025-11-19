@@ -8,16 +8,32 @@ using HarmonyLib;
 using Unity.Burst;
 using UnityEngine;
 
-namespace BurstPQS.Util;
+namespace BurstPQS;
 
 [AttributeUsage(AttributeTargets.Method, AllowMultiple = false, Inherited = false)]
 public sealed class BurstPQSAutoPatchAttribute : Attribute { }
 
-public static class BurstMethodPatcher
+[AttributeUsage(AttributeTargets.Class, AllowMultiple = false, Inherited = false)]
+public sealed class BatchPQSModAttribute(Type pqsMod) : Attribute
+{
+    public Type PQSMod { get; } = pqsMod;
+}
+
+[KSPAddon(KSPAddon.Startup.MainMenu, once: true)]
+internal class BurstLoader : MonoBehaviour
 {
     internal static readonly Harmony Harmony = new("BurstPQS");
 
-    static readonly List<Assembly> Assemblies = [typeof(BurstMethodPatcher).Assembly];
+    void Awake()
+    {
+        Harmony.PatchAll();
+        // RegisterBatchPQSMods();
+
+        PatchAll();
+    }
+
+    #region Burst Auto Patching
+    static readonly List<Assembly> Assemblies = [typeof(BurstLoader).Assembly];
     static int TypeIndex = 0;
 
     static void PatchAll()
@@ -81,7 +97,7 @@ public static class BurstMethodPatcher
             return;
         }
 
-        var dg = fptype.GetProperty(nameof(FunctionPointer<>.Invoke));
+        var dg = invokep.GetValue(fp);
         var tb = modb.DefineType(
             $"{method.DeclaringType.Name}_{method.Name}_{TypeIndex++}",
             TypeAttributes.Class
@@ -142,4 +158,35 @@ public static class BurstMethodPatcher
 
         return output;
     }
+    #endregion
+
+#if false
+    #region BatchPQSMod Registration
+    static void RegisterBatchPQSMods()
+    {
+        foreach (var assembly in Assemblies)
+        {
+            foreach (var type in assembly.GetTypes())
+            {
+                var attribute = type.GetCustomAttribute<BatchPQSModAttribute>();
+                if (attribute is null)
+                    continue;
+
+                if (attribute.PQSMod is null)
+                    continue;
+
+                try
+                {
+                    BatchPQSMod.RegisterBatchPQSMod(type, attribute.PQSMod);
+                }
+                catch (Exception e)
+                {
+                    Debug.LogError($"Failed to register BatchPQSMod {type.Name}");
+                    Debug.LogException(e);
+                }
+            }
+        }
+    }
+    #endregion
+#endif
 }

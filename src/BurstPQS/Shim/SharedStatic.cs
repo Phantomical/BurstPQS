@@ -9,6 +9,8 @@ using UnityEngine;
 
 namespace BackgroundResourceProcessing.Shim;
 
+#if false
+
 internal readonly unsafe struct SharedStatic<T>
     where T : unmanaged
 {
@@ -56,3 +58,4 @@ internal readonly unsafe struct SharedStatic<T>
         return result;
     }
 }
+#endif

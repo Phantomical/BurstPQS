@@ -2,14 +2,15 @@ using HarmonyLib;
 
 namespace BurstPQS.Patches;
 
+#if false
 [HarmonyPatch(typeof(PQS), nameof(PQS.SetupMods))]
 [HarmonyPriority(Priority.VeryLow)]
 internal static class PQS_SetupMods_Patch
 {
     static void Postfix(PQS __instance)
     {
-        var batchPQS = __instance.gameObject.AddOrGetComponent<BatchPQS>();
-        batchPQS.PostSetupMods();
+        // var batchPQS = __instance.gameObject.AddOrGetComponent<BatchPQS>();
+        // batchPQS.PostSetupMods();
     }
 }
 
@@ -27,3 +28,4 @@ internal static class PQS_BuildQuad_Patch
         return false;
     }
 }
+#endif

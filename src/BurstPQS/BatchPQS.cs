@@ -10,14 +10,29 @@ using UnityEngine;
 namespace BurstPQS;
 
 [BurstCompile]
-public unsafe class BatchPQS : Component
+public unsafe class BatchPQS : MonoBehaviour
 {
     private PQS pqs;
-    private IBatchPQSMod[] batchMods;
+    private BatchPQSMod[] batchMods;
 
     void Awake()
     {
         pqs = GetComponent<PQS>();
+    }
+
+    void OnDestroy()
+    {
+        foreach (var mod in batchMods)
+        {
+            try
+            {
+                mod.Dispose();
+            }
+            catch (Exception e)
+            {
+                Debug.LogException(e);
+            }
+        }
     }
 
     public bool BuildQuad(PQ quad)
@@ -321,6 +336,9 @@ public unsafe class BatchPQS : Component
         }
 
         this.batchMods = [.. batchMods];
+
+        foreach (var mod in this.batchMods)
+            mod.OnSetup();
     }
     #endregion
 }
