@@ -4,6 +4,8 @@ using BurstPQS.Collections;
 using BurstPQS.Util;
 using Unity.Burst;
 using Unity.Collections;
+using Unity.Collections.LowLevel.Unsafe;
+using Unity.Jobs;
 using Unity.Mathematics;
 using UnityEngine;
 
@@ -13,7 +15,11 @@ namespace BurstPQS;
 public unsafe class BatchPQS : MonoBehaviour
 {
     private PQS pqs;
-    private BatchPQSModV1[] batchMods;
+    private BatchPQSMod[] mods;
+
+    // Are there unsupported mods and do we need to fall back to the stock
+    // implementation?
+    private bool fallback = false;
 
     void Awake()
     {
@@ -22,7 +28,7 @@ public unsafe class BatchPQS : MonoBehaviour
 
     void OnDestroy()
     {
-        foreach (var mod in batchMods)
+        foreach (var mod in mods)
         {
             try
             {
@@ -48,6 +54,32 @@ public unsafe class BatchPQS : MonoBehaviour
         pqs.buildQuad = quad;
         pqs.Mod_OnQuadPreBuild(quad);
 
+        using QuadBuildData data = new(pqs, PQS.cacheVertCount);
+
+        var states = new List<IBatchPQSModState>(mods.Length);
+        foreach (var mod in mods)
+        {
+            var state = mod.OnQuadPreBuild(data);
+            if (state is not null)
+                states.Add(state);
+        }
+
+        var initJob = new InitBuildDataJob
+        {
+            quadMatrix = quad.quadMatrix,
+            data = data.burst,
+            reqVertexMapCoords = pqs.reqVertexMapCoods,
+            cacheSideVertCount = PQS.cacheSideVertCount,
+            cacheMeshSize = PQS.cacheMeshSize,
+        };
+
+        JobHandle handle = initJob.Schedule();
+
+        foreach (var state in states)
+            handle = state.ScheduleBuildHeights(data, handle);
+        foreach (var state in states)
+            handle = state.ScheduleBuildVertices(data, handle);
+
         using var buffer = new OwnedBuffer(
             BurstQuadBuildDataV1.GetRequiredBufferSize(PQS.cacheVertCount),
             Allocator.TempJob
@@ -60,9 +92,9 @@ public unsafe class BatchPQS : MonoBehaviour
 
         InitBuildData(quad, in data);
 
-        foreach (var mod in batchMods)
+        foreach (var mod in mods)
             mod.OnBatchVertexBuildHeight(in data);
-        foreach (var mod in batchMods)
+        foreach (var mod in mods)
             mod.OnBatchVertexBuild(in data);
 
         if (!pqs.isFakeBuild)
@@ -80,6 +112,69 @@ public unsafe class BatchPQS : MonoBehaviour
 
     #region Burst Methods
     #region InitBuildData
+    [BurstCompile]
+    struct InitBuildDataJob : IJob
+    {
+        public Matrix4x4 quadMatrix;
+        public BurstQuadBuildData data;
+        public bool reqVertexMapCoords;
+        public int cacheSideVertCount;
+        public float cacheMeshSize;
+
+        public void Execute()
+        {
+            if (cacheSideVertCount * cacheSideVertCount != data.VertexCount)
+            {
+                Debug.LogError("[BurstPQS] CacheVerts length was not equal to data vertex count");
+                return;
+            }
+
+            float spacing = cacheMeshSize / (cacheSideVertCount - 1);
+            float halfSize = cacheMeshSize * 0.5f;
+            for (int i = 0, y = 0; y < cacheSideVertCount; ++y)
+            {
+                for (int x = 0; x < cacheSideVertCount; ++x, ++i)
+                {
+                    var vert = new Vector3(halfSize - x * spacing, 0f, halfSize - y * spacing);
+                    var globalV = quadMatrix.MultiplyPoint3x4(vert);
+
+                    data.globalV[i] = globalV;
+                    data.directionFromCenter[i] = globalV.normalized;
+                }
+            }
+
+            // Set other fields individually so that they can be vectorized
+            data.vertHeight.Fill(data.sphere.radius);
+            data.allowScatter.Fill(true);
+
+            if (!reqVertexMapCoords)
+                return;
+
+            for (int i = 0; i < data.VertexCount; ++i)
+            {
+                var latitude = Math.Asin(MathUtil.Clamp01(data.directionFromCenter[i].y));
+                var directionXZ = new Vector3d(
+                    data.directionFromCenter[i].x,
+                    0.0,
+                    data.directionFromCenter[i].z
+                );
+
+                double longitude;
+                if (directionXZ.sqrMagnitude == 0.0)
+                    longitude = 0.0;
+                else if (directionXZ.z < 0.0)
+                    longitude = Math.PI - Math.Asin(directionXZ.x / directionXZ.magnitude);
+                else
+                    longitude = Math.Asin(directionXZ.x / directionXZ.magnitude);
+
+                data.latitude[i] = latitude;
+                data.longitude[i] = longitude;
+                data.u[i] = latitude / Math.PI + 0.5;
+                data.v[i] = longitude / Math.PI * 0.5;
+            }
+        }
+    }
+
     void InitBuildData(PQ quad, in QuadBuildDataV1 data)
     {
         fixed (Vector3* pCacheVerts = PQS.cacheVerts)
@@ -335,9 +430,9 @@ public unsafe class BatchPQS : MonoBehaviour
                 batchMods.Add(batchMod);
         }
 
-        this.batchMods = [.. batchMods];
+        this.mods = [.. batchMods];
 
-        foreach (var mod in this.batchMods)
+        foreach (var mod in this.mods)
             mod.OnSetup();
     }
     #endregion

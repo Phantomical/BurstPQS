@@ -11,10 +11,10 @@ using UnityEngine;
 
 namespace BurstPQS;
 
-public class QuadBuildData
+public class QuadBuildData : IDisposable
 {
-    public PQ buildQuad;
-    public BurstQuadBuildData burst;
+    public readonly PQ buildQuad;
+    public readonly BurstQuadBuildData burst;
 
     public int VertexCount => burst.VertexCount;
     public MemorySpan<Vector3d> globalV => burst.globalV;
@@ -40,6 +40,17 @@ public class QuadBuildData
 
     public BurstQuadBuildData.SX sx => burst.sx;
     public BurstQuadBuildData.SY sy => burst.sy;
+
+    public QuadBuildData(PQS sphere, int vertexCount)
+    {
+        buildQuad = sphere.buildQuad;
+        burst = new(sphere, vertexCount);
+    }
+
+    public void Dispose()
+    {
+        burst.Dispose();
+    }
 }
 
 public unsafe struct BurstQuadBuildData : IDisposable
@@ -57,6 +68,20 @@ public unsafe struct BurstQuadBuildData : IDisposable
         [return: AssumeRange(0, int.MaxValue)]
         get => _vertexCount;
     }
+
+    #region Public Fields
+    public struct Sphere
+    {
+        public double radius;
+        public double radiusMin;
+        public double radiusMax;
+
+        public readonly double radiusDelta => radiusMax - radiusMin;
+    }
+
+    public readonly Sphere sphere;
+    public readonly PQS.QuadPlane plane;
+    #endregion
 
     #region Per-Element Offsets
     // sizeof(Vector3d) is not a C# constant, even if it is constant in practice.
@@ -125,19 +150,6 @@ public unsafe struct BurstQuadBuildData : IDisposable
     public readonly SY sy => new(in this);
     #endregion
 
-    #region Sphere Data
-    public struct Sphere
-    {
-        public double radius;
-        public double radiusMin;
-        public double radiusMax;
-
-        public readonly double radiusDelta => radiusMax - radiusMin;
-    }
-
-    public readonly Sphere sphere;
-    #endregion
-
     public BurstQuadBuildData(PQS sphere, int vertexCount)
     {
         if (sphere is null)
@@ -149,6 +161,7 @@ public unsafe struct BurstQuadBuildData : IDisposable
             radiusMin = sphere.radiusMin,
             radiusMax = sphere.radiusMax,
         };
+        plane = sphere.buildQuad.plane;
 
         var size = TotalElemSize * vertexCount;
         var data = UnsafeUtility.Malloc(size, sizeof(double), Allocator.TempJob);

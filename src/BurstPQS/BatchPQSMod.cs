@@ -52,7 +52,7 @@ public interface IBatchPQSModState
     /// and to dispose of any native resources that weren't disposed of after the
     /// job completed.
     /// </summary>
-    void OnBuildComplete(QuadBuildData data);
+    void OnQuadBuilt(QuadBuildData data);
 }
 
 public abstract class BatchPQSMod : IDisposable
@@ -68,6 +68,15 @@ public abstract class BatchPQSMod : IDisposable
     /// <see cref="BatchPQSMod"/>s.
     /// </remarks>
     public virtual void OnSetup() { }
+
+    /// <summary>
+    /// Called just after starting to build the quad. Can return a
+    /// <see cref="IBatchPQSModState"/> that will be used for future callbacks
+    /// relating to this quad.
+    /// </summary>
+    /// <param name="data"></param>
+    /// <returns></returns>
+    public virtual IBatchPQSModState OnQuadPreBuild(QuadBuildData data) => null;
 
     /// <summary>
     /// Called during PQS teardown. All scheduled jobs will be completed at
