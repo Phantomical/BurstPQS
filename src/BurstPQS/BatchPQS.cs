@@ -1,5 +1,7 @@
 using System;
 using System.Collections.Generic;
+using System.Runtime.CompilerServices;
+using System.Runtime.InteropServices;
 using BurstPQS.Collections;
 using BurstPQS.Util;
 using Unity.Burst;
@@ -8,6 +10,7 @@ using Unity.Collections.LowLevel.Unsafe;
 using Unity.Jobs;
 using Unity.Mathematics;
 using UnityEngine;
+using Vectrosity;
 
 namespace BurstPQS;
 
@@ -52,9 +55,10 @@ public unsafe class BatchPQS : MonoBehaviour
             return false;
 
         pqs.buildQuad = quad;
-        pqs.Mod_OnQuadPreBuild(quad);
 
         using QuadBuildData data = new(pqs, PQS.cacheVertCount);
+        using CacheData cache = new(data.VertexCount);
+        using var minmax = new NativeArray<double>(2, Allocator.TempJob);
 
         var states = new List<IBatchPQSModState>(mods.Length);
         foreach (var mod in mods)
@@ -75,42 +79,92 @@ public unsafe class BatchPQS : MonoBehaviour
 
         JobHandle handle = initJob.Schedule();
 
-        foreach (var state in states)
-            handle = state.ScheduleBuildHeights(data, handle);
-        foreach (var state in states)
-            handle = state.ScheduleBuildVertices(data, handle);
+        try
+        {
+            foreach (var state in states)
+                handle = state.ScheduleBuildHeights(data, handle);
+            foreach (var state in states)
+                handle = state.ScheduleBuildVertices(data, handle);
 
-        using var buffer = new OwnedBuffer(
-            BurstQuadBuildDataV1.GetRequiredBufferSize(PQS.cacheVertCount),
-            Allocator.TempJob
-        );
-        buffer.Clear();
+            var buildJob = new BuildVerticesJob
+            {
+                data = data.burst,
+                cache = cache,
+                minmax = minmax,
 
-        QuadBuildDataV1 data = default;
-        data.buildQuad = quad;
-        data.burstData = new(quad, buffer.Data, buffer.Length, PQS.cacheVertCount);
+                pqsTransform = transform.localToWorldMatrix,
+                inverseQuadTransform = data.buildQuad.transform.worldToLocalMatrix,
 
-        InitBuildData(quad, in data);
+                surfaceRelativeQuads = pqs.surfaceRelativeQuads,
+                reqCustomNormals = pqs.reqCustomNormals,
+                reqSphereUV = pqs.reqSphereUV,
+                reqUVQuad = pqs.reqUVQuad,
+                reqUV2 = pqs.reqUV2,
+                reqUV3 = pqs.reqUV3,
+                reqUV4 = pqs.reqUV4,
 
-        foreach (var mod in mods)
-            mod.OnBatchVertexBuildHeight(in data);
-        foreach (var mod in mods)
-            mod.OnBatchVertexBuild(in data);
+                uvSW = quad.uvSW,
+                uvDelta = quad.uvDelta,
+                cacheSideVertCount = PQS.cacheSideVertCount,
+            };
 
-        if (!pqs.isFakeBuild)
-            BuildVertices(in data);
+            handle = buildJob.Schedule(handle);
+        }
+        finally
+        {
+            handle.Complete();
+        }
+
+        CopyGeneratedData(data, cache);
+        pqs.meshVertMin = Math.Min(minmax[0], pqs.meshVertMin);
+        pqs.meshVertMax = Math.Max(minmax[1], pqs.meshVertMax);
 
         pqs.buildQuad.mesh.vertices = pqs.buildQuad.verts;
         pqs.buildQuad.mesh.triangles = PQS.cacheIndices[0];
         pqs.buildQuad.mesh.RecalculateBounds();
         pqs.buildQuad.edgeState = PQS.EdgeState.Reset;
         pqs.Mod_OnMeshBuild();
-        pqs.Mod_OnQuadBuilt(quad);
+
+        foreach (var state in states)
+            state.OnQuadBuilt(data);
+
         pqs.buildQuad = null;
         return true;
     }
 
-    #region Burst Methods
+    void CopyGeneratedData(QuadBuildData data, CacheData cache)
+    {
+        CopyTo(PQS.verts, cache.verts);
+        CopyTo(data.buildQuad.verts, cache.quadVerts);
+
+        if (!pqs.reqCustomNormals)
+            CopyTo(PQS.normals, cache.normals);
+        if (pqs.reqColorChannel)
+            CopyTo(PQS.cacheColors, data.vertColor);
+        if (pqs.reqSphereUV || pqs.reqUVQuad)
+            CopyTo(PQS.uvs, cache.uvs);
+        if (pqs.reqUV2)
+            CopyTo(PQS.cacheUV2s, cache.cacheUV2s);
+        if (pqs.reqUV3)
+            CopyTo(PQS.cacheUV3s, cache.cacheUV3s);
+        if (pqs.reqUV4)
+            CopyTo(PQS.cacheUV4s, cache.cacheUV4s);
+    }
+
+    void CopyTo<T>(T[] dst, MemorySpan<T> src)
+        where T : unmanaged
+    {
+        if (dst.Length != src.Length)
+            throw new IndexOutOfRangeException("src and dst did not have the same length");
+
+        Unsafe.CopyBlock(
+            ref Unsafe.As<T, byte>(ref dst[0]),
+            ref Unsafe.As<T, byte>(ref src[0]),
+            (uint)dst.Length * (uint)Unsafe.SizeOf<T>()
+        );
+    }
+
+    #region Jobs
     #region InitBuildData
     [BurstCompile]
     struct InitBuildDataJob : IJob
@@ -245,22 +299,16 @@ public unsafe class BatchPQS : MonoBehaviour
     struct BuildVerticesJob : IJob
     {
         public BurstQuadBuildData data;
+        public CacheData cache;
 
         [WriteOnly]
-        public NativeArray<Vector3d> verts;
-
-        [WriteOnly]
-        public NativeArray<Vector3> quadVerts;
-
-        [WriteOnly]
-        public NativeArray<Vector2> uvs;
+        public NativeArray<double> minmax;
 
         public Matrix4x4 pqsTransform;
         public Matrix4x4 inverseQuadTransform;
 
         public bool surfaceRelativeQuads;
         public bool reqCustomNormals;
-        public bool reqColorChannel;
         public bool reqSphereUV;
         public bool reqUVQuad;
         public bool reqUV2;
@@ -269,36 +317,69 @@ public unsafe class BatchPQS : MonoBehaviour
 
         public Vector2 uvSW;
         public Vector2 uvDelta;
+        public int cacheSideVertCount;
 
         public void Execute()
         {
-            var vertexCount = data.VertexCount;
+            if (data.VertexCount != cache.VertexCount)
+            {
+                Debug.LogError("[BurstPQS] Data and cache vertex counts were different");
+                return;
+            }
+
+            if (cacheSideVertCount * cacheSideVertCount != data.VertexCount)
+            {
+                Debug.LogError("[BurstPQS] side vertex count doesn't match total vertex count");
+                return;
+            }
+
             if (surfaceRelativeQuads)
                 BuildVertexSurfaceRelative();
             else
                 BuildVertexHeight();
 
-            //
-            // if (!reqCustomNormals)
-            // {
-            //     for (int i = 0; i < vertexCount; ++i)
-            //         normals[i] = data.directionFromCenter[i];
-            // }
+            if (!reqCustomNormals)
+                BuildNormals();
 
-            throw new NotImplementedException();
+            // skip reqColorChannel here because data.colors is already in the
+            // format that we want.
+
+            if (reqUVQuad)
+                BuildVertexQuadUV();
+            else if (reqSphereUV)
+                BuildVertexSphereUV();
+
+            if (reqUV2)
+                BuildUVs(cache.cacheUV2s, data.u2, data.v2);
+            if (reqUV3)
+                BuildUVs(cache.cacheUV3s, data.u3, data.v3);
+            if (reqUV4)
+                BuildUVs(cache.cacheUV4s, data.u4, data.v4);
+
+            var vertMax = double.MinValue;
+            var vertMin = double.MaxValue;
+
+            foreach (var height in data.vertHeight)
+            {
+                vertMax = Math.Max(vertMax, height);
+                vertMin = Math.Min(vertMin, height);
+            }
+
+            minmax[0] = vertMin;
+            minmax[1] = vertMax;
         }
 
-        void BuildVertexHeight()
+        readonly void BuildVertexHeight()
         {
             for (int i = 0; i < data.VertexCount; ++i)
             {
                 var vert = data.directionFromCenter[i] * data.vertHeight[i];
-                verts[i] = vert;
-                quadVerts[i] = vert;
+                cache.verts[i] = vert;
+                cache.quadVerts[i] = vert;
             }
         }
 
-        void BuildVertexSurfaceRelative()
+        readonly void BuildVertexSurfaceRelative()
         {
             float4x4 pqsTransform = BurstUtil.ConvertMatrix(this.pqsTransform);
             float4x4 inverseQuadTransform = BurstUtil.ConvertMatrix(this.inverseQuadTransform);
@@ -312,197 +393,117 @@ public unsafe class BatchPQS : MonoBehaviour
                 );
                 var srel = math.mul(inverseQuadTransform, new float4(prel.xyz, 1f));
 
-                verts[i] = vert;
-                quadVerts[i] = BurstUtil.ConvertVector(srel.xyz);
-            }
-        }
-    }
-
-    struct BuildVerticesOptions
-    {
-        public bool surfaceRelativeQuads;
-        public bool reqCustomNormals;
-        public bool reqColorChannel;
-        public bool reqSphereUV;
-        public bool reqUVQuad;
-        public bool reqUV2;
-        public bool reqUV3;
-        public bool reqUV4;
-
-        public Vector2 uvSW;
-        public Vector2 uvDelta;
-
-        public MemorySpan<Vector3d> verts;
-        public MemorySpan<Vector3> quadVerts;
-        public MemorySpan<Vector3> normals;
-        public MemorySpan<Color> colors;
-        public MemorySpan<Vector2> uvs;
-        public MemorySpan<Vector2> cacheUVs;
-        public MemorySpan<Vector2> cacheUV2s;
-        public MemorySpan<Vector2> cacheUV3s;
-        public MemorySpan<Vector2> cacheUV4s;
-        public Matrix4x4 pqsTransform;
-        public Matrix4x4 invQuadTransform;
-    }
-
-    struct BuildVerticesOutputs
-    {
-        public double meshVertMin;
-        public double meshVertMax;
-    }
-
-    unsafe void BuildVertices(in QuadBuildDataV1 data)
-    {
-        fixed (Vector3d* pverts = PQS.verts)
-        fixed (Vector3* pQuadVerts = data.buildQuad.verts)
-        fixed (Vector3* pNormals = PQS.normals)
-        fixed (Color* pColors = PQS.cacheColors)
-        fixed (Vector2* pUvs = PQS.uvs)
-        fixed (Vector2* pCacheUVs = PQS.cacheUVs)
-        fixed (Vector2* pCacheUV2s = PQS.cacheUV2s)
-        fixed (Vector2* pCacheUV3s = PQS.cacheUV3s)
-        fixed (Vector2* pCacheUV4s = PQS.cacheUV4s)
-        {
-            var opts = new BuildVerticesOptions
-            {
-                surfaceRelativeQuads = pqs.surfaceRelativeQuads,
-                reqCustomNormals = pqs.reqCustomNormals,
-                reqColorChannel = pqs.reqColorChannel,
-                reqSphereUV = pqs.reqSphereUV,
-                reqUVQuad = pqs.reqUVQuad,
-                reqUV2 = pqs.reqUV2,
-                reqUV3 = pqs.reqUV3,
-                reqUV4 = pqs.reqUV4,
-
-                uvSW = data.buildQuad.uvSW,
-                uvDelta = data.buildQuad.uvDelta,
-
-                verts = new(pverts, PQS.verts.Length),
-                quadVerts = new(pQuadVerts, data.buildQuad.verts.Length),
-                normals = new(pNormals, PQS.normals.Length),
-                colors = new(pColors, PQS.cacheColors.Length),
-                uvs = new(pUvs, PQS.uvs.Length),
-                cacheUVs = new(pCacheUV2s, PQS.cacheUVs.Length),
-                cacheUV2s = new(pCacheUV2s, PQS.cacheUV2s.Length),
-                cacheUV3s = new(pCacheUV3s, PQS.cacheUV3s.Length),
-                cacheUV4s = new(pCacheUV4s, PQS.cacheUV4s.Length),
-
-                pqsTransform = transform.localToWorldMatrix,
-                invQuadTransform = data.buildQuad.transform.worldToLocalMatrix,
-            };
-
-            BuildVerticesBurst(in data.burstData, in opts, out var outputs);
-
-            pqs.buildQuad.meshVertMax = outputs.meshVertMax;
-            pqs.buildQuad.meshVertMin = outputs.meshVertMin;
-        }
-    }
-
-    [BurstCompile]
-    [BurstPQSAutoPatch]
-    static void BuildVerticesBurst(
-        in BurstQuadBuildDataV1 data,
-        in BuildVerticesOptions opts,
-        out BuildVerticesOutputs outputs
-    )
-    {
-        var vertexCount = data.VertexCount;
-
-        if (opts.surfaceRelativeQuads)
-        {
-            float4x4 pqsTransform = BurstUtil.ConvertMatrix(opts.pqsTransform);
-            float4x4 invQuadTransform = BurstUtil.ConvertMatrix(opts.invQuadTransform);
-
-            for (int i = 0; i < vertexCount; ++i)
-            {
-                var vert = data.directionFromCenter[i] * data.vertHeight[i];
-                var prel = math.mul(
-                    pqsTransform,
-                    new float4(BurstUtil.ConvertVector((Vector3)vert), 1f)
-                );
-                var srel = math.mul(invQuadTransform, new float4(prel.xyz, 1f));
-
-                opts.verts[i] = vert;
-                opts.quadVerts[i] = BurstUtil.ConvertVector(srel.xyz);
-            }
-        }
-        else
-        {
-            for (int i = 0; i < vertexCount; ++i)
-            {
-                var vert = data.directionFromCenter[i] * data.vertHeight[i];
-                opts.verts[i] = vert;
-                opts.quadVerts[i] = vert;
+                cache.verts[i] = vert;
+                cache.quadVerts[i] = BurstUtil.ConvertVector(srel.xyz);
             }
         }
 
-        if (!opts.reqCustomNormals)
+        readonly void BuildNormals()
         {
-            for (int i = 0; i < vertexCount; ++i)
-                opts.normals[i] = data.directionFromCenter[i];
+            for (int i = 0; i < data.VertexCount; ++i)
+                cache.normals[i] = data.directionFromCenter[i];
         }
 
-        if (opts.reqColorChannel)
+        readonly void BuildVertexQuadUV()
         {
-            for (int i = 0; i < vertexCount; ++i)
-                opts.colors[i] = data.vertColor[i];
-        }
+            var spacing = 1f / cacheSideVertCount;
 
-        if (opts.reqUVQuad)
-        {
-            for (int i = 0; i < vertexCount; ++i)
-                opts.uvs[i] = opts.uvSW + opts.cacheUVs[i] * opts.uvDelta;
-        }
-        else if (opts.reqSphereUV)
-        {
-            for (int i = 0; i < vertexCount; ++i)
+            for (int i = 0, y = 0; y < cacheSideVertCount; ++y)
             {
-                opts.uvs[i] = new(
+                for (int x = 0; x < cacheSideVertCount; ++x, ++i)
+                {
+                    var cacheUV = new Vector2(x * spacing, y * spacing);
+                    cache.uvs[i] = uvSW + cacheUV * uvDelta;
+                }
+            }
+        }
+
+        readonly void BuildVertexSphereUV()
+        {
+            for (int i = 0; i < data.VertexCount; ++i)
+            {
+                cache.uvs[i] = new(
                     (float)(data.latitude[i] / Math.PI + 0.5),
                     (float)(data.longitude[i] / Math.PI * 0.5)
                 );
             }
         }
 
-        if (opts.reqUV2)
+        readonly void BuildUVs(MemorySpan<Vector2> uvs, MemorySpan<double> u, MemorySpan<double> v)
         {
-            for (int i = 0; i < vertexCount; ++i)
-                opts.cacheUV2s[i] = new((float)data.u2[i], (float)data.v2[i]);
+            for (int i = 0; i < data.VertexCount; ++i)
+                uvs[i] = new((float)u[i], (float)v[i]);
         }
-
-        if (opts.reqUV3)
-        {
-            for (int i = 0; i < vertexCount; ++i)
-                opts.cacheUV3s[i] = new((float)data.u3[i], (float)data.v3[i]);
-        }
-
-        if (opts.reqUV4)
-        {
-            for (int i = 0; i < vertexCount; ++i)
-                opts.cacheUV4s[i] = new((float)data.u4[i], (float)data.v4[i]);
-        }
-
-        var vertMax = double.MinValue;
-        var vertMin = double.MaxValue;
-
-        foreach (var height in data.vertHeight)
-        {
-            vertMax = Math.Max(vertMax, height);
-            vertMin = Math.Min(vertMin, height);
-        }
-
-        outputs = new() { meshVertMax = vertMax, meshVertMin = vertMin };
     }
     #endregion
     #endregion
 
+#pragma warning disable IDE1006 // Naming Styles
+    readonly struct CacheData : IDisposable
+    {
+        readonly int _vertexCount;
+
+        [NoAlias]
+        readonly void* _data;
+
+        public readonly int VertexCount => _vertexCount;
+
+        #region Offsets
+        const int Vector3dSize = 3 * sizeof(double);
+        const int Vector3Size = 3 * sizeof(float);
+        const int Vector2Size = 2 * sizeof(float);
+
+        const int EndOff_Verts = Vector3dSize;
+        const int EndOff_QuadVerts = Vector3Size + EndOff_Verts;
+        const int EndOff_Normals = Vector3Size + EndOff_QuadVerts;
+        const int EndOff_UVs = Vector2Size + EndOff_Normals;
+        const int EndOff_CacheUV2s = Vector2Size + EndOff_UVs;
+        const int EndOff_CacheUV3s = Vector2Size + EndOff_CacheUV2s;
+        const int EndOff_CacheUV4s = Vector2Size + EndOff_CacheUV3s;
+
+        const int ElemSize = EndOff_CacheUV4s;
+        #endregion
+
+        public static int GetTotalAllocationSize(int vertexCount) => vertexCount * EndOff_CacheUV4s;
+
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        private readonly MemorySpan<T> GetOffsetSlice<T>(int endOff)
+            where T : unmanaged
+        {
+            return new((T*)((byte*)_data + (endOff - sizeof(T)) * VertexCount), VertexCount);
+        }
+
+        public MemorySpan<Vector3d> verts => GetOffsetSlice<Vector3d>(EndOff_Verts);
+        public MemorySpan<Vector3> quadVerts => GetOffsetSlice<Vector3>(EndOff_QuadVerts);
+        public MemorySpan<Vector3> normals => GetOffsetSlice<Vector3>(EndOff_Normals);
+        public MemorySpan<Vector2> uvs => GetOffsetSlice<Vector2>(EndOff_UVs);
+        public MemorySpan<Vector2> cacheUV2s => GetOffsetSlice<Vector2>(EndOff_CacheUV2s);
+        public MemorySpan<Vector2> cacheUV3s => GetOffsetSlice<Vector2>(EndOff_CacheUV3s);
+        public MemorySpan<Vector2> cacheUV4s => GetOffsetSlice<Vector2>(EndOff_CacheUV4s);
+
+        public CacheData(int vertexCount)
+        {
+            if (vertexCount < 0)
+                throw new ArgumentOutOfRangeException(nameof(vertexCount));
+
+            _vertexCount = vertexCount;
+            _data = UnsafeUtility.Malloc(ElemSize * vertexCount, sizeof(Color), Allocator.TempJob);
+        }
+
+        public void Dispose()
+        {
+            UnsafeUtility.Free(_data, Allocator.TempJob);
+        }
+    }
+#pragma warning restore IDE1006 // Naming Styles
+
     #region Method Injections
     internal void PostSetupMods()
     {
-        List<BatchPQSModV1> batchMods = new(pqs.mods.Length);
+        List<BatchPQSMod> batchMods = new(pqs.mods.Length);
         foreach (var mod in pqs.mods)
         {
-            var batchMod = BatchPQSModV1.Create(mod);
+            var batchMod = BatchPQSMod.Create(mod);
             if (batchMod is not null)
                 batchMods.Add(batchMod);
         }

@@ -1,5 +1,7 @@
 using System;
+using System.Collections.Generic;
 using Unity.Jobs;
+using UnityEngine;
 
 namespace BurstPQS;
 
@@ -85,12 +87,78 @@ public abstract class BatchPQSMod : IDisposable
     /// </summary>
     public virtual void Dispose() { }
 
+    #region Registry
+    static readonly Dictionary<Type, Type> ModTypes = [];
+
     /// <summary>
-    /// Get a <see cref="IBatchPQSModState"/> that will be used to build a quad.
+    /// Register a <see cref="BatchPQSModV1"/> adapter for a <see cref="PQSMod"/>
+    /// type.
     /// </summary>
-    /// <param name="data"></param>
-    /// <returns></returns>
-    public abstract IBatchPQSModState GetState(QuadBuildData data);
+    /// <param name="batchMod">The type of the <see cref="BatchPQSModV1"/> adapter.</param>
+    /// <param name="mod">The type of the <see cref="PQSMod"/>.</param>
+    /// <exception cref="ArgumentException"></exception>
+    public static void RegisterBatchPQSMod(Type batchMod, Type mod)
+    {
+        if (!typeof(PQSMod).IsAssignableFrom(mod))
+            throw new ArgumentException("type does not inherit from PQSMod", nameof(mod));
+
+        var batchPqsModType = typeof(BatchPQSModV1<>).MakeGenericType(mod);
+        if (!batchPqsModType.IsAssignableFrom(batchMod))
+            throw new ArgumentException(
+                $"type does not inherit from {batchPqsModType.Name}",
+                nameof(batchMod)
+            );
+
+        var ctor = batchMod.GetConstructor([mod]);
+        if (ctor is null)
+            throw new ArgumentException(
+                $"{batchMod.Name} does not have a public single argument constructor taking a parameter of type {mod.Name}",
+                nameof(batchMod)
+            );
+
+        if (ModTypes.TryGetValue(mod, out var prev))
+        {
+            Debug.LogWarning($"Multiple BatchPQSMods registered for PQSMod {mod.Name}:");
+            Debug.LogWarning($"  - {prev.Name}");
+            Debug.LogWarning($"  - {batchMod.Name}");
+            return;
+        }
+
+        ModTypes.Add(mod, batchMod);
+    }
+
+    public static BatchPQSMod Create(PQSMod mod)
+    {
+        var type = mod.GetType();
+
+        if (ModTypes.TryGetValue(type, out var batchMod))
+            return (BatchPQSMod)Activator.CreateInstance(batchMod, [mod]);
+
+        var onQuadPreBuild = type.GetMethod(nameof(PQSMod.OnQuadPreBuild), [typeof(PQ)]);
+        var onQuadBuilt = type.GetMethod(nameof(PQSMod.OnQuadBuilt), [typeof(PQ)]);
+        var onVertexBuildHeight = type.GetMethod(nameof(PQSMod.OnVertexBuildHeight));
+        var onVertexBuild = type.GetMethod(nameof(PQSMod.OnVertexBuild));
+
+        var overridesQuadPreBuild = onQuadPreBuild.DeclaringType != typeof(PQSMod);
+        var overridesQuadBuilt = onQuadBuilt.DeclaringType != typeof(PQSMod);
+        var overridesVertexBuildHeight = onVertexBuildHeight.DeclaringType != typeof(PQSMod);
+        var overridesVertexBuild = onVertexBuild.DeclaringType != typeof(PQSMod);
+
+        var incompatible =
+            overridesQuadPreBuild
+            || overridesQuadBuilt
+            || overridesVertexBuild
+            || overridesVertexBuildHeight;
+
+        // If the PQSMod overrides any of the methods above then it likely needs to
+        // have an explicit compatibility shim.
+        if (!incompatible)
+            return null;
+
+        throw new UnsupportedPQSModException($"PQSMod {type.Name} is not compatible with BatchPQS");
+    }
+
+    #endregion
 }
 
 public abstract class BatchPQSMod<T>(T mod) : BatchPQSMod
@@ -107,3 +175,5 @@ public abstract class BatchPQSMod<T>(T mod) : BatchPQSMod
         return $"{mod.name} ({GetType().Name})";
     }
 }
+
+public class UnsupportedPQSModException(string message) : Exception(message) { }
