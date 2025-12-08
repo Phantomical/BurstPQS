@@ -13,10 +13,10 @@ public class VertexSimplexMultiChromatic : BatchPQSModV1<PQSMod_VertexSimplexMul
 
     public override void OnBatchVertexBuild(in QuadBuildDataV1 data)
     {
-        using var g0 = BurstSimplex.Create(mod.redSimplex, out var brSimplex);
-        using var g1 = BurstSimplex.Create(mod.blueSimplex, out var bbSimplex);
-        using var g2 = BurstSimplex.Create(mod.greenSimplex, out var bgSimplex);
-        using var g3 = BurstSimplex.Create(mod.alphaSimplex, out var baSimplex);
+        using var brSimplex = new BurstSimplex(mod.redSimplex);
+        using var bbSimplex = new BurstSimplex(mod.blueSimplex);
+        using var bgSimplex = new BurstSimplex(mod.greenSimplex);
+        using var baSimplex = new BurstSimplex(mod.alphaSimplex);
 
         BuildVertices(
             in data.burstData,

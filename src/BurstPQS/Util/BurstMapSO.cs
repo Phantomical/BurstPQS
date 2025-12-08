@@ -5,13 +5,14 @@ using Unity.Burst;
 using Unity.Burst.CompilerServices;
 using Unity.Collections;
 using Unity.Collections.LowLevel.Unsafe;
+using Unity.Jobs;
 using UnityEngine;
 
 #pragma warning disable CS8500 // This takes the address of, gets the size of, or declares a pointer to a managed type
 
 namespace BurstPQS.Util;
 
-public readonly unsafe struct BurstMapSO : IBurstMapSO
+public readonly unsafe struct BurstMapSO : IBurstMapSO, IDisposable
 {
     public struct HeightAlpha(float height, float alpha)
     {
@@ -30,21 +31,11 @@ public readonly unsafe struct BurstMapSO : IBurstMapSO
         }
     }
 
-    public struct Guard : IDisposable
-    {
-        internal ulong gcHandle;
-        internal void* alloc;
-
-        public readonly void Dispose()
-        {
-            UnsafeUtility.ReleaseGCObject(gcHandle);
-            if (alloc is not null)
-                UnsafeUtility.Free(alloc, Allocator.Temp);
-        }
-    }
-
     readonly MapSOType type;
+
+    [ReadOnly]
     readonly void* mapSO;
+    readonly ulong gcHandle;
 
     private BurstMapSO(void* mapSO, MapSOType type)
     {
@@ -52,31 +43,39 @@ public readonly unsafe struct BurstMapSO : IBurstMapSO
         this.type = type;
     }
 
-    public static Guard Create(MapSO mapSO, out BurstMapSO burst)
+    public BurstMapSO(MapSO mapSO)
     {
-        ulong gcHandle;
-        void* ptr;
-        MapSOType type;
         if (mapSO.GetType() == typeof(MapSO))
         {
             var data = UnsafeUtility.PinGCArrayAndGetDataAddress(mapSO._data, out gcHandle);
             var span = new MemorySpan<byte>((byte*)data, mapSO._data.Length);
-            ptr = BurstUtil.Alloc(new PlainMapSO(mapSO, span));
+            this.mapSO = BurstUtil.Alloc(new PlainMapSO(mapSO, span), Allocator.TempJob);
             type = MapSOType.Plain;
         }
         else
         {
-            ptr = BurstUtil.Alloc(
+            this.mapSO = BurstUtil.Alloc(
                 new GenericMapSO(
                     (MapSO*)UnsafeUtility.PinGCObjectAndGetAddress(mapSO, out gcHandle)
                 )
             );
             type = MapSOType.Generic;
         }
-
-        burst = new(ptr, type);
-        return new() { gcHandle = gcHandle, alloc = ptr };
     }
+
+    public void Dispose()
+    {
+        UnsafeUtility.ReleaseGCObject(gcHandle);
+        if (mapSO is not null)
+            UnsafeUtility.Free(mapSO, Allocator.TempJob);
+    }
+
+    struct DisposeJob(BurstMapSO mapSO) : IJob
+    {
+        public readonly void Execute() => mapSO.Dispose();
+    }
+
+    public void Dispose(JobHandle handle) => new DisposeJob(this).Schedule(handle);
 
     delegate void GetPixelColorDelegate(void* gcHandle, float x, float y, out Color color);
     delegate void GetPixelColor32Delegate(void* gcHandle, float x, float y, out Color32 color);

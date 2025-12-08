@@ -5,6 +5,7 @@ using System.Diagnostics;
 using System.Runtime.CompilerServices;
 using BurstPQS.Util;
 using Unity.Burst.CompilerServices;
+using Unity.Collections;
 using Unity.Collections.LowLevel.Unsafe;
 using Unity.Mathematics;
 
@@ -63,6 +64,9 @@ public readonly unsafe struct MemorySpan<T> : IEnumerable<T>
         this.data = data;
         this.length = length;
     }
+
+    public MemorySpan(NativeArray<T> array)
+        : this((T*)array.GetUnsafePtr(), array.Length) { }
 
     public readonly T* GetDataPtr() => data;
 

@@ -22,8 +22,8 @@ public class VertexHeightNoiseVertHeightCurve2
             hDeltaR = mod.hDeltaR,
         };
 
-        using var guard1 = BurstSimplex.Create(mod.simplex, out var bsimplex);
-        using var guard2 = BurstAnimationCurve.Create(mod.simplexCurve, out var bcurve);
+        using var bsimplex = new BurstSimplex(mod.simplex);
+        using var bcurve = new BurstAnimationCurve(mod.simplexCurve);
 
         BuildVertex(
             in data.burstData,

@@ -9,8 +9,8 @@ internal static class PQS_SetupMods_Patch
 {
     static void Postfix(PQS __instance)
     {
-        // var batchPQS = __instance.gameObject.AddOrGetComponent<BatchPQS>();
-        // batchPQS.PostSetupMods();
+        var batchPQS = __instance.gameObject.AddOrGetComponent<BatchPQS>();
+        batchPQS.PostSetupMods();
     }
 }
 

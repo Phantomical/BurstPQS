@@ -13,8 +13,8 @@ public class VertexRidgedAltitudeCurve : BatchPQSModV1<PQSMod_VertexRidgedAltitu
 
     public override void OnBatchVertexBuildHeight(in QuadBuildDataV1 data)
     {
-        using var g0 = BurstSimplex.Create(mod.simplex, out var bsimplex);
-        using var g1 = BurstAnimationCurve.Create(mod.simplexCurve, out var bsimplexCurve);
+        using var bsimplex = new BurstSimplex(mod.simplex);
+        using var bsimplexCurve = new BurstAnimationCurve(mod.simplexCurve);
 
         BuildHeights(
             in data.burstData,

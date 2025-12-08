@@ -12,7 +12,7 @@ public class VertexSimplexHeightFlatten : BatchPQSModV1<PQSMod_VertexSimplexHeig
 
     public override void OnBatchVertexBuildHeight(in QuadBuildDataV1 data)
     {
-        using var g0 = BurstSimplex.Create(mod.simplex, out var bsimplex);
+        using var bsimplex = new BurstSimplex(mod.simplex);
 
         BuildHeights(in data.burstData, in bsimplex, mod.deformity, mod.cutoff);
     }

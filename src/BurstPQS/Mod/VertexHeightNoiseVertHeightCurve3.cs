@@ -23,12 +23,9 @@ public class VertexHeightNoiseVertHeightCurve3
             hDeltaR = mod.hDeltaR,
         };
 
-        using var guard1 = BurstSimplex.Create(mod.curveMultiplier.fractal, out var bcurveMult);
-        using var guard2 = BurstSimplex.Create(mod.deformity.fractal, out var bdeformity);
-        using var guard3 = BurstAnimationCurve.Create(
-            mod.inputHeightCurve,
-            out var binputHeightCurve
-        );
+        using var bcurveMult = new BurstSimplex(mod.curveMultiplier.fractal);
+        using var bdeformity = new BurstSimplex(mod.deformity.fractal);
+        using var binputHeightCurve = new BurstAnimationCurve(mod.inputHeightCurve);
 
         BuildVertex(
             in data.burstData,

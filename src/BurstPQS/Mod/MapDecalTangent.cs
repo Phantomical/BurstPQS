@@ -25,32 +25,23 @@ public class MapDecalTangent : BatchPQSModV1<PQSMod_MapDecalTangent>
             vertActive = new bool[data.VertexCount];
 
         var info = new BurstInfo(mod);
-        BurstMapSO.Guard? guard = null;
         BurstMapSO? heightMap = null;
 
         if (mod.heightMap is not null)
         {
-            guard = BurstMapSO.Create(mod.heightMap, out var map);
-            heightMap = map;
+            heightMap = new BurstMapSO(mod.heightMap);
         }
 
-        try
+        fixed (bool* pVertActive = vertActive)
         {
-            fixed (bool* pVertActive = vertActive)
-            {
-                BuildHeights(
-                    in data.burstData,
-                    in info,
-                    heightMap,
-                    mod.sphere.isBuildingMaps,
-                    mod.sphere.radius,
-                    new(pVertActive, vertActive.Length)
-                );
-            }
-        }
-        finally
-        {
-            guard?.Dispose();
+            BuildHeights(
+                in data.burstData,
+                in info,
+                heightMap,
+                mod.sphere.isBuildingMaps,
+                mod.sphere.radius,
+                new(pVertActive, vertActive.Length)
+            );
         }
     }
 
@@ -62,31 +53,20 @@ public class MapDecalTangent : BatchPQSModV1<PQSMod_MapDecalTangent>
             return;
 
         var info = new BurstInfo(mod);
-        BurstMapSO.Guard? guard = null;
         BurstMapSO? colorMap = null;
 
         if (mod.colorMap is not null)
-        {
-            guard = BurstMapSO.Create(mod.colorMap, out var map);
-            colorMap = map;
-        }
+            colorMap = new BurstMapSO(mod.colorMap);
 
-        try
+        fixed (bool* pVertActive = vertActive)
         {
-            fixed (bool* pVertActive = vertActive)
-            {
-                BuildVerts(
-                    in data.burstData,
-                    in info,
-                    colorMap,
-                    mod.sphere.radius,
-                    new(pVertActive, vertActive.Length)
-                );
-            }
-        }
-        finally
-        {
-            guard?.Dispose();
+            BuildVerts(
+                in data.burstData,
+                in info,
+                colorMap,
+                mod.sphere.radius,
+                new(pVertActive, vertActive.Length)
+            );
         }
     }
 

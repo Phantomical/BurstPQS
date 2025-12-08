@@ -1,21 +1,13 @@
 using System;
 using Unity.Collections;
 using Unity.Collections.LowLevel.Unsafe;
+using Unity.Jobs;
 using Unity.Mathematics;
 
 namespace BurstPQS.Noise;
 
-public unsafe struct BurstSimplex
+public unsafe struct BurstSimplex : IDisposable
 {
-    public readonly struct Guard : IDisposable
-    {
-        readonly ulong gcHandle;
-
-        internal Guard(ulong gcHandle) => this.gcHandle = gcHandle;
-
-        public readonly void Dispose() => UnsafeUtility.ReleaseGCObject(gcHandle);
-    }
-
     public double octaves;
 
     public double persistence;
@@ -24,28 +16,39 @@ public unsafe struct BurstSimplex
 
     [ReadOnly]
     int* perm;
+    ulong gcHandle;
 
-    public static Guard Create(Simplex simplex, out BurstSimplex burst)
+    public BurstSimplex(Simplex simplex)
     {
         if (simplex.perm.Length != 512)
             throw new ArgumentException(
                 $"simplex perm array was not the correct length (expected {512} but got {simplex.perm.Length} instead)"
             );
 
-        var perm = UnsafeUtility.PinGCArrayAndGetDataAddress(simplex.perm, out var gcHandle);
-
-        burst = new()
-        {
-            octaves = simplex.octaves,
-            persistence = simplex.persistence,
-            frequency = simplex.frequency,
-            perm = (int*)perm,
-        };
-
-        return new Guard(gcHandle);
+        perm = (int*)UnsafeUtility.PinGCArrayAndGetDataAddress(simplex.perm, out gcHandle);
+        octaves = simplex.octaves;
+        persistence = simplex.persistence;
+        frequency = simplex.frequency;
     }
 
-    private static int fastfloor(double x)
+    public readonly void Dispose()
+    {
+        UnsafeUtility.ReleaseGCObject(gcHandle);
+    }
+
+    private struct DisposeJob(BurstSimplex simplex) : IJob
+    {
+        public BurstSimplex simplex = simplex;
+
+        public void Execute() => simplex.Dispose();
+    }
+
+    public readonly void Dispose(JobHandle handle)
+    {
+        new DisposeJob(this).Schedule(handle);
+    }
+
+    private static int Fastfloor(double x)
     {
         if (!(x > 0.0))
         {
@@ -54,7 +57,7 @@ public unsafe struct BurstSimplex
         return (int)x;
     }
 
-    private static double dot(int3 g, double x, double y, double z)
+    private static double Dot(int3 g, double x, double y, double z)
     {
         return math.dot((double3)g, new(x, y, z));
     }
@@ -63,9 +66,9 @@ public unsafe struct BurstSimplex
     {
         double F3 = 1.0 / 3.0;
         double s = (xin + yin + zin) * F3;
-        int i = fastfloor(xin + s);
-        int j = fastfloor(yin + s);
-        int k = fastfloor(zin + s);
+        int i = Fastfloor(xin + s);
+        int j = Fastfloor(yin + s);
+        int k = Fastfloor(zin + s);
         double G3 = 1.0 / 6.0;
         double t = (double)(i + j + k) * G3;
         double X0 = (double)i - t;
@@ -167,7 +170,7 @@ public unsafe struct BurstSimplex
         else
         {
             t0 *= t0;
-            n0 = t0 * t0 * dot(grad3[gi0], x0, y0, z0);
+            n0 = t0 * t0 * Dot(grad3[gi0], x0, y0, z0);
         }
         double t1 = 0.6 - x1 * x1 - y1 * y1 - z1 * z1;
         if (t1 < 0.0)
@@ -177,7 +180,7 @@ public unsafe struct BurstSimplex
         else
         {
             t1 *= t1;
-            n1 = t1 * t1 * dot(grad3[gi1], x1, y1, z1);
+            n1 = t1 * t1 * Dot(grad3[gi1], x1, y1, z1);
         }
         double t2 = 0.6 - x2 * x2 - y2 * y2 - z2 * z2;
         if (t2 < 0.0)
@@ -187,7 +190,7 @@ public unsafe struct BurstSimplex
         else
         {
             t2 *= t2;
-            n2 = t2 * t2 * dot(grad3[gi2], x2, y2, z2);
+            n2 = t2 * t2 * Dot(grad3[gi2], x2, y2, z2);
         }
         double t3 = 0.6 - x3 * x3 - y3 * y3 - z3 * z3;
         if (t3 < 0.0)
@@ -197,7 +200,7 @@ public unsafe struct BurstSimplex
         else
         {
             t3 *= t3;
-            n3 = t3 * t3 * dot(grad3[gi3], x3, y3, z3);
+            n3 = t3 * t3 * Dot(grad3[gi3], x3, y3, z3);
         }
         return 32.0 * (n0 + n1 + n2 + n3);
     }

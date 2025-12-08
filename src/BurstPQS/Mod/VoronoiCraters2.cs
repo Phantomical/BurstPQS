@@ -20,9 +20,9 @@ public class VoronoiCraters2 : BatchPQSModV1<PQSMod_VoronoiCraters2>
         if (rs is null || rs.Length != data.VertexCount)
             rs = new float[data.VertexCount];
 
-        using var g0 = BurstSimplex.Create(mod.jitterSimplex, out var bjitterSimplex);
-        using var g1 = BurstAnimationCurve.Create(mod.craterCurve, out var bcraterCurve);
-        using var g2 = BurstSimplex.Create(mod.deformationSimplex, out var bdeformationSimplex);
+        using var bjitterSimplex = new BurstSimplex(mod.jitterSimplex);
+        using var bcraterCurve = new BurstAnimationCurve(mod.craterCurve);
+        using var bdeformationSimplex = new BurstSimplex(mod.deformationSimplex);
 
         fixed (float* prs = rs)
         {
@@ -46,7 +46,7 @@ public class VoronoiCraters2 : BatchPQSModV1<PQSMod_VoronoiCraters2>
                 "OnQuadBuildVertex called but rs is null or the wrong size"
             );
 
-        using var g0 = BurstGradient.Create(mod.craterColourRamp, out var bcolorRamp);
+        using var bcolorRamp = new BurstGradient(mod.craterColourRamp);
 
         fixed (float* prs = rs)
         {

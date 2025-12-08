@@ -11,7 +11,7 @@ public class RemoveQuadMap : BatchPQSModV1<PQSMod_RemoveQuadMap>
 
     public override void OnBatchVertexBuild(in QuadBuildDataV1 data)
     {
-        using var guard = BurstMapSO.Create(mod.map, out var mapSO);
+        using var mapSO = new BurstMapSO(mod.map);
         mod.quadVisible = ShouldBeVisible(
             in data.burstData,
             in mapSO,

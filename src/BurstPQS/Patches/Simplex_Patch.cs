@@ -19,7 +19,7 @@ internal static class Simplex_Noise_Patch
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
     static bool Prefix(Simplex __instance, double x, double y, double z, out double __result)
     {
-        using var g = BurstSimplex.Create(__instance, out var bsimplex);
+        using var bsimplex = new BurstSimplex(__instance);
 
         __result = Noise(in bsimplex, x, y, z);
         return false;

@@ -1,11 +1,12 @@
 using System;
 using BurstPQS.Collections;
 using Unity.Collections.LowLevel.Unsafe;
+using Unity.Jobs;
 using UnityEngine;
 
 namespace BurstPQS.Util;
 
-public struct BurstAnimationCurve
+public struct BurstAnimationCurve : IDisposable
 {
     public readonly struct Guard : IDisposable
     {
@@ -20,15 +21,34 @@ public struct BurstAnimationCurve
     }
 
     ReadOnlyMemorySpan<Keyframe> keys;
+    ulong gchandle;
 
-    public static unsafe Guard Create(AnimationCurve curve, out BurstAnimationCurve burst)
+    public unsafe BurstAnimationCurve(AnimationCurve curve)
     {
+        if (curve is null)
+            throw new ArgumentNullException(nameof(curve));
+        if (curve.keys is null)
+            throw new ArgumentException("curve had null keys");
+
         var keys = curve.keys;
-        var data = UnsafeUtility.PinGCArrayAndGetDataAddress(keys, out var gcHandle);
+        var data = UnsafeUtility.PinGCArrayAndGetDataAddress(curve.keys, out gchandle);
+        this.keys = new((Keyframe*)data, keys.Length);
+    }
 
-        burst = new() { keys = new((Keyframe*)data, keys.Length) };
+    public readonly void Dispose()
+    {
+        UnsafeUtility.ReleaseGCObject(gchandle);
+    }
 
-        return new(gcHandle);
+    private struct DisposeJob(BurstAnimationCurve curve) : IJob
+    {
+        public readonly void Execute() => curve.Dispose();
+    }
+
+    public void Dispose(JobHandle job)
+    {
+        new DisposeJob(this).Schedule(job);
+        this = default;
     }
 
     public readonly float Evaluate(float time)

@@ -1,48 +1,50 @@
 using System;
 using BurstPQS.Collections;
 using Unity.Collections.LowLevel.Unsafe;
+using Unity.Jobs;
 using UnityEngine;
 
 namespace BurstPQS.Util;
 
-public struct BurstGradient
+public struct BurstGradient : IDisposable
 {
-    public struct Guard : IDisposable
-    {
-        internal ulong colorGcHandle;
-        internal ulong alphaGcHandle;
-
-        public readonly void Dispose()
-        {
-            UnsafeUtility.ReleaseGCObject(colorGcHandle);
-            UnsafeUtility.ReleaseGCObject(alphaGcHandle);
-        }
-    }
-
     GradientMode mode;
     MemorySpan<GradientColorKey> colorKeys;
     MemorySpan<GradientAlphaKey> alphaKeys;
+    ulong colorGcHandle;
+    ulong alphaGcHandle;
 
-    public static unsafe Guard Create(Gradient gradient, out BurstGradient burst)
+    public unsafe BurstGradient(Gradient gradient)
     {
-        var mode = gradient.mode;
+        mode = gradient.mode;
         var colorKeys = UnsafeUtility.PinGCArrayAndGetDataAddress(
             gradient.colorKeys,
-            out var colorGcHandle
+            out colorGcHandle
         );
         var alphaKeys = UnsafeUtility.PinGCArrayAndGetDataAddress(
             gradient.alphaKeys,
-            out var alphaGcHandle
+            out alphaGcHandle
         );
 
-        burst = new BurstGradient
-        {
-            mode = mode,
-            colorKeys = new((GradientColorKey*)colorKeys, gradient.colorKeys.Length),
-            alphaKeys = new((GradientAlphaKey*)alphaKeys, gradient.alphaKeys.Length),
-        };
+        this.colorKeys = new((GradientColorKey*)colorKeys, gradient.colorKeys.Length);
+        this.alphaKeys = new((GradientAlphaKey*)alphaKeys, gradient.alphaKeys.Length);
+    }
 
-        return new Guard { colorGcHandle = colorGcHandle, alphaGcHandle = alphaGcHandle };
+    public readonly void Dispose()
+    {
+        UnsafeUtility.ReleaseGCObject(colorGcHandle);
+        UnsafeUtility.ReleaseGCObject(alphaGcHandle);
+    }
+
+    struct DisposeJob(BurstGradient gradient) : IJob
+    {
+        public readonly void Execute() => gradient.Dispose();
+    }
+
+    public void Dispose(JobHandle handle)
+    {
+        new DisposeJob(this).Schedule(handle);
+        this = default;
     }
 
     public readonly Color Evaluate(float time)

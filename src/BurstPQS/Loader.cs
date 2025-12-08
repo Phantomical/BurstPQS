@@ -160,7 +160,7 @@ internal class BurstLoader : MonoBehaviour
     }
     #endregion
 
-#if false
+#if true
     #region BatchPQSMod Registration
     static void RegisterBatchPQSMods()
     {

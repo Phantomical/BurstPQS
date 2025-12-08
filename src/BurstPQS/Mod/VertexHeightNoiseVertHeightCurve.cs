@@ -7,7 +7,8 @@ using IModule = LibNoise.IModule;
 namespace BurstPQS.Mod;
 
 [BurstCompile]
-public class VertexHeightNoiseVertHeightCurve : BatchPQSModV1<PQSMod_VertexHeightNoiseVertHeightCurve>
+public class VertexHeightNoiseVertHeightCurve
+    : BatchPQSModV1<PQSMod_VertexHeightNoiseVertHeightCurve>
 {
     public VertexHeightNoiseVertHeightCurve(PQSMod_VertexHeightNoiseVertHeightCurve mod)
         : base(mod) { }
@@ -22,7 +23,7 @@ public class VertexHeightNoiseVertHeightCurve : BatchPQSModV1<PQSMod_VertexHeigh
             deformity = mod.deformity,
         };
 
-        using var guard = BurstAnimationCurve.Create(mod.curve, out var bcurve);
+        using var bcurve = new BurstAnimationCurve(mod.curve);
 
         if (mod.noiseMap is LibNoise.Perlin perlin)
             BuildVertexPerlin(in data.burstData, new(perlin), in bcurve, in p);

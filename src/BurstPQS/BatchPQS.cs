@@ -503,15 +503,33 @@ public unsafe class BatchPQS : MonoBehaviour
         List<BatchPQSMod> batchMods = new(pqs.mods.Length);
         foreach (var mod in pqs.mods)
         {
-            var batchMod = BatchPQSMod.Create(mod);
-            if (batchMod is not null)
-                batchMods.Add(batchMod);
+            try
+            {
+                var batchMod = BatchPQSMod.Create(mod);
+                if (batchMod is not null)
+                    batchMods.Add(batchMod);
+            }
+            catch (UnsupportedPQSModException)
+            {
+                Debug.LogWarning(
+                    $"[BatchPQS] PQSMod {mod.GetType().Name} is not supported by BatchPQS"
+                );
+                fallback = true;
+            }
         }
+
+        if (fallback)
+            Debug.LogWarning(
+                $"[BatchPQS] BatchPQS not supported for surface {pqs.name}. Falling back to regular PQS"
+            );
 
         this.mods = [.. batchMods];
 
-        foreach (var mod in this.mods)
-            mod.OnSetup();
+        if (!fallback)
+        {
+            foreach (var mod in this.mods)
+                mod.OnSetup();
+        }
     }
     #endregion
 }

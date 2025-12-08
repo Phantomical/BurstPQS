@@ -57,6 +57,17 @@ public interface IBatchPQSModState
     void OnQuadBuilt(QuadBuildData data);
 }
 
+public abstract class BatchPQSModState : IDisposable, IBatchPQSModState
+{
+    public virtual JobHandle ScheduleBuildHeights(QuadBuildData data, JobHandle handle) => handle;
+
+    public virtual JobHandle ScheduleBuildVertices(QuadBuildData data, JobHandle handle) => handle;
+
+    public virtual void OnQuadBuilt(QuadBuildData data) { }
+
+    public virtual void Dispose() { }
+}
+
 public abstract class BatchPQSMod : IDisposable
 {
     /// <summary>
