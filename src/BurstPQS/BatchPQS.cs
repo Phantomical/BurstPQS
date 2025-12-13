@@ -1,5 +1,6 @@
 using System;
 using System.Collections.Generic;
+using System.Drawing.Printing;
 using System.Runtime.CompilerServices;
 using BurstPQS.Collections;
 using BurstPQS.Patches;
@@ -64,6 +65,8 @@ public unsafe class BatchPQS : MonoBehaviour
         pqs.buildQuad = quad;
         pqs.Mod_OnQuadPreBuild(quad);
 
+        using var data = new QuadBuildData(pqs, PQS.cacheVertCount);
+
         var vbData = PQS.vbData;
         vbData.buildQuad = quad;
         vbData.allowScatter = true;
@@ -71,12 +74,20 @@ public unsafe class BatchPQS : MonoBehaviour
         quad.meshVertMax = double.MaxValue;
         quad.meshVertMin = double.MinValue;
 
+        var initJob = new InitBuildDataJob
+        {
+            quadMatrix = quad.quadMatrix,
+            data = data.burst,
+            reqVertexMapCoords = pqs.reqVertexMapCoods,
+            cacheSideVertCount = PQS.cacheSideVertCount,
+            cacheMeshSize = PQS.cacheMeshSize,
+        };
+
+        initJob.Schedule().Complete();
+
         for (int i = 0; i < PQS.cacheVertCount; ++i)
         {
-            vbData.globalV = quad.quadMatrix.MultiplyPoint3x4(PQS.cacheVerts[i]);
-            vbData.directionFromCenter = vbData.globalV.normalized;
-            vbData.vertHeight = pqs.radius;
-            vbData.vertIndex = i;
+            data.CopyTo(vbData, i);
             pqs.vertexIndex = i;
 
             pqs.Mod_OnVertexBuildHeight(vbData);
