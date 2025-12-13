@@ -1,101 +1,53 @@
-using System;
-using System.Collections.Generic;
+using Unity.Jobs;
 
 namespace BurstPQS.Mod;
 
-/// <summary>
-/// This is a special shim type that forwards the callbacks from
-/// <see cref="BatchPQSModV1"/> to the equivalent per-vertex ones on
-/// <see cref="PQSMod"/>.
-///
-/// It does not forward any of the other callbacks and shouldn't be used outside
-/// of forwarding batched callbacks.
-/// </summary>
-internal sealed class Shim : BatchPQSModV1
+public sealed class Shim(PQSMod mod) : BatchPQSMod
 {
-    struct OverrideInfo
+    readonly PQSMod mod = mod;
+
+    class State(PQSMod mod) : BatchPQSModState
     {
-        public bool onVertexBuildOverridden;
-        public bool onVertexBuildHeightOverridden;
-    }
+        readonly PQSMod mod = mod;
 
-    readonly PQSMod mod;
-    readonly OverrideInfo info;
-
-    Shim(PQSMod mod, OverrideInfo info)
-    {
-        this.mod = mod;
-        this.info = info;
-    }
-
-    internal static new Shim Create(PQSMod mod)
-    {
-        var info = GetOverrideInfo(mod.GetType());
-        if (!info.onVertexBuildOverridden && !info.onVertexBuildHeightOverridden)
-            return null;
-
-        return new(mod, info);
-    }
-
-    #region BatchPQSMod
-    public override void OnBatchVertexBuild(in QuadBuildDataV1 data)
-    {
-        if (!info.onVertexBuildOverridden)
-            return;
-
-        mod.overrideQuadBuildCheck = false;
-
-        var vbdata = PQS.vbData;
-        int vcount = data.VertexCount;
-
-        for (int i = 0; i < vcount; ++i)
+        public override JobHandle ScheduleBuildHeights(QuadBuildData data, JobHandle handle)
         {
-            data.CopyTo(vbdata, i);
-            mod.OnVertexBuild(vbdata);
-            data.CopyFrom(vbdata, i);
+            handle.Complete();
+
+            var vbData = PQS.vbData;
+            vbData.buildQuad = data.buildQuad;
+            vbData.gnomonicPlane = data.buildQuad.plane;
+
+            for (int i = 0; i < data.VertexCount; ++i)
+            {
+                data.CopyTo(vbData, i);
+                mod.OnVertexBuildHeight(vbData);
+                data.CopyFrom(vbData, i);
+            }
+
+            return handle;
+        }
+
+        public override JobHandle ScheduleBuildVertices(QuadBuildData data, JobHandle handle)
+        {
+            handle.Complete();
+
+            var vbData = PQS.vbData;
+            vbData.buildQuad = data.buildQuad;
+            vbData.gnomonicPlane = data.buildQuad.plane;
+
+            for (int i = 0; i < data.VertexCount; ++i)
+            {
+                data.CopyTo(vbData, i);
+                mod.OnVertexBuild(vbData);
+                data.CopyFrom(vbData, i);
+            }
+
+            return handle;
         }
     }
 
-    public override void OnBatchVertexBuildHeight(in QuadBuildDataV1 data)
-    {
-        if (!info.onVertexBuildHeightOverridden)
-            return;
+    public override IBatchPQSModState OnQuadPreBuild(QuadBuildData data) => new State(mod);
 
-        mod.overrideQuadBuildCheck = false;
-
-        var vbdata = PQS.vbData;
-        int vcount = data.VertexCount;
-
-        for (int i = 0; i < vcount; ++i)
-        {
-            data.CopyTo(vbdata, i);
-            mod.OnVertexBuildHeight(vbdata);
-            data.CopyFrom(vbdata, i);
-        }
-    }
-    #endregion
-
-    #region Override Info
-    static readonly Dictionary<Type, OverrideInfo> OverrideInfoCache = [];
-
-    static OverrideInfo GetOverrideInfo(Type type)
-    {
-        if (OverrideInfoCache.TryGetValue(type, out var info))
-            return info;
-
-        var onVertexBuild = type.GetMethod("OnVertexBuild", [typeof(PQS.VertexBuildData)]);
-        var onVertexBuildHeight = type.GetMethod(
-            "OnVertexBuildHeight",
-            [typeof(PQS.VertexBuildData)]
-        );
-
-        info = new()
-        {
-            onVertexBuildOverridden = onVertexBuild.DeclaringType != typeof(PQSMod),
-            onVertexBuildHeightOverridden = onVertexBuildHeight.DeclaringType != typeof(PQSMod),
-        };
-        OverrideInfoCache[type] = info;
-        return info;
-    }
-    #endregion
+    public override string ToString() => $"{mod} ({mod.GetType().Name})";
 }

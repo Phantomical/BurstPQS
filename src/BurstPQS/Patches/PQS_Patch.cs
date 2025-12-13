@@ -1,8 +1,8 @@
+using System;
 using HarmonyLib;
 
 namespace BurstPQS.Patches;
 
-#if false
 [HarmonyPatch(typeof(PQS), nameof(PQS.SetupMods))]
 [HarmonyPriority(Priority.VeryLow)]
 internal static class PQS_SetupMods_Patch
@@ -28,4 +28,12 @@ internal static class PQS_BuildQuad_Patch
         return false;
     }
 }
-#endif
+
+[HarmonyPatch]
+[HarmonyPriority(Priority.VeryLow + 1)]
+internal static class PQS_RevPatch
+{
+    [HarmonyReversePatch(HarmonyReversePatchType.Snapshot)]
+    [HarmonyPatch(typeof(PQS), nameof(PQS.BuildQuad))]
+    public static bool BuildQuad(PQS pqs, PQ quad) => throw new NotImplementedException();
+}

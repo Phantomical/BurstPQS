@@ -1,99 +1,110 @@
 using System;
 using System.Runtime.CompilerServices;
-using BurstPQS.Collections;
 using BurstPQS.Util;
 using Unity.Burst;
+using Unity.Collections;
+using Unity.Jobs;
 using UnityEngine;
 
 namespace BurstPQS.Mod;
 
 [BurstCompile]
-public class MapDecal : BatchPQSModV1<PQSMod_MapDecal>
+[BatchPQSMod(typeof(PQSMod_MapDecal))]
+public class MapDecal(PQSMod_MapDecal mod) : BatchPQSMod<PQSMod_MapDecal>(mod)
 {
-    bool[] vertActive;
-
-    public MapDecal(PQSMod_MapDecal mod)
-        : base(mod) { }
-
-    public override unsafe void OnBatchVertexBuildHeight(in QuadBuildDataV1 data)
+    class State(PQSMod_MapDecal mod) : BatchPQSModState
     {
-        if (!mod.quadActive && mod.buildHeight)
-            return;
+        BurstInfo info = new(mod);
+        NativeArray<bool> vertActive;
 
-        if (vertActive is null || vertActive.Length != data.VertexCount)
-            vertActive = new bool[data.VertexCount];
-
-        var info = new BurstInfo(mod);
-        BurstMapSO? heightMap = null;
-
-        if (mod.heightMap is not null)
+        public override JobHandle ScheduleBuildHeights(QuadBuildData data, JobHandle handle)
         {
-            heightMap = new BurstMapSO(mod.heightMap);
-        }
-
-        fixed (bool* pVertActive = vertActive)
-        {
-            BuildHeights(
-                in data.burstData,
-                in info,
-                heightMap,
-                mod.sphere.isBuildingMaps,
-                mod.sphere.radius,
-                new(pVertActive, vertActive.Length)
+            vertActive = new(
+                data.VertexCount,
+                Allocator.TempJob,
+                NativeArrayOptions.UninitializedMemory
             );
+
+            BurstMapSO? heightMap = null;
+            if (mod.heightMap is not null)
+                heightMap = new BurstMapSO(mod.heightMap);
+
+            var job = new BuildHeightsJob
+            {
+                data = data.burst,
+                info = info,
+                heightMap = heightMap,
+                sphereIsBuildingMaps = mod.sphere.isBuildingMaps,
+                sphereRadius = mod.sphere.radius,
+                vertActive = vertActive,
+            };
+            handle = job.Schedule(handle);
+            heightMap?.Dispose(handle);
+
+            return handle;
         }
-    }
 
-    public override unsafe void OnBatchVertexBuild(in QuadBuildDataV1 data)
-    {
-        if (!mod.quadActive && mod.buildHeight)
-            return;
-        if (vertActive is null)
-            return;
-
-        var info = new BurstInfo(mod);
-        BurstMapSO? colorMap = null;
-
-        if (mod.colorMap is not null)
-            colorMap = new BurstMapSO(mod.colorMap);
-
-        fixed (bool* pVertActive = vertActive)
+        public override JobHandle ScheduleBuildVertices(QuadBuildData data, JobHandle handle)
         {
-            BuildVerts(
-                in data.burstData,
-                in info,
-                colorMap,
-                mod.sphere.radius,
-                new(pVertActive, vertActive.Length)
-            );
+            BurstMapSO? colorMap = null;
+            if (mod.colorMap is not null)
+                colorMap = new BurstMapSO(mod.colorMap);
+
+            var job = new BuildVerticesJob
+            {
+                data = data.burst,
+                info = info,
+                colorMap = colorMap,
+                sphereRadius = mod.sphere.radius,
+                vertActive = vertActive,
+            };
+            handle = job.Schedule(handle);
+            colorMap?.Dispose(handle);
+            vertActive.Dispose(handle);
+
+            return base.ScheduleBuildHeights(data, handle);
+        }
+
+        public override void Dispose()
+        {
+            vertActive.Dispose();
         }
     }
 
-    [BurstCompile(FloatMode = FloatMode.Fast)]
-    [BurstPQSAutoPatch]
-    static void BuildHeights(
-        [NoAlias] in BurstQuadBuildDataV1 data,
-        [NoAlias] in BurstInfo info,
-        [NoAlias] in NullableWrap<BurstMapSO> heightMap,
-        bool sphereIsBuildingMaps,
-        double sphereRadius,
-        [NoAlias] in MemorySpan<bool> vertActive
-    )
+    public override IBatchPQSModState OnQuadPreBuild(QuadBuildData data)
     {
-        info.BuildHeights(in data, heightMap, sphereIsBuildingMaps, sphereRadius, vertActive);
+        return new State(mod);
     }
 
-    [BurstCompile(FloatMode = FloatMode.Fast)]
-    [BurstPQSAutoPatch]
-    static void BuildVerts(
-        [NoAlias] in BurstQuadBuildDataV1 data,
-        [NoAlias] in BurstInfo info,
-        [NoAlias] in NullableWrap<BurstMapSO> colorMap,
-        double sphereRadius,
-        [NoAlias] in MemorySpan<bool> vertActive
-    )
+    [BurstCompile]
+    struct BuildHeightsJob : IJob
     {
-        info.BuildVerts(in data, colorMap, vertActive, sphereRadius);
+        public BurstQuadBuildData data;
+        public BurstInfo info;
+        public BurstMapSO? heightMap;
+        public bool sphereIsBuildingMaps;
+        public double sphereRadius;
+        public NativeArray<bool> vertActive;
+
+        public void Execute()
+        {
+            info.BuildHeights(data, heightMap, sphereIsBuildingMaps, sphereRadius, vertActive);
+        }
+    }
+
+    [BurstCompile]
+    struct BuildVerticesJob : IJob
+    {
+        public BurstQuadBuildData data;
+        public BurstInfo info;
+        public BurstMapSO? colorMap;
+        public NativeArray<bool> vertActive;
+        public double sphereRadius;
+
+        public void Execute()
+        {
+            info.BuildVerts(data, colorMap, vertActive, sphereRadius);
+        }
     }
 
     struct BurstInfo(PQSMod_MapDecal mod)
@@ -136,11 +147,11 @@ public class MapDecal : BatchPQSModV1<PQSMod_MapDecal>
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public readonly void BuildHeights(
-            in BurstQuadBuildDataV1 data,
+            in BurstQuadBuildData data,
             BurstMapSO? nHeightMap,
             bool sphereIsBuildingMaps,
             double sphereRadius,
-            MemorySpan<bool> vertActive
+            NativeArray<bool> vertActive
         )
         {
             vertActive.Clear();
@@ -200,9 +211,9 @@ public class MapDecal : BatchPQSModV1<PQSMod_MapDecal>
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public readonly void BuildVerts(
-            in BurstQuadBuildDataV1 data,
+            in BurstQuadBuildData data,
             BurstMapSO? nColorMap,
-            MemorySpan<bool> vertActive,
+            NativeArray<bool> vertActive,
             double sphereRadius
         )
         {

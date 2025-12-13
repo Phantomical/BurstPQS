@@ -1,16 +1,16 @@
 using System;
 using System.Collections.Generic;
 using System.Runtime.CompilerServices;
-using System.Runtime.InteropServices;
 using BurstPQS.Collections;
+using BurstPQS.Patches;
 using BurstPQS.Util;
 using Unity.Burst;
 using Unity.Collections;
 using Unity.Collections.LowLevel.Unsafe;
 using Unity.Jobs;
 using Unity.Mathematics;
+using Unity.Profiling;
 using UnityEngine;
-using Vectrosity;
 
 namespace BurstPQS;
 
@@ -44,8 +44,71 @@ public unsafe class BatchPQS : MonoBehaviour
         }
     }
 
+    static ProfilerMarker BuildQuadMarker = new("BatchPQS.BuildQuad");
+
     public bool BuildQuad(PQ quad)
     {
+        using var scope = BuildQuadMarker.Auto();
+
+        if (fallback)
+            return PQS_RevPatch.BuildQuad(pqs, quad);
+
+        if (quad.isBuilt)
+            return false;
+        if (quad.isSubdivided)
+            return false;
+
+        if (quad == null || quad.gameObject == null)
+            return false;
+
+        pqs.buildQuad = quad;
+        pqs.Mod_OnQuadPreBuild(quad);
+
+        var vbData = PQS.vbData;
+        vbData.buildQuad = quad;
+        vbData.allowScatter = true;
+        vbData.gnomonicPlane = quad.plane;
+        quad.meshVertMax = double.MaxValue;
+        quad.meshVertMin = double.MinValue;
+
+        for (int i = 0; i < PQS.cacheVertCount; ++i)
+        {
+            vbData.globalV = quad.quadMatrix.MultiplyPoint3x4(PQS.cacheVerts[i]);
+            vbData.directionFromCenter = vbData.globalV.normalized;
+            vbData.vertHeight = pqs.radius;
+            vbData.vertIndex = i;
+            pqs.vertexIndex = i;
+
+            pqs.Mod_OnVertexBuildHeight(vbData);
+            pqs.Mod_OnVertexBuild(vbData);
+
+            vbData.vertHeight -= pqs.radius;
+            vbData.vertHeight = UtilMath.Clamp(
+                vbData.vertHeight,
+                quad.meshVertMin,
+                quad.meshVertMax
+            );
+            pqs.meshVertMax = Math.Max(pqs.meshVertMax, vbData.vertHeight);
+            pqs.meshVertMin = Math.Min(pqs.meshVertMin, vbData.vertHeight);
+        }
+
+        quad.mesh.vertices = quad.verts;
+        quad.mesh.triangles = PQS.cacheIndices[0];
+        quad.mesh.RecalculateBounds();
+        quad.edgeState = PQS.EdgeState.Reset;
+        pqs.Mod_OnMeshBuild();
+        pqs.Mod_OnQuadBuilt(quad);
+        pqs.buildQuad = null;
+        return true;
+    }
+
+    public bool BuildQuad2(PQ quad)
+    {
+        using var scope = BuildQuadMarker.Auto();
+
+        if (fallback)
+            return PQS_RevPatch.BuildQuad(pqs, quad);
+
         if (quad.isBuilt)
             return false;
         if (quad.isSubdivided)
@@ -61,12 +124,18 @@ public unsafe class BatchPQS : MonoBehaviour
         using var minmax = new NativeArray<double>(2, Allocator.TempJob);
 
         var states = new List<IBatchPQSModState>(mods.Length);
+#if false
+#if false
         foreach (var mod in mods)
         {
             var state = mod.OnQuadPreBuild(data);
             if (state is not null)
                 states.Add(state);
         }
+#else
+        foreach (var mod in pqs.mods)
+            mod.OnQuadPreBuild(quad);
+#endif
 
         var initJob = new InitBuildDataJob
         {
@@ -78,13 +147,35 @@ public unsafe class BatchPQS : MonoBehaviour
         };
 
         JobHandle handle = initJob.Schedule();
+        JobHandle.ScheduleBatchedJobs();
 
         try
         {
+            handle.Complete();
+#if false
             foreach (var state in states)
                 handle = state.ScheduleBuildHeights(data, handle);
+            JobHandle.ScheduleBatchedJobs();
             foreach (var state in states)
                 handle = state.ScheduleBuildVertices(data, handle);
+            JobHandle.ScheduleBatchedJobs();
+#else
+            for (int i = 0; i < data.VertexCount; ++i)
+            {
+                var vbData = PQS.vbData;
+                vbData.buildQuad = data.buildQuad;
+                vbData.gnomonicPlane = data.buildQuad.plane;
+
+                data.CopyTo(vbData, i);
+
+                foreach (var mod in pqs.mods)
+                    mod.OnVertexBuildHeight(vbData);
+                foreach (var mod in pqs.mods)
+                    mod.OnVertexBuild(vbData);
+
+                data.CopyFrom(vbData, i);
+            }
+#endif
 
             var buildJob = new BuildVerticesJob
             {
@@ -114,6 +205,7 @@ public unsafe class BatchPQS : MonoBehaviour
         {
             handle.Complete();
         }
+#endif
 
         CopyGeneratedData(data, cache);
         pqs.meshVertMin = Math.Min(minmax[0], pqs.meshVertMin);
@@ -226,70 +318,6 @@ public unsafe class BatchPQS : MonoBehaviour
                 data.u[i] = latitude / Math.PI + 0.5;
                 data.v[i] = longitude / Math.PI * 0.5;
             }
-        }
-    }
-
-    void InitBuildData(PQ quad, in QuadBuildDataV1 data)
-    {
-        fixed (Vector3* pCacheVerts = PQS.cacheVerts)
-        {
-            InitBuildDataBurst(
-                new MemorySpan<Vector3>(pCacheVerts, PQS.cacheVerts.Length),
-                in quad.quadMatrix,
-                in data.burstData,
-                pqs.radius,
-                pqs.reqVertexMapCoods
-            );
-        }
-    }
-
-    [BurstCompile(FloatMode = FloatMode.Fast)]
-    [BurstPQSAutoPatch]
-    static void InitBuildDataBurst(
-        in MemorySpan<Vector3> cacheVerts,
-        in Matrix4x4 quadMatrix,
-        in BurstQuadBuildDataV1 data,
-        double radius,
-        bool reqVertexMapCoords
-    )
-    {
-        int cacheVertCount = cacheVerts.Length;
-        for (int i = 0; i < cacheVertCount; ++i)
-        {
-            var globalV = quadMatrix.MultiplyPoint3x4(cacheVerts[i]);
-
-            data.globalV[i] = globalV;
-            data.directionFromCenter[i] = globalV.normalized;
-        }
-
-        // Set other fields individually so that they can be vectorized
-        data.vertHeight.Fill(radius);
-        data.allowScatter.Fill(true);
-
-        if (!reqVertexMapCoords)
-            return;
-
-        for (int i = 0; i < cacheVertCount; ++i)
-        {
-            var latitude = Math.Asin(MathUtil.Clamp01(data.directionFromCenter[i].y));
-            var directionXZ = new Vector3d(
-                data.directionFromCenter[i].x,
-                0.0,
-                data.directionFromCenter[i].z
-            );
-
-            double longitude;
-            if (directionXZ.sqrMagnitude == 0.0)
-                longitude = 0.0;
-            else if (directionXZ.z < 0.0)
-                longitude = Math.PI - Math.Asin(directionXZ.x / directionXZ.magnitude);
-            else
-                longitude = Math.Asin(directionXZ.x / directionXZ.magnitude);
-
-            data.latitude[i] = latitude;
-            data.longitude[i] = longitude;
-            data.u[i] = latitude / Math.PI + 0.5;
-            data.v[i] = longitude / Math.PI * 0.5;
         }
     }
     #endregion
@@ -512,7 +540,7 @@ public unsafe class BatchPQS : MonoBehaviour
             catch (UnsupportedPQSModException)
             {
                 Debug.LogWarning(
-                    $"[BatchPQS] PQSMod {mod.GetType().Name} is not supported by BatchPQS"
+                    $"[BurstPQS] PQSMod {mod.GetType().Name} is not supported by BatchPQS"
                 );
                 fallback = true;
             }
@@ -520,7 +548,7 @@ public unsafe class BatchPQS : MonoBehaviour
 
         if (fallback)
             Debug.LogWarning(
-                $"[BatchPQS] BatchPQS not supported for surface {pqs.name}. Falling back to regular PQS"
+                $"[BurstPQS] BatchPQS not supported for surface {pqs.name}. Falling back to regular PQS"
             );
 
         this.mods = [.. batchMods];
@@ -528,7 +556,19 @@ public unsafe class BatchPQS : MonoBehaviour
         if (!fallback)
         {
             foreach (var mod in this.mods)
-                mod.OnSetup();
+            {
+                try
+                {
+                    mod.OnSetup();
+                }
+                catch (UnsupportedPQSModException e)
+                {
+                    Debug.LogWarning(
+                        $"[BatchPQS] PQSMod {mod.GetType().Name} is not supported by BatchPQS: {e.Message}"
+                    );
+                    fallback = true;
+                }
+            }
         }
     }
     #endregion

@@ -1,5 +1,6 @@
 using System;
 using System.Collections.Generic;
+using System.Linq;
 using BurstPQS.Collections;
 using BurstPQS.Noise;
 using BurstPQS.Util;
@@ -7,12 +8,11 @@ using Unity.Burst;
 using Unity.Collections;
 using Unity.Jobs;
 using UnityEngine;
-using UnityEngine.Analytics;
 
 namespace BurstPQS.Mod;
 
 [BurstCompile]
-[BatchPQSMod(typeof(PQSLandControl))]
+// [BatchPQSMod(typeof(PQSLandControl))]
 public class LandControl(PQSLandControl mod) : BatchPQSMod<PQSLandControl>(mod)
 {
     public readonly struct BurstLerpRange(PQSLandControl.LerpRange range)
@@ -78,6 +78,13 @@ public class LandControl(PQSLandControl mod) : BatchPQSMod<PQSLandControl>(mod)
             burstLandClasses[i] = new(mod.landClasses[i]);
     }
 
+    public override IBatchPQSModState OnQuadPreBuild(QuadBuildData data)
+    {
+        mod.OnQuadPreBuild(data.buildQuad);
+
+        return new State(this, data);
+    }
+
     public override void Dispose()
     {
         base.Dispose();
@@ -87,7 +94,7 @@ public class LandControl(PQSLandControl mod) : BatchPQSMod<PQSLandControl>(mod)
         burstLandClasses.Dispose();
     }
 
-    class LandControlState : BatchPQSModState
+    class State : BatchPQSModState
     {
         public PQSLandControl mod;
 
@@ -97,7 +104,7 @@ public class LandControl(PQSLandControl mod) : BatchPQSMod<PQSLandControl>(mod)
 
         public NativeArray<BurstLandClass> landClasses;
 
-        public LandControlState(LandControl batchMod, QuadBuildData data)
+        public State(LandControl batchMod, QuadBuildData data)
         {
             mod = batchMod.Mod;
             landClasses = batchMod.burstLandClasses;
@@ -365,6 +372,76 @@ public class LandControl(PQSLandControl mod) : BatchPQSMod<PQSLandControl>(mod)
 
                 data.vertColor[i].a = (float)MathUtil.Clamp01(vHeightAltered);
             }
+        }
+    }
+}
+
+[BatchPQSMod(typeof(PQSLandControl))]
+public class LandControlShim(PQSLandControl mod) : BatchPQSMod<PQSLandControl>(mod)
+{
+    public override IBatchPQSModState OnQuadPreBuild(QuadBuildData data)
+    {
+        mod.OnQuadPreBuild(data.buildQuad);
+
+        return base.OnQuadPreBuild(data);
+    }
+
+    class State(PQSLandControl mod) : BatchPQSModState
+    {
+        PQSLandControl mod = mod;
+        List<PQSLandControl.LandClass>[] lcs;
+        List<double>[] lcDeltas;
+        double[] vHeight;
+
+        public override JobHandle ScheduleBuildHeights(QuadBuildData data, JobHandle handle)
+        {
+            handle.Complete();
+
+            lcs = new List<PQSLandControl.LandClass>[data.VertexCount];
+            lcDeltas = new List<double>[data.VertexCount];
+            vHeight = new double[data.VertexCount];
+
+            var vbData = PQS.vbData;
+            vbData.buildQuad = data.buildQuad;
+            vbData.gnomonicPlane = data.buildQuad.plane;
+
+            for (int i = 0; i < data.VertexCount; ++i)
+            {
+                data.CopyTo(vbData, i);
+                mod.OnVertexBuildHeight(vbData);
+                data.CopyFrom(vbData, i);
+
+                lcs[i] = mod.lcList;
+                lcDeltas[i] = [.. lcs[i].Select(lc => lc.delta)];
+                vHeight[i] = mod.vHeight;
+
+                mod.lcList = [];
+            }
+
+            return handle;
+        }
+
+        public override JobHandle ScheduleBuildVertices(QuadBuildData data, JobHandle handle)
+        {
+            handle.Complete();
+
+            var vbData = PQS.vbData;
+            vbData.buildQuad = data.buildQuad;
+            vbData.gnomonicPlane = data.buildQuad.plane;
+
+            for (int i = 0; i < data.VertexCount; ++i)
+            {
+                mod.lcList = lcs[i];
+                for (int j = 0; j < mod.lcList.Count; ++j)
+                    mod.lcList[j].delta = lcDeltas[i][j];
+                mod.vHeight = vHeight[i];
+
+                data.CopyTo(vbData, i);
+                mod.OnVertexBuild(vbData);
+                data.CopyFrom(vbData, i);
+            }
+
+            return handle;
         }
     }
 }

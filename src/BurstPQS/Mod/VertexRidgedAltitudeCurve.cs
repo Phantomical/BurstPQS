@@ -2,62 +2,78 @@ using System;
 using BurstPQS.Noise;
 using BurstPQS.Util;
 using Unity.Burst;
+using Unity.Jobs;
 
 namespace BurstPQS.Mod;
 
 [BurstCompile]
-public class VertexRidgedAltitudeCurve : BatchPQSModV1<PQSMod_VertexRidgedAltitudeCurve>
+[BatchPQSMod(typeof(PQSMod_VertexRidgedAltitudeCurve))]
+[BatchPQSShim]
+public class VertexRidgedAltitudeCurve(PQSMod_VertexRidgedAltitudeCurve mod)
+    : BatchPQSMod<PQSMod_VertexRidgedAltitudeCurve>(mod),
+        IBatchPQSModState
 {
-    public VertexRidgedAltitudeCurve(PQSMod_VertexRidgedAltitudeCurve mod)
-        : base(mod) { }
+    public override IBatchPQSModState OnQuadPreBuild(QuadBuildData data) => this;
 
-    public override void OnBatchVertexBuildHeight(in QuadBuildDataV1 data)
+    public JobHandle ScheduleBuildHeights(QuadBuildData data, JobHandle handle)
     {
-        using var bsimplex = new BurstSimplex(mod.simplex);
-        using var bsimplexCurve = new BurstAnimationCurve(mod.simplexCurve);
+        var bsimplex = new BurstSimplex(mod.simplex);
+        var bsimplexCurve = new BurstAnimationCurve(mod.simplexCurve);
 
-        BuildHeights(
-            in data.burstData,
-            in bsimplex,
-            new(mod.ridgedAdd),
-            in bsimplexCurve,
-            mod.simplexHeightStart,
-            mod.sphere != null ? mod.sphere.radiusMax : mod.ridgedMinimum,
-            mod.hDeltaR,
-            mod.ridgedMinimum,
-            mod.deformity
-        );
+        var job = new BuildHeightsJob
+        {
+            data = data.burst,
+            simplex = bsimplex,
+            ridgedAdd = new(mod.ridgedAdd),
+            simplexCurve = bsimplexCurve,
+            simplexHeightStart = mod.simplexHeightStart,
+            radiusMin = mod.sphere != null ? mod.sphere.radiusMax : mod.ridgedMinimum,
+            hDeltaR = mod.hDeltaR,
+            ridgedMinimum = mod.ridgedMinimum,
+            deformity = mod.deformity,
+        };
+        handle = job.Schedule(handle);
+        bsimplex.Dispose(handle);
+        bsimplexCurve.Dispose(handle);
+
+        return handle;
     }
 
+    public JobHandle ScheduleBuildVertices(QuadBuildData data, JobHandle handle) => handle;
+
+    public void OnQuadBuilt(QuadBuildData data) { }
+
     [BurstCompile(FloatMode = FloatMode.Fast)]
-    [BurstPQSAutoPatch]
-    static void BuildHeights(
-        [NoAlias] in BurstQuadBuildDataV1 data,
-        [NoAlias] in BurstSimplex simplex,
-        [NoAlias] in RidgedMultifractal ridgedAdd,
-        [NoAlias] in BurstAnimationCurve simplexCurve,
-        double simplexHeightStart,
-        double radiusMin,
-        double hDeltaR,
-        double ridgedMinimum,
-        double deformity
-    )
+    struct BuildHeightsJob : IJob
     {
-        for (int i = 0; i < data.VertexCount; ++i)
+        public BurstQuadBuildData data;
+        public BurstSimplex simplex;
+        public RidgedMultifractal ridgedAdd;
+        public BurstAnimationCurve simplexCurve;
+        public double simplexHeightStart;
+        public double radiusMin;
+        public double hDeltaR;
+        public double ridgedMinimum;
+        public double deformity;
+
+        public void Execute()
         {
-            double h = data.vertHeight[i] - radiusMin;
-            double t = MathUtil.Clamp01((h - simplexHeightStart) * hDeltaR);
-            double s = simplex.noiseNormalized(data.directionFromCenter[i]);
-            if (s == 0.0)
-                continue;
+            for (int i = 0; i < data.VertexCount; ++i)
+            {
+                double h = data.vertHeight[i] - radiusMin;
+                double t = MathUtil.Clamp01((h - simplexHeightStart) * hDeltaR);
+                double s = simplex.noiseNormalized(data.directionFromCenter[i]);
+                if (s == 0.0)
+                    continue;
 
-            double r = MathUtil.Clamp(
-                Math.Max(ridgedMinimum, ridgedAdd.GetValue(data.directionFromCenter[i])),
-                -1.0,
-                1.0
-            );
+                double r = MathUtil.Clamp(
+                    Math.Max(ridgedMinimum, ridgedAdd.GetValue(data.directionFromCenter[i])),
+                    -1.0,
+                    1.0
+                );
 
-            data.vertHeight[i] += r * deformity * simplexCurve.Evaluate((float)t);
+                data.vertHeight[i] += r * deformity * simplexCurve.Evaluate((float)t);
+            }
         }
     }
 }

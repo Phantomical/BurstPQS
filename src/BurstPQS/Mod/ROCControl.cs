@@ -1,14 +1,17 @@
 using BurstPQS.Util;
+using Unity.Jobs;
 
 namespace BurstPQS.Mod;
 
-public class ROCControl : BatchPQSModV1<PQSROCControl>
+[BatchPQSMod(typeof(PQSROCControl))]
+public class ROCControl(PQSROCControl mod) : BatchPQSMod<PQSROCControl>(mod), IBatchPQSModState
 {
-    public ROCControl(PQSROCControl mod)
-        : base(mod) { }
-
-    public override void OnBatchVertexBuild(in QuadBuildDataV1 data)
+    public void OnQuadBuilt(QuadBuildData data)
     {
         mod.allowROCScatter = data.allowScatter[data.VertexCount - 1];
     }
+
+    public JobHandle ScheduleBuildHeights(QuadBuildData data, JobHandle handle) => handle;
+
+    public JobHandle ScheduleBuildVertices(QuadBuildData data, JobHandle handle) => handle;
 }

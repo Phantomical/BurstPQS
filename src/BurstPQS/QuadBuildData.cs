@@ -47,6 +47,66 @@ public class QuadBuildData : IDisposable
         burst = new(sphere, vertexCount);
     }
 
+    public void CopyTo(PQS.VertexBuildData vbdata, int index)
+    {
+        if ((uint)index >= (uint)VertexCount)
+            throw new IndexOutOfRangeException();
+
+        vbdata.vertIndex = index;
+
+        vbdata.globalV = globalV[index];
+        vbdata.directionFromCenter = directionFromCenter[index];
+        vbdata.directionD = directionD[index];
+        vbdata.directionXZ = directionXZ[index];
+        vbdata.vertHeight = vertHeight[index];
+        vbdata.vertColor = vertColor[index];
+        vbdata.u = u[index];
+        vbdata.v = v[index];
+        vbdata.u2 = u2[index];
+        vbdata.v2 = v2[index];
+        vbdata.u3 = u3[index];
+        vbdata.v3 = v3[index];
+        vbdata.u4 = u4[index];
+        vbdata.v4 = v4[index];
+        vbdata.gnomonicU = gnomonicU[index];
+        vbdata.gnomonicV = gnomonicV[index];
+        vbdata.allowScatter = allowScatter[index];
+        vbdata.longitude = longitude[index];
+        vbdata.latitude = latitude[index];
+
+        for (int i = 0; i < 6; ++i)
+            vbdata.gnomonicUVs[i] = gnomonicUVs[index][i];
+    }
+
+    public void CopyFrom(PQS.VertexBuildData vbdata, int index)
+    {
+        if ((uint)index >= (uint)VertexCount)
+            throw new IndexOutOfRangeException();
+
+        globalV[index] = vbdata.globalV;
+        directionFromCenter[index] = vbdata.directionFromCenter;
+        directionD[index] = vbdata.directionD;
+        directionXZ[index] = vbdata.directionXZ;
+        vertHeight[index] = vbdata.vertHeight;
+        vertColor[index] = vbdata.vertColor;
+        u[index] = vbdata.u;
+        v[index] = vbdata.v;
+        u2[index] = vbdata.u2;
+        v2[index] = vbdata.v2;
+        u3[index] = vbdata.u3;
+        v3[index] = vbdata.v3;
+        u4[index] = vbdata.u4;
+        v4[index] = vbdata.v4;
+        gnomonicU[index] = vbdata.gnomonicU;
+        gnomonicV[index] = vbdata.gnomonicV;
+        allowScatter[index] = vbdata.allowScatter;
+        longitude[index] = vbdata.longitude;
+        latitude[index] = vbdata.latitude;
+
+        for (int i = 0; i < 6; ++i)
+            gnomonicUVs[index][i] = vbdata.gnomonicUVs[i];
+    }
+
     public void Dispose()
     {
         burst.Dispose();

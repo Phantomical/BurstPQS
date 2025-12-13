@@ -89,7 +89,8 @@ public abstract class BatchPQSMod : IDisposable
     /// </summary>
     /// <param name="data"></param>
     /// <returns></returns>
-    public virtual IBatchPQSModState OnQuadPreBuild(QuadBuildData data) => null;
+    public virtual IBatchPQSModState OnQuadPreBuild(QuadBuildData data) =>
+        this as IBatchPQSModState;
 
     /// <summary>
     /// Called during PQS teardown. All scheduled jobs will be completed at
@@ -100,6 +101,7 @@ public abstract class BatchPQSMod : IDisposable
 
     #region Registry
     static readonly Dictionary<Type, Type> ModTypes = [];
+    static readonly HashSet<Type> ModShims = [];
 
     /// <summary>
     /// Register a <see cref="BatchPQSModV1"/> adapter for a <see cref="PQSMod"/>
@@ -111,9 +113,9 @@ public abstract class BatchPQSMod : IDisposable
     public static void RegisterBatchPQSMod(Type batchMod, Type mod)
     {
         if (!typeof(PQSMod).IsAssignableFrom(mod))
-            throw new ArgumentException("type does not inherit from PQSMod", nameof(mod));
+            throw new ArgumentException($"{mod.Name} does not inherit from PQSMod", nameof(mod));
 
-        var batchPqsModType = typeof(BatchPQSModV1<>).MakeGenericType(mod);
+        var batchPqsModType = typeof(BatchPQSMod<>).MakeGenericType(mod);
         if (!batchPqsModType.IsAssignableFrom(batchMod))
             throw new ArgumentException(
                 $"type does not inherit from {batchPqsModType.Name}",
@@ -138,9 +140,17 @@ public abstract class BatchPQSMod : IDisposable
         ModTypes.Add(mod, batchMod);
     }
 
+    public static void RegisterShimmedPQSMod(Type mod)
+    {
+        ModShims.Add(mod);
+    }
+
     public static BatchPQSMod Create(PQSMod mod)
     {
         var type = mod.GetType();
+
+        if (ModShims.Contains(type))
+            return new Mod.Shim(mod);
 
         if (ModTypes.TryGetValue(type, out var batchMod))
             return (BatchPQSMod)Activator.CreateInstance(batchMod, [mod]);
@@ -155,18 +165,36 @@ public abstract class BatchPQSMod : IDisposable
         var overridesVertexBuildHeight = onVertexBuildHeight.DeclaringType != typeof(PQSMod);
         var overridesVertexBuild = onVertexBuild.DeclaringType != typeof(PQSMod);
 
-        var incompatible =
-            overridesQuadPreBuild
-            || overridesQuadBuilt
-            || overridesVertexBuild
-            || overridesVertexBuildHeight;
+        if (!overridesVertexBuild && !overridesVertexBuildHeight)
+        {
+            // This is a shim which just passes through OnQuadPreBuild and OnQuadBuilt
+            if (overridesQuadBuilt || overridesQuadPreBuild)
+                return new BatchPQSModShim(mod);
 
-        // If the PQSMod overrides any of the methods above then it likely needs to
-        // have an explicit compatibility shim.
-        if (!incompatible)
+            // Otherwise it doesn't override any build methods, so it is likely
+            // compatible.
             return null;
+        }
 
         throw new UnsupportedPQSModException($"PQSMod {type.Name} is not compatible with BatchPQS");
+    }
+
+    class BatchPQSModShim(PQSMod mod) : BatchPQSMod, IBatchPQSModState
+    {
+        public override IBatchPQSModState OnQuadPreBuild(QuadBuildData data)
+        {
+            mod.OnQuadPreBuild(data.buildQuad);
+            return this;
+        }
+
+        public void OnQuadBuilt(QuadBuildData data)
+        {
+            mod.OnQuadBuilt(data.buildQuad);
+        }
+
+        public JobHandle ScheduleBuildHeights(QuadBuildData data, JobHandle handle) => handle;
+
+        public JobHandle ScheduleBuildVertices(QuadBuildData data, JobHandle handle) => handle;
     }
 
     #endregion

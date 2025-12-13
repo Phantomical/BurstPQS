@@ -1,20 +1,29 @@
 using BurstPQS.Noise;
 using BurstPQS.Util;
 using Unity.Burst;
+using Unity.Jobs;
 
 namespace BurstPQS.Mod;
 
 [BurstCompile]
-public class VertexHeightNoiseVertHeightCurve2
-    : BatchPQSModV1<PQSMod_VertexHeightNoiseVertHeightCurve2>
+[BatchPQSMod(typeof(PQSMod_VertexHeightNoiseVertHeightCurve2))]
+[BatchPQSShim]
+public class VertexHeightNoiseVertHeightCurve2(PQSMod_VertexHeightNoiseVertHeightCurve2 mod)
+    : BatchPQSMod<PQSMod_VertexHeightNoiseVertHeightCurve2>(mod),
+        IBatchPQSModState
 {
-    public VertexHeightNoiseVertHeightCurve2(PQSMod_VertexHeightNoiseVertHeightCurve2 mod)
-        : base(mod) { }
-
-    public override void OnBatchVertexBuildHeight(in QuadBuildDataV1 data)
+    public JobHandle ScheduleBuildHeights(QuadBuildData data, JobHandle handle)
     {
-        var p = new Params
+        var bsimplex = new BurstSimplex(mod.simplex);
+        var bcurve = new BurstAnimationCurve(mod.simplexCurve);
+
+        var job = new BuildHeightsJob
         {
+            data = data.burst,
+            ridgedAdd = new(mod.ridgedAdd),
+            ridgedSub = new(mod.ridgedSub),
+            simplex = bsimplex,
+            simplexCurve = bcurve,
             sphereRadiusMin = mod.sphere.radiusMin,
             simplexHeightStart = mod.simplexHeightStart,
             simplexHeightEnd = mod.simplexHeightEnd,
@@ -22,65 +31,59 @@ public class VertexHeightNoiseVertHeightCurve2
             hDeltaR = mod.hDeltaR,
         };
 
-        using var bsimplex = new BurstSimplex(mod.simplex);
-        using var bcurve = new BurstAnimationCurve(mod.simplexCurve);
+        handle = job.Schedule(handle);
+        bsimplex.Dispose(handle);
+        bcurve.Dispose(handle);
 
-        BuildVertex(
-            in data.burstData,
-            new(mod.ridgedAdd),
-            new(mod.ridgedSub),
-            in bsimplex,
-            in bcurve,
-            in p
-        );
+        return handle;
     }
 
-    struct Params
+    public JobHandle ScheduleBuildVertices(QuadBuildData data, JobHandle handle) => handle;
+
+    public void OnQuadBuilt(QuadBuildData data) { }
+
+    struct BuildHeightsJob : IJob
     {
+        public BurstQuadBuildData data;
+        public RidgedMultifractal ridgedAdd;
+        public RidgedMultifractal ridgedSub;
+        public BurstSimplex simplex;
+        public BurstAnimationCurve simplexCurve;
         public double sphereRadiusMin;
         public double simplexHeightStart;
         public double simplexHeightEnd;
         public double hDeltaR;
         public float deformity;
-    }
 
-    [BurstCompile(FloatMode = FloatMode.Fast)]
-    [BurstPQSAutoPatch]
-    static void BuildVertex(
-        [NoAlias] in BurstQuadBuildDataV1 data,
-        [NoAlias] in RidgedMultifractal ridgedAdd,
-        [NoAlias] in RidgedMultifractal ridgedSub,
-        [NoAlias] in BurstSimplex simplex,
-        [NoAlias] in BurstAnimationCurve simplexCurve,
-        [NoAlias] in Params p
-    )
-    {
-        double h;
-        double s;
-        double r;
-        float t;
-
-        for (int i = 0; i < data.VertexCount; ++i)
+        public void Execute()
         {
-            h = data.vertHeight[i] - p.sphereRadiusMin;
-            if (h <= p.simplexHeightStart)
-                t = 0f;
-            else if (h >= p.simplexHeightEnd)
-                t = 1f;
-            else
-                t = (float)((h - p.simplexHeightStart) * p.hDeltaR);
+            double h;
+            double s;
+            double r;
+            float t;
 
-            s = simplex.noiseNormalized(data.directionFromCenter[i]) * simplexCurve.Evaluate(t);
-            if (s != 0.0)
+            for (int i = 0; i < data.VertexCount; ++i)
             {
-                r = MathUtil.Clamp(
-                    ridgedAdd.GetValue(data.directionFromCenter[i])
-                        - ridgedSub.GetValue(data.directionFromCenter[i]),
-                    -1.0,
-                    1.0
-                );
+                h = data.vertHeight[i] - sphereRadiusMin;
+                if (h <= simplexHeightStart)
+                    t = 0f;
+                else if (h >= simplexHeightEnd)
+                    t = 1f;
+                else
+                    t = (float)((h - simplexHeightStart) * hDeltaR);
 
-                data.vertHeight[i] += (r + 1.0) * 0.5 * p.deformity * s;
+                s = simplex.noiseNormalized(data.directionFromCenter[i]) * simplexCurve.Evaluate(t);
+                if (s != 0.0)
+                {
+                    r = MathUtil.Clamp(
+                        ridgedAdd.GetValue(data.directionFromCenter[i])
+                            - ridgedSub.GetValue(data.directionFromCenter[i]),
+                        -1.0,
+                        1.0
+                    );
+
+                    data.vertHeight[i] += (r + 1.0) * 0.5 * deformity * s;
+                }
             }
         }
     }

@@ -19,6 +19,9 @@ public sealed class BatchPQSModAttribute(Type pqsMod) : Attribute
     public Type PQSMod { get; } = pqsMod;
 }
 
+[AttributeUsage(AttributeTargets.Class, AllowMultiple = false, Inherited = false)]
+public sealed class BatchPQSShimAttribute : Attribute { }
+
 [KSPAddon(KSPAddon.Startup.MainMenu, once: true)]
 internal class BurstLoader : MonoBehaviour
 {
@@ -27,7 +30,7 @@ internal class BurstLoader : MonoBehaviour
     void Awake()
     {
         Harmony.PatchAll();
-        // RegisterBatchPQSMods();
+        RegisterBatchPQSMods();
 
         PatchAll();
     }
@@ -175,9 +178,16 @@ internal class BurstLoader : MonoBehaviour
                 if (attribute.PQSMod is null)
                     continue;
 
+                var shimAttr = type.GetCustomAttribute<BatchPQSShimAttribute>();
+                if (shimAttr is not null)
+                    BatchPQSMod.RegisterShimmedPQSMod(attribute.PQSMod);
+
                 try
                 {
                     BatchPQSMod.RegisterBatchPQSMod(type, attribute.PQSMod);
+                    Debug.Log(
+                        $"[BurstPQS] Registered BatchPQSMod {type.Name} for PQSMod {attribute.PQSMod}"
+                    );
                 }
                 catch (Exception e)
                 {

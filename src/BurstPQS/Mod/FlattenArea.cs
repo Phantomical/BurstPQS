@@ -1,23 +1,26 @@
 using System;
 using BurstPQS.Util;
 using Unity.Burst;
+using Unity.Jobs;
 using UnityEngine;
 
 namespace BurstPQS.Mod;
 
 [BurstCompile]
-public class FlattenArea : BatchPQSModV1<PQSMod_FlattenArea>
+[BatchPQSMod(typeof(PQSMod_FlattenArea))]
+[BatchPQSShim]
+public class FlattenArea(PQSMod_FlattenArea mod)
+    : BatchPQSMod<PQSMod_FlattenArea>(mod),
+        IBatchPQSModState
 {
-    public FlattenArea(PQSMod_FlattenArea mod)
-        : base(mod) { }
-
-    public override void OnBatchVertexBuildHeight(in QuadBuildDataV1 data)
+    public JobHandle ScheduleBuildHeights(QuadBuildData data, JobHandle handle)
     {
         if (!mod.overrideQuadBuildCheck && !mod.quadActive)
-            return;
+            return handle;
 
-        var info = new BurstInfo
+        var job = new BuildHeightsJob
         {
+            data = data.burst,
             DEBUG_showColors = mod.DEBUG_showColors,
             removeScatter = mod.removeScatter,
             posNorm = mod.posNorm,
@@ -30,16 +33,17 @@ public class FlattenArea : BatchPQSModV1<PQSMod_FlattenArea>
             smoothEnd = mod.smoothEnd,
         };
 
-        BuildHeights(in info, in data.burstData);
+        return job.Schedule(handle);
     }
 
-    [BurstCompile(FloatMode = FloatMode.Fast)]
-    [BurstPQSAutoPatch]
-    static void BuildHeights([NoAlias] in BurstInfo info, [NoAlias] in BurstQuadBuildDataV1 data) =>
-        info.Execute(in data);
+    public JobHandle ScheduleBuildVertices(QuadBuildData data, JobHandle handle) => handle;
 
-    struct BurstInfo
+    public void OnQuadBuilt(QuadBuildData data) { }
+
+    [BurstCompile]
+    struct BuildHeightsJob : IJob
     {
+        public BurstQuadBuildData data;
         public bool DEBUG_showColors;
 
         public bool removeScatter;
@@ -52,7 +56,7 @@ public class FlattenArea : BatchPQSModV1<PQSMod_FlattenArea>
         public double smoothStart;
         public double smoothEnd;
 
-        public readonly void Execute(in BurstQuadBuildDataV1 data)
+        public readonly void Execute()
         {
             for (int i = 0; i < data.VertexCount; ++i)
             {

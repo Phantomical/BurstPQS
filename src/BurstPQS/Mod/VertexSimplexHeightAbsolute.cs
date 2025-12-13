@@ -1,34 +1,52 @@
 using BurstPQS.Noise;
-using BurstPQS.Util;
 using Unity.Burst;
+using Unity.Jobs;
 
 namespace BurstPQS.Mod;
 
 [BurstCompile]
-public class VertexSimplexHeightAbsolute : BatchPQSModV1<PQSMod_VertexSimplexHeightAbsolute>
+[BatchPQSMod(typeof(PQSMod_VertexSimplexHeightAbsolute))]
+[BatchPQSShim]
+public class VertexSimplexHeightAbsolute(PQSMod_VertexSimplexHeightAbsolute mod)
+    : BatchPQSMod<PQSMod_VertexSimplexHeightAbsolute>(mod),
+        IBatchPQSModState
 {
-    public VertexSimplexHeightAbsolute(PQSMod_VertexSimplexHeightAbsolute mod)
-        : base(mod) { }
+    public override IBatchPQSModState OnQuadPreBuild(QuadBuildData data) => this;
 
-    public override void OnBatchVertexBuildHeight(in QuadBuildDataV1 data)
+    public JobHandle ScheduleBuildHeights(QuadBuildData data, JobHandle handle)
     {
-        using var bsimplex = new BurstSimplex(mod.simplex);
+        var bsimplex = new BurstSimplex(mod.simplex);
+        var job = new BuildHeightsJob
+        {
+            data = data.burst,
+            simplex = bsimplex,
+            deformity = mod.deformity,
+        };
 
-        BuildHeights(in data.burstData, in bsimplex, mod.deformity);
+        handle = job.Schedule(handle);
+        bsimplex.Dispose(handle);
+
+        return handle;
     }
 
+    public JobHandle ScheduleBuildVertices(QuadBuildData data, JobHandle handle) => handle;
+
+    public void OnQuadBuilt(QuadBuildData data) { }
+
     [BurstCompile(FloatMode = FloatMode.Fast)]
-    [BurstPQSAutoPatch]
-    static void BuildHeights(
-        [NoAlias] in BurstQuadBuildDataV1 data,
-        [NoAlias] in BurstSimplex simplex,
-        double deformity
-    )
+    struct BuildHeightsJob : IJob
     {
-        for (int i = 0; i < data.VertexCount; ++i)
+        public BurstQuadBuildData data;
+        public BurstSimplex simplex;
+        public double deformity;
+
+        public void Execute()
         {
-            data.vertHeight[i] +=
-                (simplex.noise(data.directionFromCenter[i]) + 1.0) * 0.5 * deformity;
+            for (int i = 0; i < data.VertexCount; ++i)
+            {
+                data.vertHeight[i] +=
+                    (simplex.noise(data.directionFromCenter[i]) + 1.0) * 0.5 * deformity;
+            }
         }
     }
 }
