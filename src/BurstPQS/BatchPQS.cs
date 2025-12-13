@@ -66,6 +66,8 @@ public unsafe class BatchPQS : MonoBehaviour
         pqs.Mod_OnQuadPreBuild(quad);
 
         using var data = new QuadBuildData(pqs, PQS.cacheVertCount);
+        using CacheData cache = new(data.VertexCount);
+        using var minmax = new NativeArray<double>(2, Allocator.TempJob);
 
         var vbData = PQS.vbData;
         vbData.buildQuad = quad;
@@ -91,17 +93,43 @@ public unsafe class BatchPQS : MonoBehaviour
             pqs.vertexIndex = i;
 
             pqs.Mod_OnVertexBuildHeight(vbData);
-            pqs.Mod_OnVertexBuild(vbData);
+            foreach (var mod in pqs.mods)
+                mod.OnVertexBuild(vbData);
 
-            vbData.vertHeight -= pqs.radius;
-            vbData.vertHeight = UtilMath.Clamp(
-                vbData.vertHeight,
-                quad.meshVertMin,
-                quad.meshVertMax
-            );
-            pqs.meshVertMax = Math.Max(pqs.meshVertMax, vbData.vertHeight);
-            pqs.meshVertMin = Math.Min(pqs.meshVertMin, vbData.vertHeight);
+            data.CopyFrom(vbData, i);
         }
+
+        var buildJob = new BuildVerticesJob
+        {
+            data = data.burst,
+            cache = cache,
+            minmax = minmax,
+
+            pqsTransform = transform.localToWorldMatrix,
+            inverseQuadTransform = data.buildQuad.transform.worldToLocalMatrix,
+
+            surfaceRelativeQuads = pqs.surfaceRelativeQuads,
+            reqCustomNormals = pqs.reqCustomNormals,
+            reqSphereUV = pqs.reqSphereUV,
+            reqUVQuad = pqs.reqUVQuad,
+            reqUV2 = pqs.reqUV2,
+            reqUV3 = pqs.reqUV3,
+            reqUV4 = pqs.reqUV4,
+
+            uvSW = quad.uvSW,
+            uvDelta = quad.uvDelta,
+            cacheSideVertCount = PQS.cacheSideVertCount,
+
+            radius = pqs.radius,
+            meshVertMax = quad.meshVertMax,
+            meshVertMin = quad.meshVertMin,
+        };
+
+        buildJob.Schedule().Complete();
+
+        CopyGeneratedData(data, cache);
+        pqs.meshVertMin = minmax[0];
+        pqs.meshVertMax = minmax[1];
 
         quad.mesh.vertices = quad.verts;
         quad.mesh.triangles = PQS.cacheIndices[0];
@@ -267,6 +295,49 @@ public unsafe class BatchPQS : MonoBehaviour
         );
     }
 
+    void OnVertexBuildPost(PQS.VertexBuildData data)
+    {
+        if (pqs.isFakeBuild)
+            return;
+
+        if (pqs.surfaceRelativeQuads)
+        {
+            pqs.BuildVertexSurfaceRelative(data);
+        }
+        else
+        {
+            pqs.BuildVertexHeight(data);
+        }
+        if (!pqs.reqCustomNormals)
+        {
+            pqs.BuildVertexSphereNormal(data);
+        }
+        if (pqs.reqColorChannel)
+        {
+            pqs.BuildVertexColor(data);
+        }
+        if (pqs.reqSphereUV)
+        {
+            pqs.BuildVertexSphereUV(data);
+        }
+        if (pqs.reqUVQuad)
+        {
+            pqs.BuildVertexQuadUV(data);
+        }
+        if (pqs.reqUV2)
+        {
+            pqs.BuildVertexUV2(data);
+        }
+        if (pqs.reqUV3)
+        {
+            pqs.BuildVertexUV3(data);
+        }
+        if (pqs.reqUV4)
+        {
+            pqs.BuildVertexUV4(data);
+        }
+    }
+
     #region Jobs
     #region InitBuildData
     [BurstCompile]
@@ -358,6 +429,10 @@ public unsafe class BatchPQS : MonoBehaviour
         public Vector2 uvDelta;
         public int cacheSideVertCount;
 
+        public double radius;
+        public double meshVertMax;
+        public double meshVertMin;
+
         public void Execute()
         {
             if (data.VertexCount != cache.VertexCount)
@@ -398,8 +473,11 @@ public unsafe class BatchPQS : MonoBehaviour
             var vertMax = double.MinValue;
             var vertMin = double.MaxValue;
 
-            foreach (var height in data.vertHeight)
+            foreach (var vheight in data.vertHeight)
             {
+                var height = vheight - radius;
+                height = MathUtil.Clamp(height, meshVertMin, meshVertMax);
+
                 vertMax = Math.Max(vertMax, height);
                 vertMin = Math.Min(vertMin, height);
             }
