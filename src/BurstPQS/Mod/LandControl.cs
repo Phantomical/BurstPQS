@@ -383,7 +383,7 @@ public class LandControlShim(PQSLandControl mod) : BatchPQSMod<PQSLandControl>(m
     {
         mod.OnQuadPreBuild(data.buildQuad);
 
-        return base.OnQuadPreBuild(data);
+        return new State(mod);
     }
 
     class State(PQSLandControl mod) : BatchPQSModState
@@ -432,6 +432,7 @@ public class LandControlShim(PQSLandControl mod) : BatchPQSMod<PQSLandControl>(m
             for (int i = 0; i < data.VertexCount; ++i)
             {
                 mod.lcList = lcs[i];
+                mod.lcListCount = mod.lcList.Count;
                 for (int j = 0; j < mod.lcList.Count; ++j)
                     mod.lcList[j].delta = lcDeltas[i][j];
                 mod.vHeight = vHeight[i];
@@ -442,6 +443,11 @@ public class LandControlShim(PQSLandControl mod) : BatchPQSMod<PQSLandControl>(m
             }
 
             return handle;
+        }
+
+        public override void OnQuadBuilt(QuadBuildData data)
+        {
+            mod.OnQuadBuilt(data.buildQuad);
         }
     }
 }

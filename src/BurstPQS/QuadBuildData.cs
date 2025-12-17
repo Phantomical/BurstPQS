@@ -228,6 +228,8 @@ public unsafe struct BurstQuadBuildData : IDisposable
         if (data is null)
             throw new Exception("malloc returned null");
 
+        UnsafeUtility.MemClear(data, size);
+
         _data = data;
         _vertexCount = vertexCount;
     }

@@ -18,6 +18,8 @@ namespace BurstPQS;
 [BurstCompile]
 public unsafe class BatchPQS : MonoBehaviour
 {
+    static bool ForceFallback = false;
+
     private PQS pqs;
     private BatchPQSMod[] mods;
 
@@ -45,13 +47,13 @@ public unsafe class BatchPQS : MonoBehaviour
         }
     }
 
-    static ProfilerMarker BuildQuadMarker = new("BatchPQS.BuildQuad");
+    static readonly ProfilerMarker BuildQuadMarker = new("BatchPQS.BuildQuad");
 
     public bool BuildQuad(PQ quad)
     {
         using var scope = BuildQuadMarker.Auto();
 
-        if (fallback)
+        if (fallback || ForceFallback)
             return PQS_RevPatch.BuildQuad(pqs, quad);
 
         if (quad.isBuilt)
@@ -76,6 +78,14 @@ public unsafe class BatchPQS : MonoBehaviour
         quad.meshVertMax = double.MaxValue;
         quad.meshVertMin = double.MinValue;
 
+        var states = new List<IBatchPQSModState>(mods.Length);
+        foreach (var mod in mods)
+        {
+            var state = mod.OnQuadPreBuild(data);
+            if (state is not null)
+                states.Add(state);
+        }
+
         var initJob = new InitBuildDataJob
         {
             quadMatrix = quad.quadMatrix,
@@ -85,19 +95,26 @@ public unsafe class BatchPQS : MonoBehaviour
             cacheMeshSize = PQS.cacheMeshSize,
         };
 
-        initJob.Schedule().Complete();
+        var handle = initJob.Schedule();
+        JobHandle.ScheduleBatchedJobs();
 
-        for (int i = 0; i < PQS.cacheVertCount; ++i)
-        {
-            data.CopyTo(vbData, i);
-            pqs.vertexIndex = i;
+        foreach (var state in states)
+            handle = state.ScheduleBuildHeights(data, handle);
+        foreach (var state in states)
+            handle = state.ScheduleBuildVertices(data, handle);
+        JobHandle.ScheduleBatchedJobs();
 
-            pqs.Mod_OnVertexBuildHeight(vbData);
-            foreach (var mod in pqs.mods)
-                mod.OnVertexBuild(vbData);
+        // for (int i = 0; i < PQS.cacheVertCount; ++i)
+        // {
+        //     data.CopyTo(vbData, i);
+        //     pqs.vertexIndex = i;
 
-            data.CopyFrom(vbData, i);
-        }
+        //     pqs.Mod_OnVertexBuildHeight(vbData);
+        //     foreach (var mod in pqs.mods)
+        //         mod.OnVertexBuild(vbData);
+
+        //     data.CopyFrom(vbData, i);
+        // }
 
         var buildJob = new BuildVerticesJob
         {
@@ -125,7 +142,7 @@ public unsafe class BatchPQS : MonoBehaviour
             meshVertMin = quad.meshVertMin,
         };
 
-        buildJob.Schedule().Complete();
+        buildJob.Schedule(handle).Complete();
 
         CopyGeneratedData(data, cache);
         pqs.meshVertMin = minmax[0];
@@ -136,7 +153,8 @@ public unsafe class BatchPQS : MonoBehaviour
         quad.mesh.RecalculateBounds();
         quad.edgeState = PQS.EdgeState.Reset;
         pqs.Mod_OnMeshBuild();
-        pqs.Mod_OnQuadBuilt(quad);
+        foreach (var state in states)
+            state.OnQuadBuilt(data);
         pqs.buildQuad = null;
         return true;
     }

@@ -9,7 +9,7 @@ using UnityEngine;
 namespace BurstPQS.Mod;
 
 [BurstCompile]
-[BatchPQSMod(typeof(PQSMod_MapDecalTangent))]
+// [BatchPQSMod(typeof(PQSMod_MapDecalTangent))]
 public class MapDecalTangent(PQSMod_MapDecalTangent mod) : BatchPQSMod<PQSMod_MapDecalTangent>(mod)
 {
     class State(PQSMod_MapDecalTangent mod) : BatchPQSModState
@@ -65,6 +65,11 @@ public class MapDecalTangent(PQSMod_MapDecalTangent mod) : BatchPQSMod<PQSMod_Ma
             return base.ScheduleBuildHeights(data, handle);
         }
 
+        public override void OnQuadBuilt(QuadBuildData data)
+        {
+            mod.OnQuadBuilt(data.buildQuad);
+        }
+
         public override void Dispose()
         {
             vertActive.Dispose();
@@ -73,6 +78,7 @@ public class MapDecalTangent(PQSMod_MapDecalTangent mod) : BatchPQSMod<PQSMod_Ma
 
     public override IBatchPQSModState OnQuadPreBuild(QuadBuildData data)
     {
+        mod.OnQuadPreBuild(data.buildQuad);
         return new State(mod);
     }
 
@@ -290,5 +296,70 @@ public class MapDecalTangent(PQSMod_MapDecalTangent mod) : BatchPQSMod<PQSMod_Ma
 
             return Mathf.Min(smoothU, smoothV);
         }
+    }
+}
+
+[BatchPQSMod(typeof(PQSMod_MapDecalTangent))]
+public class MapDecalTangentShim(PQSMod_MapDecalTangent mod)
+    : BatchPQSMod<PQSMod_MapDecalTangent>(mod)
+{
+    class State(PQSMod_MapDecalTangent mod) : BatchPQSModState
+    {
+        PQSMod_MapDecalTangent mod = mod;
+        bool[] vertActive;
+
+        public override JobHandle ScheduleBuildHeights(QuadBuildData data, JobHandle handle)
+        {
+            handle.Complete();
+            vertActive = new bool[data.VertexCount];
+
+            var vbData = PQS.vbData;
+            vbData.buildQuad = data.buildQuad;
+            vbData.gnomonicPlane = data.buildQuad.plane;
+
+            for (int i = 0; i < data.VertexCount; ++i)
+            {
+                mod.vertActive = false;
+
+                data.CopyTo(vbData, i);
+                mod.OnVertexBuildHeight(vbData);
+                data.CopyFrom(vbData, i);
+
+                vertActive[i] = mod.vertActive;
+            }
+
+            return handle;
+        }
+
+        public override JobHandle ScheduleBuildVertices(QuadBuildData data, JobHandle handle)
+        {
+            handle.Complete();
+
+            var vbData = PQS.vbData;
+            vbData.buildQuad = data.buildQuad;
+            vbData.gnomonicPlane = data.buildQuad.plane;
+
+            for (int i = 0; i < data.VertexCount; ++i)
+            {
+                mod.vertActive = vertActive[i];
+
+                data.CopyTo(vbData, i);
+                mod.OnVertexBuildHeight(vbData);
+                data.CopyFrom(vbData, i);
+            }
+
+            return handle;
+        }
+
+        public override void OnQuadBuilt(QuadBuildData data)
+        {
+            mod.OnQuadBuilt(data.buildQuad);
+        }
+    }
+
+    public override IBatchPQSModState OnQuadPreBuild(QuadBuildData data)
+    {
+        mod.OnQuadPreBuild(data.buildQuad);
+        return new State(mod);
     }
 }

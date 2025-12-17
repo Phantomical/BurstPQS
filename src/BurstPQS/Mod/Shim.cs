@@ -45,9 +45,20 @@ public sealed class Shim(PQSMod mod) : BatchPQSMod
 
             return handle;
         }
+
+        public override void OnQuadBuilt(QuadBuildData data)
+        {
+            mod.OnQuadBuilt(data.buildQuad);
+        }
+
+        public override string ToString() => mod.ToString();
     }
 
-    public override IBatchPQSModState OnQuadPreBuild(QuadBuildData data) => new State(mod);
+    public override IBatchPQSModState OnQuadPreBuild(QuadBuildData data)
+    {
+        mod.OnQuadPreBuild(data.buildQuad);
+        return new State(mod);
+    }
 
-    public override string ToString() => $"{mod} ({mod.GetType().Name})";
+    public override string ToString() => mod.ToString();
 }

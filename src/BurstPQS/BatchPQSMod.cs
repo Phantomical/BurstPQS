@@ -195,6 +195,8 @@ public abstract class BatchPQSMod : IDisposable
         public JobHandle ScheduleBuildHeights(QuadBuildData data, JobHandle handle) => handle;
 
         public JobHandle ScheduleBuildVertices(QuadBuildData data, JobHandle handle) => handle;
+
+        public override string ToString() => mod.ToString();
     }
 
     #endregion
@@ -211,7 +213,7 @@ public abstract class BatchPQSMod<T>(T mod) : BatchPQSMod
     {
         if (mod is null)
             return $"null ({GetType().Name})";
-        return $"{mod.name} ({GetType().Name})";
+        return $"{mod.name}";
     }
 }
 
