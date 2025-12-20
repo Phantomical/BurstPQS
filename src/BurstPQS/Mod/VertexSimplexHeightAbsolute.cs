@@ -6,7 +6,6 @@ namespace BurstPQS.Mod;
 
 [BurstCompile]
 [BatchPQSMod(typeof(PQSMod_VertexSimplexHeightAbsolute))]
-[BatchPQSShim]
 public class VertexSimplexHeightAbsolute(PQSMod_VertexSimplexHeightAbsolute mod)
     : BatchPQSMod<PQSMod_VertexSimplexHeightAbsolute>(mod),
         IBatchPQSModState
@@ -33,7 +32,7 @@ public class VertexSimplexHeightAbsolute(PQSMod_VertexSimplexHeightAbsolute mod)
 
     public void OnQuadBuilt(QuadBuildData data) { }
 
-    [BurstCompile(FloatMode = FloatMode.Fast)]
+    [BurstCompile]
     struct BuildHeightsJob : IJob
     {
         public BurstQuadBuildData data;
