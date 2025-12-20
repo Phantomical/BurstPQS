@@ -129,8 +129,6 @@ public unsafe class BatchPQS : MonoBehaviour
             meshVertMin = quad.meshVertMin,
         };
 
-        // handle.Complete();
-        // buildJob.Execute();
         buildJob.Schedule(handle).Complete();
 
         CopyGeneratedData(data, cache);
@@ -144,128 +142,6 @@ public unsafe class BatchPQS : MonoBehaviour
         pqs.Mod_OnMeshBuild();
         foreach (var state in states)
             state.OnQuadBuilt(data);
-        pqs.buildQuad = null;
-        return true;
-    }
-
-    public bool BuildQuad2(PQ quad)
-    {
-        using var scope = BuildQuadMarker.Auto();
-
-        if (fallback)
-            return PQS_RevPatch.BuildQuad(pqs, quad);
-
-        if (quad.isBuilt)
-            return false;
-        if (quad.isSubdivided)
-            return false;
-
-        if (quad == null || quad.gameObject == null)
-            return false;
-
-        pqs.buildQuad = quad;
-
-        using QuadBuildData data = new(pqs, PQS.cacheVertCount);
-        using CacheData cache = new(data.VertexCount);
-        using var minmax = new NativeArray<double>(2, Allocator.TempJob);
-
-        var states = new List<IBatchPQSModState>(mods.Length);
-#if false
-#if false
-        foreach (var mod in mods)
-        {
-            var state = mod.OnQuadPreBuild(data);
-            if (state is not null)
-                states.Add(state);
-        }
-#else
-        foreach (var mod in pqs.mods)
-            mod.OnQuadPreBuild(quad);
-#endif
-
-        var initJob = new InitBuildDataJob
-        {
-            quadMatrix = quad.quadMatrix,
-            data = data.burst,
-            reqVertexMapCoords = pqs.reqVertexMapCoods,
-            cacheSideVertCount = PQS.cacheSideVertCount,
-            cacheMeshSize = PQS.cacheMeshSize,
-        };
-
-        JobHandle handle = initJob.Schedule();
-        JobHandle.ScheduleBatchedJobs();
-
-        try
-        {
-            handle.Complete();
-#if false
-            foreach (var state in states)
-                handle = state.ScheduleBuildHeights(data, handle);
-            JobHandle.ScheduleBatchedJobs();
-            foreach (var state in states)
-                handle = state.ScheduleBuildVertices(data, handle);
-            JobHandle.ScheduleBatchedJobs();
-#else
-            for (int i = 0; i < data.VertexCount; ++i)
-            {
-                var vbData = PQS.vbData;
-                vbData.buildQuad = data.buildQuad;
-                vbData.gnomonicPlane = data.buildQuad.plane;
-
-                data.CopyTo(vbData, i);
-
-                foreach (var mod in pqs.mods)
-                    mod.OnVertexBuildHeight(vbData);
-                foreach (var mod in pqs.mods)
-                    mod.OnVertexBuild(vbData);
-
-                data.CopyFrom(vbData, i);
-            }
-#endif
-
-            var buildJob = new BuildVerticesJob
-            {
-                data = data.burst,
-                cache = cache,
-                minmax = minmax,
-
-                pqsTransform = transform.localToWorldMatrix,
-                inverseQuadTransform = data.buildQuad.transform.worldToLocalMatrix,
-
-                surfaceRelativeQuads = pqs.surfaceRelativeQuads,
-                reqCustomNormals = pqs.reqCustomNormals,
-                reqSphereUV = pqs.reqSphereUV,
-                reqUVQuad = pqs.reqUVQuad,
-                reqUV2 = pqs.reqUV2,
-                reqUV3 = pqs.reqUV3,
-                reqUV4 = pqs.reqUV4,
-
-                uvSW = quad.uvSW,
-                uvDelta = quad.uvDelta,
-                cacheSideVertCount = PQS.cacheSideVertCount,
-            };
-
-            handle = buildJob.Schedule(handle);
-        }
-        finally
-        {
-            handle.Complete();
-        }
-#endif
-
-        CopyGeneratedData(data, cache);
-        pqs.meshVertMin = Math.Min(minmax[0], pqs.meshVertMin);
-        pqs.meshVertMax = Math.Max(minmax[1], pqs.meshVertMax);
-
-        pqs.buildQuad.mesh.vertices = pqs.buildQuad.verts;
-        pqs.buildQuad.mesh.triangles = PQS.cacheIndices[0];
-        pqs.buildQuad.mesh.RecalculateBounds();
-        pqs.buildQuad.edgeState = PQS.EdgeState.Reset;
-        pqs.Mod_OnMeshBuild();
-
-        foreach (var state in states)
-            state.OnQuadBuilt(data);
-
         pqs.buildQuad = null;
         return true;
     }
