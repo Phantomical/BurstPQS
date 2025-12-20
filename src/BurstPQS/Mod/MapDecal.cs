@@ -9,7 +9,7 @@ using UnityEngine;
 namespace BurstPQS.Mod;
 
 [BurstCompile]
-// [BatchPQSMod(typeof(PQSMod_MapDecal))]
+[BatchPQSMod(typeof(PQSMod_MapDecal))]
 public class MapDecal(PQSMod_MapDecal mod) : BatchPQSMod<PQSMod_MapDecal>(mod)
 {
     class State(PQSMod_MapDecal mod) : BatchPQSModState
@@ -303,7 +303,7 @@ public class MapDecal(PQSMod_MapDecal mod) : BatchPQSMod<PQSMod_MapDecal>(mod)
     }
 }
 
-[BatchPQSMod(typeof(PQSMod_MapDecal))]
+// [BatchPQSMod(typeof(PQSMod_MapDecal))]
 public class MapDecalShim(PQSMod_MapDecal mod) : BatchPQSMod<PQSMod_MapDecal>(mod)
 {
     class State(PQSMod_MapDecal mod) : BatchPQSModState

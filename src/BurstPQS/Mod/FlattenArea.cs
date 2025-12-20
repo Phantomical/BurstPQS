@@ -8,7 +8,6 @@ namespace BurstPQS.Mod;
 
 [BurstCompile]
 [BatchPQSMod(typeof(PQSMod_FlattenArea))]
-[BatchPQSShim]
 public class FlattenArea(PQSMod_FlattenArea mod)
     : BatchPQSMod<PQSMod_FlattenArea>(mod),
         IBatchPQSModState
