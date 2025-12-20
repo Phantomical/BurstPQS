@@ -18,7 +18,7 @@ namespace BurstPQS;
 public unsafe class BatchPQS : MonoBehaviour
 {
     static bool ForceFallback = false;
-    static bool ForceOriginal = false;
+    static bool ForceOriginal = true;
 
     private PQS pqs;
     private BatchPQSMod[] mods;
@@ -147,9 +147,9 @@ public unsafe class BatchPQS : MonoBehaviour
             meshVertMin = quad.meshVertMin,
         };
 
-        handle.Complete();
-        buildJob.Execute();
-        // buildJob.Schedule(handle).Complete();
+        // handle.Complete();
+        // buildJob.Execute();
+        buildJob.Schedule(handle).Complete();
 
         CopyGeneratedData(data, cache);
         pqs.meshVertMin = minmax[0];

@@ -6,28 +6,10 @@ namespace BurstPQS.Mod;
 
 [BurstCompile]
 [BatchPQSMod(typeof(PQSMod_VertexHeightMap))]
-[BatchPQSShim]
 public class VertexHeightMap(PQSMod_VertexHeightMap mod)
     : BatchPQSMod<PQSMod_VertexHeightMap>(mod),
         IBatchPQSModState
 {
-    [BurstCompile(FloatMode = FloatMode.Fast)]
-    [BurstPQSAutoPatch]
-    static void BuildHeight(
-        [NoAlias] in BurstQuadBuildDataV1 data,
-        [NoAlias] in BurstMapSO heightMap,
-        double heightMapOffset,
-        double heightMapDeformity
-    )
-    {
-        for (int i = 0; i < data.VertexCount; ++i)
-        {
-            data.vertHeight[i] +=
-                heightMapOffset
-                + heightMapDeformity * heightMap.GetPixelFloat(data.u[i], data.v[i]);
-        }
-    }
-
     public JobHandle ScheduleBuildHeights(QuadBuildData data, JobHandle handle)
     {
         var heightMap = new BurstMapSO(mod.heightMap);
@@ -48,6 +30,7 @@ public class VertexHeightMap(PQSMod_VertexHeightMap mod)
 
     public void OnQuadBuilt(QuadBuildData data) { }
 
+    [BurstCompile]
     struct BuildHeightsJob : IJob
     {
         public BurstQuadBuildData data;
