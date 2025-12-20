@@ -13,7 +13,6 @@ public class VertexHeightNoiseVertHeightCurve2(PQSMod_VertexHeightNoiseVertHeigh
 {
     public JobHandle ScheduleBuildHeights(QuadBuildData data, JobHandle handle)
     {
-        handle.Complete();
         var bsimplex = new BurstSimplex(mod.simplex);
         var bcurve = new BurstAnimationCurve(mod.simplexCurve);
 
