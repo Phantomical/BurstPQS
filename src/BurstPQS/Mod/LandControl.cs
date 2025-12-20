@@ -1,6 +1,4 @@
 using System;
-using System.Collections.Generic;
-using System.Linq;
 using BurstPQS.Collections;
 using BurstPQS.Noise;
 using BurstPQS.Util;
@@ -173,7 +171,6 @@ public class LandControl(PQSLandControl mod) : BatchPQSMod<PQSLandControl>(mod)
             };
 
             handle = job.Schedule(handle);
-
             vHeights.Dispose(handle);
 
             return handle;
@@ -313,16 +310,16 @@ public class LandControl(PQSLandControl mod) : BatchPQSMod<PQSLandControl>(mod)
                     lcDeltas[baseIndex + itr] /= totalDelta;
                     double delta = lcDeltas[baseIndex + itr];
 
-                    if (delta <= 0.0)
-                        continue;
+                    if (delta > 0.0)
+                    {
+                        if (
+                            lc.minimumRealHeight != 0.0
+                            && data.vertHeight[i] - sphereRadius < lc.minimumRealHeight
+                        )
+                            data.vertHeight[i] = sphereRadius + delta * lc.minimumRealHeight;
 
-                    if (
-                        lc.minimumRealHeight != 0.0
-                        && data.vertHeight[i] - sphereRadius < lc.minimumRealHeight
-                    )
-                        data.vertHeight[i] = sphereRadius + delta * lc.minimumRealHeight;
-
-                    data.vertHeight[i] += delta * lc.alterRealHeight;
+                        data.vertHeight[i] += delta * lc.alterRealHeight;
+                    }
                 }
             }
         }

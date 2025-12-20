@@ -524,6 +524,8 @@ public unsafe class BatchPQS : MonoBehaviour
             Debug.LogWarning(
                 $"[BurstPQS] BatchPQS not supported for surface {pqs.name}. Falling back to regular PQS"
             );
+        else
+            Debug.Log($"[BurstPQS] BatchPQS enabled for surface {pqs.name}");
 
         this.mods = [.. batchMods];
 

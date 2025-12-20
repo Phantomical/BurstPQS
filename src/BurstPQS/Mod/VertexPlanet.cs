@@ -2,6 +2,7 @@ using System;
 using BurstPQS.Collections;
 using BurstPQS.Noise;
 using BurstPQS.Util;
+using FinePrint.Utilities;
 using Unity.Burst;
 using Unity.Collections;
 using Unity.Jobs;
@@ -10,6 +11,7 @@ using UnityEngine;
 namespace BurstPQS.Mod;
 
 [BurstCompile]
+[BatchPQSMod(typeof(PQSMod_VertexPlanet))]
 public class VertexPlanet(PQSMod_VertexPlanet mod) : BatchPQSMod<PQSMod_VertexPlanet>(mod)
 {
     struct BurstLandClass(PQSMod_VertexPlanet.LandClass lc) : IDisposable
@@ -26,6 +28,29 @@ public class VertexPlanet(PQSMod_VertexPlanet mod) : BatchPQSMod<PQSMod_VertexPl
         {
             colorNoiseMap.Dispose();
         }
+    }
+
+    struct BurstSimplexWrapper(PQSMod_VertexPlanet.SimplexWrapper wrapper)
+    {
+        public double deformity = wrapper.deformity;
+        public double octaves = wrapper.octaves;
+        public double persistance = wrapper.persistance;
+        public double frequency = wrapper.frequency;
+        public BurstSimplex simplex = new(wrapper.simplex);
+
+        public void Dispose() => simplex.Dispose();
+
+        public void Dispose(JobHandle handle) => simplex.Dispose(handle);
+    }
+
+    struct BurstNoiseModWrapper<N>(PQSMod_VertexPlanet.NoiseModWrapper wrapper, N noise)
+        where N : LibNoise.IModule
+    {
+        public double deformity = wrapper.deformity;
+        public int octaves = wrapper.octaves;
+        public double persistance = wrapper.persistance;
+        public double frequency = wrapper.frequency;
+        public N noise = noise;
     }
 
     NativeArray<BurstLandClass> landClasses;
@@ -45,6 +70,11 @@ public class VertexPlanet(PQSMod_VertexPlanet mod) : BatchPQSMod<PQSMod_VertexPl
         landClasses.Dispose();
     }
 
+    public override IBatchPQSModState OnQuadPreBuild(QuadBuildData data)
+    {
+        return new State(data, this);
+    }
+
     class State(QuadBuildData data, VertexPlanet batchMod) : BatchPQSModState
     {
         public PQSMod_VertexPlanet mod = batchMod.mod;
@@ -57,16 +87,14 @@ public class VertexPlanet(PQSMod_VertexPlanet mod) : BatchPQSMod<PQSMod_VertexPl
             {
                 data = data.burst,
                 preSmoothHeights = preSmoothHeights,
-                continental = new(mod.continental.simplex),
-                continentalSmoothing = new(mod.continentalSmoothing.simplex),
+                continental = new(mod.continental),
+                continentalSmoothing = new(mod.continentalSmoothing),
                 continentalSharpness = new(
-                    (LibNoise.RidgedMultifractal)mod.continentalSharpness.noise
+                    mod.continentalSharpness,
+                    new((LibNoise.RidgedMultifractal)mod.continentalSharpness.noise)
                 ),
-                continentalSharpnessDeformity = mod.continentalSharpness.deformity,
-                continentalSharpnessMap = new(mod.continentalSharpnessMap.simplex),
-                continentalSharpnessMapDeformity = mod.continentalSharpnessMap.deformity,
-                continentalRuggedness = new(mod.continentalRuggedness.simplex),
-                continentalRuggednessDeformity = mod.continentalRuggedness.deformity,
+                continentalSharpnessMap = new(mod.continentalSharpnessMap),
+                continentalRuggedness = new(mod.continentalRuggedness),
                 terrainRidgeBalance = mod.terrainRidgeBalance,
                 terrainRidgesMax = mod.terrainRidgesMax,
                 terrainRidgesMin = mod.terrainRidgesMin,
@@ -103,6 +131,7 @@ public class VertexPlanet(PQSMod_VertexPlanet mod) : BatchPQSMod<PQSMod_VertexPl
 
             handle = job.Schedule(handle);
             job.terrainType.Dispose(handle);
+            preSmoothHeights.Dispose(handle);
 
             return handle;
         }
@@ -113,18 +142,17 @@ public class VertexPlanet(PQSMod_VertexPlanet mod) : BatchPQSMod<PQSMod_VertexPl
         }
     }
 
+    // Running this through burst seems to have different results?
+    // [BurstCompile]
     struct BuildHeightsJob : IJob
     {
         public BurstQuadBuildData data;
         public NativeArray<double> preSmoothHeights;
-        public BurstSimplex continental;
-        public BurstSimplex continentalSmoothing;
-        public BurstRidgedMultifractal continentalSharpness;
-        public double continentalSharpnessDeformity;
-        public BurstSimplex continentalSharpnessMap;
-        public double continentalSharpnessMapDeformity;
-        public BurstSimplex continentalRuggedness;
-        public double continentalRuggednessDeformity;
+        public BurstSimplexWrapper continental;
+        public BurstSimplexWrapper continentalSmoothing;
+        public BurstNoiseModWrapper<BurstRidgedMultifractal> continentalSharpness;
+        public BurstSimplexWrapper continentalSharpnessMap;
+        public BurstSimplexWrapper continentalRuggedness;
         public double terrainRidgeBalance;
         public double terrainRidgesMax;
         public double terrainRidgesMin;
@@ -136,82 +164,67 @@ public class VertexPlanet(PQSMod_VertexPlanet mod) : BatchPQSMod<PQSMod_VertexPl
         public bool oceanSnap;
         public double deformity;
 
+        // csharpier-ignore
         public void Execute()
         {
-            double originalContinentalPersistence = continental.persistence;
-            double originalContinentalRuggednessPersistence = continentalRuggedness.persistence;
+            double continentalDeformity;
+            double continental2Height;
+            double continentialHeight;
+            double continentalRHeight;
+            double continentialSharpnessValue;
+            double continentialSharpnessMapValue;
+            double continentalDelta;
+            double vHeight;
+            double continentialHeightPreSmooth;
 
             for (int i = 0; i < data.VertexCount; ++i)
             {
-                var dir = data.directionFromCenter[i];
-                double continentalDeformity = 1.0;
-                double continental2Height = continentalSmoothing.noiseNormalized(dir);
-                continental.persistence =
-                    originalContinentalPersistence
-                    - continentalSmoothing.persistence * continental2Height;
-                double continentialHeight = continental.noiseNormalized(dir);
-                double continentialSharpnessValue =
-                    (continentalSharpness.GetValue(dir) + 1.0) * 0.5;
-                continentialSharpnessValue *= MathUtil.Lerp(
-                    continentalSharpnessDeformity,
-                    continentalSharpnessDeformity * terrainRidgeBalance,
-                    (continental2Height + continentialSharpnessValue) * 0.5
-                );
-                double continentialSharpnessMapValue = MathUtil.Clamp(
-                    (continentalSharpnessMap.noise(dir) + 1.0) * 0.5,
-                    terrainRidgesMin,
-                    terrainRidgesMax
-                );
-                continentialSharpnessValue += MathUtil.Lerp(
-                    0.0,
-                    continentialSharpnessValue,
-                    continentialSharpnessMapValue
-                );
+                var directionFromCenter = data.directionFromCenter[i];
+
+                continentalDeformity = 1.0;
+                continental2Height = continentalSmoothing.simplex.noiseNormalized(directionFromCenter);
+                continental.simplex.persistence = continental.persistance - continentalSmoothing.persistance * continental2Height;
+                continentialHeight = continental.simplex.noiseNormalized(directionFromCenter);
+                continentialSharpnessValue = (continentalSharpness.noise.GetValue(directionFromCenter) + 1.0) * 0.5;
+                continentialSharpnessValue *= Lerp(continentalSharpness.deformity, continentalSharpness.deformity * terrainRidgeBalance, (continental2Height + continentialSharpnessValue) * 0.5);
+                continentialSharpnessMapValue = Clamp((continentalSharpnessMap.simplex.noise(directionFromCenter) + 1.0) * 0.5, terrainRidgesMin, terrainRidgesMax);
+                continentialSharpnessMapValue = (continentialSharpnessMapValue - terrainRidgesMin) / (terrainRidgesMax - terrainRidgesMin) * continentalSharpnessMap.deformity;
+                continentialSharpnessValue += Lerp(0.0, continentialSharpnessValue, continentialSharpnessMapValue);
                 continentialHeight += continentialSharpnessValue;
-                continentalDeformity +=
-                    continentalSharpnessDeformity * continentalSharpnessMapDeformity;
+                continentalDeformity += continentalSharpness.deformity * continentalSharpnessMap.deformity;
                 continentialHeight /= continentalDeformity;
-                double continentalDelta = (continentialHeight - oceanLevel) / (1.0 - oceanLevel);
-                double vHeight;
-                double continentialHeightPreSmooth;
+                continentalDelta = (continentialHeight - oceanLevel) / (1.0 - oceanLevel);
 
                 if (continentialHeight < oceanLevel)
                 {
                     if (oceanSnap)
-                        vHeight = -oceanStep;
+                    {
+                        vHeight = 0.0 - oceanStep;
+                    }
                     else
+                    {
                         vHeight = continentalDelta * oceanDepth - oceanStep;
+                    }
                     continentialHeightPreSmooth = vHeight;
                 }
                 else
                 {
-                    continentalRuggedness.persistence =
-                        originalContinentalRuggednessPersistence * continentalDelta;
-                    double continentalRHeight =
-                        continentalRuggedness.noiseNormalized(dir)
-                        * continentalDelta
-                        * continentalDelta;
-                    continentialHeight =
-                        continentalDelta * continentalDeformity
-                        + continentalRHeight * continentalRuggednessDeformity;
-                    continentialHeight /= continentalDeformity + continentalRuggednessDeformity;
+                    continentalRuggedness.simplex.persistence = continentalRuggedness.persistance * continentalDelta;
+                    continentalRHeight = continentalRuggedness.simplex.noiseNormalized(directionFromCenter) * continentalDelta * continentalDelta;
+                    continentialHeight = continentalDelta * continental.deformity + continentalRHeight * continentalRuggedness.deformity;
+                    continentialHeight /= continental.deformity + continentalRuggedness.deformity;
                     continentialHeightPreSmooth = continentialHeight;
-                    continentialHeight = MathUtil.CubicHermite(
-                        0.0,
-                        1.0,
-                        terrainShapeStart,
-                        terrainShapeEnd,
-                        continentialHeight
-                    );
+                    continentialHeight = CubicHermite(0.0, 1.0, terrainShapeStart, terrainShapeEnd, continentialHeight);
                     vHeight = continentialHeight;
                 }
 
-                data.vertHeight[i] = Math.Round(vHeight, 5) * deformity;
+                data.vertHeight[i] += Math.Round(vHeight, 5) * deformity;
                 preSmoothHeights[i] = continentialHeightPreSmooth;
             }
         }
     }
 
+    [BurstCompile]
     struct BuildVerticesJob : IJob
     {
         public BurstQuadBuildData data;
@@ -288,5 +301,39 @@ public class VertexPlanet(PQSMod_VertexPlanet mod) : BatchPQSMod<PQSMod_VertexPl
         }
 
         return 0;
+    }
+
+    static double Lerp(double v2, double v1, double dt)
+    {
+        return v1 * dt + v2 * (1.0 - dt);
+    }
+
+    static double Clamp(double v, double low, double high)
+    {
+        if (v < low)
+        {
+            return low;
+        }
+        if (v > high)
+        {
+            return high;
+        }
+        return v;
+    }
+
+    static double CubicHermite(
+        double start,
+        double end,
+        double startTangent,
+        double endTangent,
+        double t
+    )
+    {
+        double ct2 = t * t;
+        double ct3 = ct2 * t;
+        return start * (2.0 * ct3 - 3.0 * ct2 + 1.0)
+            + startTangent * (ct3 - 2.0 * ct2 + t)
+            + end * (-2.0 * ct3 + 3.0 * ct2)
+            + endTangent * (ct3 - ct2);
     }
 }
