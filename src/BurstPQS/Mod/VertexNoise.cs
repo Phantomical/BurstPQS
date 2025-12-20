@@ -18,7 +18,7 @@ public class VertexNoise : BatchPQSModV1<PQSMod_VertexNoise>
         var billow = (LibNoise.Billow)input.SourceModule;
         var ridged = (LibNoise.RidgedMultifractal)mod.terrainHeightMap.SourceModule2;
 
-        var noise = new Select<Perlin, ScaleBiasOutput<Billow>, RidgedMultifractal>(
+        var noise = new Select<BurstPerlin, ScaleBiasOutput<BurstBillow>, BurstRidgedMultifractal>(
             mod.terrainHeightMap,
             new(control),
             new(input, new(billow)),
@@ -32,7 +32,12 @@ public class VertexNoise : BatchPQSModV1<PQSMod_VertexNoise>
     [BurstPQSAutoPatch]
     static void BuildHeight(
         [NoAlias] in BurstQuadBuildDataV1 data,
-        [NoAlias] in Select<Perlin, ScaleBiasOutput<Billow>, RidgedMultifractal> terrainHeightMap,
+        [NoAlias]
+            in Select<
+            BurstPerlin,
+            ScaleBiasOutput<BurstBillow>,
+            BurstRidgedMultifractal
+        > terrainHeightMap,
         double sphereRadius,
         double noiseDeformity
     )

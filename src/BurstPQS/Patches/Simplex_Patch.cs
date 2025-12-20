@@ -53,7 +53,7 @@ internal static class Billow_GetValue_Patch
 
     [BurstCompile]
     [BurstPQSAutoPatch]
-    static double GetValue(in Billow noise, double x, double y, double z) =>
+    static double GetValue(in BurstBillow noise, double x, double y, double z) =>
         noise.GetValue(x, y, z);
 }
 
@@ -76,7 +76,7 @@ internal static class RidgedMultifractal_GetValue_Patch
 
     [BurstCompile]
     [BurstPQSAutoPatch]
-    static double GetValue(in RidgedMultifractal noise, double x, double y, double z) =>
+    static double GetValue(in BurstRidgedMultifractal noise, double x, double y, double z) =>
         noise.GetValue(x, y, z);
 }
 

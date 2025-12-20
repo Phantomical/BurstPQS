@@ -1,33 +1,47 @@
 using BurstPQS.Noise;
-using BurstPQS.Util;
 using Unity.Burst;
+using Unity.Jobs;
 
 namespace BurstPQS.Mod;
 
 [BurstCompile]
-public class VertexSimplexHeight : BatchPQSModV1<PQSMod_VertexSimplexHeight>
+[BatchPQSMod(typeof(PQSMod_VertexSimplexHeight))]
+public class VertexSimplexHeight(PQSMod_VertexSimplexHeight mod)
+    : BatchPQSMod<PQSMod_VertexSimplexHeight>(mod),
+        IBatchPQSModState
 {
-    public VertexSimplexHeight(PQSMod_VertexSimplexHeight mod)
-        : base(mod) { }
-
-    public override void OnBatchVertexBuildHeight(in QuadBuildDataV1 data)
+    public JobHandle ScheduleBuildHeights(QuadBuildData data, JobHandle handle)
     {
-        using var bsimplex = new BurstSimplex(mod.simplex);
+        var job = new BuildHeightsJob
+        {
+            data = data.burst,
+            simplex = new(mod.simplex),
+            deformity = mod.deformity,
+        };
 
-        BuildHeights(in data.burstData, in bsimplex, mod.deformity);
+        handle = job.Schedule(handle);
+        job.simplex.Dispose(handle);
+
+        return handle;
     }
 
-    [BurstCompile(FloatMode = FloatMode.Fast)]
-    [BurstPQSAutoPatch]
-    static void BuildHeights(
-        [NoAlias] in BurstQuadBuildDataV1 data,
-        [NoAlias] in BurstSimplex simplex,
-        double deformity
-    )
+    public JobHandle ScheduleBuildVertices(QuadBuildData data, JobHandle handle) => handle;
+
+    public void OnQuadBuilt(QuadBuildData data) { }
+
+    [BurstCompile]
+    struct BuildHeightsJob : IJob
     {
-        for (int i = 0; i < data.VertexCount; ++i)
+        public BurstQuadBuildData data;
+        public BurstSimplex simplex;
+        public double deformity;
+
+        public void Execute()
         {
-            data.vertHeight[i] += simplex.noise(data.directionFromCenter[i]) * deformity;
+            for (int i = 0; i < data.VertexCount; ++i)
+            {
+                data.vertHeight[i] += simplex.noise(data.directionFromCenter[i]) * deformity;
+            }
         }
     }
 }

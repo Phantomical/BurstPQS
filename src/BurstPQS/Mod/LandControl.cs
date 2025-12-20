@@ -138,7 +138,7 @@ public class LandControl(PQSLandControl mod) : BatchPQSMod<PQSLandControl>(mod)
                 lcDeltas = lcDeltas,
                 vHeights = vHeights,
 
-                heightMap = new(mod.heightMap),
+                heightMap = mod.useHeightMap ? new(mod.heightMap) : null,
                 altitudeSimplex = new(mod.altitudeSimplex),
                 latitudeSimplex = new(mod.latitudeSimplex),
                 longitudeSimplex = new(mod.longitudeSimplex),
@@ -147,11 +147,10 @@ public class LandControl(PQSLandControl mod) : BatchPQSMod<PQSLandControl>(mod)
                 latitudeBlend = mod.latitudeBlend,
                 longitudeBlend = mod.longitudeBlend,
                 vHeightMax = mod.vHeightMax,
-                useHeightMap = mod.useHeightMap,
             };
 
             handle = job.Schedule(handle);
-            job.heightMap.Dispose(handle);
+            job.heightMap?.Dispose(handle);
             job.altitudeSimplex.Dispose(handle);
             job.latitudeSimplex.Dispose(handle);
             job.longitudeSimplex.Dispose(handle);
@@ -240,7 +239,7 @@ public class LandControl(PQSLandControl mod) : BatchPQSMod<PQSLandControl>(mod)
         public NativeArray<double> vHeights;
 
         [ReadOnly]
-        public BurstMapSO heightMap;
+        public BurstMapSO? heightMap;
         public BurstSimplex altitudeSimplex;
         public BurstSimplex latitudeSimplex;
         public BurstSimplex longitudeSimplex;
@@ -248,7 +247,6 @@ public class LandControl(PQSLandControl mod) : BatchPQSMod<PQSLandControl>(mod)
         public double latitudeBlend;
         public double longitudeBlend;
         public double vHeightMax;
-        public bool useHeightMap;
 
         public void Execute()
         {
@@ -266,7 +264,7 @@ public class LandControl(PQSLandControl mod) : BatchPQSMod<PQSLandControl>(mod)
                 double vHeight;
 
                 data.vertColor[i] = Color.black;
-                if (useHeightMap)
+                if (this.heightMap is BurstMapSO heightMap)
                     vHeight = heightMap.GetPixelFloat(data.u[i], data.v[i]);
                 else
                     vHeight = (data.vertHeight[i] - sphereRadius) / vHeightMax;

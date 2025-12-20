@@ -4,7 +4,7 @@ using static BurstPQS.Noise.GradientNoiseBasis;
 
 namespace BurstPQS.Noise;
 
-public readonly struct Billow(LibNoise.Billow noise) : IModule
+public readonly struct BurstBillow(LibNoise.Billow noise) : IModule
 {
     public readonly double Frequency = noise.Frequency;
     public readonly double Persistence = noise.Persistence;

@@ -5,7 +5,7 @@ using static BurstPQS.Noise.GradientNoiseBasis;
 
 namespace BurstPQS.Noise;
 
-public readonly struct RidgedMultifractal(LibNoise.RidgedMultifractal noise) : IModule
+public readonly struct BurstRidgedMultifractal(LibNoise.RidgedMultifractal noise) : IModule
 {
     public readonly FixedArray30<double> SpectralWeights = new(noise.SpectralWeights);
     public readonly double Frequency = noise.Frequency;

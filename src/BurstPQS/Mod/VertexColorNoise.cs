@@ -28,7 +28,7 @@ public class VertexColorNoise : BatchPQSModV1<PQSMod_VertexColorNoise>
     [BurstPQSAutoPatch]
     static void BuildVertexPerlin(
         [NoAlias] in BurstQuadBuildDataV1 data,
-        [NoAlias] in Perlin noise,
+        [NoAlias] in BurstPerlin noise,
         float blend
     ) => BuildVertex(in data, in noise, blend);
 
@@ -36,7 +36,7 @@ public class VertexColorNoise : BatchPQSModV1<PQSMod_VertexColorNoise>
     [BurstPQSAutoPatch]
     static void BuildVertexRidgedMultifractal(
         [NoAlias] in BurstQuadBuildDataV1 data,
-        [NoAlias] in RidgedMultifractal noise,
+        [NoAlias] in BurstRidgedMultifractal noise,
         float blend
     ) => BuildVertex(in data, in noise, blend);
 
@@ -44,7 +44,7 @@ public class VertexColorNoise : BatchPQSModV1<PQSMod_VertexColorNoise>
     [BurstPQSAutoPatch]
     static void BuildVertexBillow(
         [NoAlias] in BurstQuadBuildDataV1 data,
-        [NoAlias] in Billow noise,
+        [NoAlias] in BurstBillow noise,
         float blend
     ) => BuildVertex(in data, in noise, blend);
 

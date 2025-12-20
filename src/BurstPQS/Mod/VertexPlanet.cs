@@ -119,7 +119,7 @@ public class VertexPlanet(PQSMod_VertexPlanet mod) : BatchPQSMod<PQSMod_VertexPl
         public NativeArray<double> preSmoothHeights;
         public BurstSimplex continental;
         public BurstSimplex continentalSmoothing;
-        public RidgedMultifractal continentalSharpness;
+        public BurstRidgedMultifractal continentalSharpness;
         public double continentalSharpnessDeformity;
         public BurstSimplex continentalSharpnessMap;
         public double continentalSharpnessMapDeformity;

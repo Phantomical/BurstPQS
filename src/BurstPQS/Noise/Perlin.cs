@@ -4,7 +4,7 @@ using static BurstPQS.Noise.GradientNoiseBasis;
 
 namespace BurstPQS.Noise;
 
-public readonly struct Perlin(LibNoise.Perlin perlin) : IModule
+public readonly struct BurstPerlin(LibNoise.Perlin perlin) : IModule
 {
     public readonly double Frequency = perlin.Frequency;
     public readonly double Persistence = perlin.Persistence;

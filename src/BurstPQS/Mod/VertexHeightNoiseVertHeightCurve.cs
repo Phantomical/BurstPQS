@@ -74,7 +74,7 @@ public class VertexHeightNoiseVertHeightCurve
     [BurstPQSAutoPatch]
     static void BuildVertexPerlin(
         in BurstQuadBuildDataV1 data,
-        in Perlin noise,
+        in BurstPerlin noise,
         in BurstAnimationCurve curve,
         in Params p
     ) => BuildVertex(in data, in noise, in curve, in p);
@@ -83,7 +83,7 @@ public class VertexHeightNoiseVertHeightCurve
     [BurstPQSAutoPatch]
     static void BuildVertexRidgedMultifractal(
         in BurstQuadBuildDataV1 data,
-        in RidgedMultifractal noise,
+        in BurstRidgedMultifractal noise,
         in BurstAnimationCurve curve,
         in Params p
     ) => BuildVertex(in data, in noise, in curve, in p);
@@ -92,7 +92,7 @@ public class VertexHeightNoiseVertHeightCurve
     [BurstPQSAutoPatch]
     static void BuildVertexBillow(
         in BurstQuadBuildDataV1 data,
-        in Billow noise,
+        in BurstBillow noise,
         in BurstAnimationCurve curve,
         in Params p
     ) => BuildVertex(in data, in noise, in curve, in p);

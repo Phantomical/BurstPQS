@@ -102,7 +102,7 @@ public class VertexHeightNoiseHeightMap : BatchPQSModV1<PQSMod_VertexHeightNoise
     [BurstPQSAutoPatch]
     static void BuildVertexPerlin(
         in BurstQuadBuildDataV1 data,
-        in Perlin noise,
+        in BurstPerlin noise,
         in MemorySpan<float> heightMapData,
         float heightStart,
         float heightEnd,
@@ -123,7 +123,7 @@ public class VertexHeightNoiseHeightMap : BatchPQSModV1<PQSMod_VertexHeightNoise
     [BurstPQSAutoPatch]
     static void BuildVertexRidgedMultifractal(
         in BurstQuadBuildDataV1 data,
-        in RidgedMultifractal noise,
+        in BurstRidgedMultifractal noise,
         in MemorySpan<float> heightMapData,
         float heightStart,
         float heightEnd,
@@ -144,7 +144,7 @@ public class VertexHeightNoiseHeightMap : BatchPQSModV1<PQSMod_VertexHeightNoise
     [BurstPQSAutoPatch]
     static void BuildVertexBillow(
         in BurstQuadBuildDataV1 data,
-        in Billow noise,
+        in BurstBillow noise,
         in MemorySpan<float> heightMapData,
         float heightStart,
         float heightEnd,

@@ -47,7 +47,7 @@ public class VertexRidgedAltitudeCurve(PQSMod_VertexRidgedAltitudeCurve mod)
     {
         public BurstQuadBuildData data;
         public BurstSimplex simplex;
-        public RidgedMultifractal ridgedAdd;
+        public BurstRidgedMultifractal ridgedAdd;
         public BurstAnimationCurve simplexCurve;
         public double simplexHeightStart;
         public double radiusMin;

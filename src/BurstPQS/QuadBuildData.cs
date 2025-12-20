@@ -139,8 +139,8 @@ public unsafe struct BurstQuadBuildData : IDisposable
         public readonly double radiusDelta => radiusMax - radiusMin;
     }
 
-    public readonly Sphere sphere;
-    public readonly PQS.QuadPlane plane;
+    public Sphere sphere { get; private set; }
+    public PQS.QuadPlane plane { get; private set; }
     #endregion
 
     #region Per-Element Offsets

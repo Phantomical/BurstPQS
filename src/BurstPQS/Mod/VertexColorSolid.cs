@@ -17,7 +17,11 @@ public class VertexColorSolid : BatchPQSModV1<PQSMod_VertexColorSolid>
 
     [BurstCompile(FloatMode = FloatMode.Fast)]
     [BurstPQSAutoPatch]
-    static void BuildVertex([NoAlias] in BurstQuadBuildDataV1 data, [NoAlias] in Color c, float blend)
+    static void BuildVertex(
+        [NoAlias] in BurstQuadBuildDataV1 data,
+        [NoAlias] in Color c,
+        float blend
+    )
     {
         var color = c;
 

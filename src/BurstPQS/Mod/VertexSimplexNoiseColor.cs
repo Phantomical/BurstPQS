@@ -1,43 +1,55 @@
 using BurstPQS.Noise;
-using BurstPQS.Util;
 using Unity.Burst;
+using Unity.Jobs;
 using UnityEngine;
 
 namespace BurstPQS.Mod;
 
 [BurstCompile]
-public class VertexSimplexNoiseColor : BatchPQSModV1<PQSMod_VertexSimplexNoiseColor>
+[BatchPQSMod(typeof(PQSMod_VertexSimplexNoiseColor))]
+public class VertexSimplexNoiseColor(PQSMod_VertexSimplexNoiseColor mod)
+    : BatchPQSMod<PQSMod_VertexSimplexNoiseColor>(mod),
+        IBatchPQSModState
 {
-    public VertexSimplexNoiseColor(PQSMod_VertexSimplexNoiseColor mod)
-        : base(mod) { }
-
-    public override void OnBatchVertexBuild(in QuadBuildDataV1 data)
+    public JobHandle ScheduleBuildVertices(QuadBuildData data, JobHandle handle)
     {
-        using var bsimplex = new BurstSimplex(mod.simplex);
+        var job = new BuildVerticesJob
+        {
+            data = data.burst,
+            simplex = new(mod.simplex),
+            colorStart = mod.colorStart,
+            colorEnd = mod.colorEnd,
+            blend = mod.blend,
+        };
+        handle = job.Schedule(handle);
+        job.simplex.Dispose(handle);
 
-        BuildVertices(in data.burstData, in bsimplex, mod.colorStart, mod.colorEnd, mod.blend);
+        return handle;
     }
 
-    [BurstCompile(FloatMode = FloatMode.Fast)]
-    [BurstPQSAutoPatch]
-    static void BuildVertices(
-        [NoAlias] in BurstQuadBuildDataV1 data,
-        [NoAlias] in BurstSimplex simplex,
-        in Color iColorStart,
-        in Color iColorEnd,
-        float blend
-    )
+    public JobHandle ScheduleBuildHeights(QuadBuildData data, JobHandle handle) => handle;
+
+    public void OnQuadBuilt(QuadBuildData data) { }
+
+    [BurstCompile]
+    struct BuildVerticesJob : IJob
     {
-        Color colorStart = iColorStart;
-        Color colorEnd = iColorEnd;
+        public BurstQuadBuildData data;
+        public BurstSimplex simplex;
+        public Color colorStart;
+        public Color colorEnd;
+        public float blend;
 
-        for (int i = 0; i < data.VertexCount; ++i)
+        public void Execute()
         {
-            var dir = data.directionFromCenter[i];
-            var n = (float)((simplex.noise(dir) + 1.0) * 0.5);
-            var c = Color.Lerp(colorStart, colorEnd, n);
+            for (int i = 0; i < data.VertexCount; ++i)
+            {
+                var dir = data.directionFromCenter[i];
+                var n = (float)((simplex.noise(dir) + 1.0) * 0.5);
+                var c = Color.Lerp(colorStart, colorEnd, n);
 
-            data.vertColor[i] = Color.Lerp(data.vertColor[i], c, blend);
+                data.vertColor[i] = Color.Lerp(data.vertColor[i], c, blend);
+            }
         }
     }
 }

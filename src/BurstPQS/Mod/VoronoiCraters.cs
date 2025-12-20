@@ -1,126 +1,135 @@
-using System;
-using BurstPQS.Collections;
 using BurstPQS.Noise;
 using BurstPQS.Util;
 using Unity.Burst;
+using Unity.Collections;
+using Unity.Jobs;
 using UnityEngine;
 
 namespace BurstPQS.Mod;
 
 [BurstCompile]
-public class VoronoiCraters : BatchPQSModV1<PQSMod_VoronoiCraters>
+[BatchPQSMod(typeof(PQSMod_VoronoiCraters))]
+public class VoronoiCraters(PQSMod_VoronoiCraters mod) : BatchPQSMod<PQSMod_VoronoiCraters>(mod)
 {
-    public VoronoiCraters(PQSMod_VoronoiCraters mod)
-        : base(mod) { }
-
-    float[] rs;
-
-    public override unsafe void OnBatchVertexBuildHeight(in QuadBuildDataV1 data)
+    public override IBatchPQSModState OnQuadPreBuild(QuadBuildData data)
     {
-        if (rs is null || rs.Length != data.VertexCount)
-            rs = new float[data.VertexCount];
+        return new State(mod);
+    }
 
-        using var bsimplex = new BurstSimplex(mod.simplex);
-        using var bjitterCurve = new BurstAnimationCurve(mod.jitterCurve);
-        using var bcraterCurve = new BurstAnimationCurve(mod.craterCurve);
+    class State(PQSMod_VoronoiCraters mod) : BatchPQSModState
+    {
+        readonly PQSMod_VoronoiCraters mod = mod;
+        NativeArray<float> rs;
 
-        fixed (float* prs = rs)
+        public override JobHandle ScheduleBuildHeights(QuadBuildData data, JobHandle handle)
         {
-            BuildHeights(
-                in data.burstData,
-                new(mod.voronoi),
-                bsimplex,
-                bjitterCurve,
-                bcraterCurve,
-                new(prs, rs.Length),
-                mod.jitter,
-                mod.jitterHeight,
-                mod.deformation
-            );
+            rs = new NativeArray<float>(data.VertexCount, Allocator.TempJob);
+
+            var job = new BuildHeightsJob
+            {
+                data = data.burst,
+                voronoi = new(mod.voronoi),
+                simplex = new(mod.simplex),
+                jitterCurve = new(mod.jitterCurve),
+                craterCurve = new(mod.craterCurve),
+                rs = rs,
+                jitter = mod.jitter,
+                jitterHeight = mod.jitterHeight,
+                deformation = mod.deformation,
+            };
+
+            handle = job.Schedule(handle);
+            job.simplex.Dispose(handle);
+            job.jitterCurve.Dispose(handle);
+            job.craterCurve.Dispose(handle);
+
+            return handle;
+        }
+
+        public override JobHandle ScheduleBuildVertices(QuadBuildData data, JobHandle handle)
+        {
+            var job = new BuildVerticesJob
+            {
+                data = data.burst,
+                craterColorRamp = new(mod.craterColourRamp),
+                rs = rs,
+                rFactor = mod.rFactor,
+                rOffset = mod.rOffset,
+                colorOpacity = mod.colorOpacity,
+                debugColorMapping = mod.DebugColorMapping,
+            };
+
+            handle = job.Schedule(handle);
+            job.craterColorRamp.Dispose(handle);
+            rs.Dispose(handle);
+
+            return handle;
+        }
+
+        public override void Dispose()
+        {
+            rs.Dispose();
         }
     }
 
-    public override unsafe void OnBatchVertexBuild(in QuadBuildDataV1 data)
+    [BurstCompile]
+    struct BuildHeightsJob : IJob
     {
-        if (rs is null || rs.Length != data.VertexCount)
-            throw new InvalidOperationException(
-                "OnQuadBuildVertex called but rs is null or the wrong size"
-            );
+        public BurstQuadBuildData data;
+        public BurstVoronoi voronoi;
+        public BurstSimplex simplex;
+        public BurstAnimationCurve jitterCurve;
+        public BurstAnimationCurve craterCurve;
+        public NativeArray<float> rs;
+        public double jitter;
+        public double jitterHeight;
+        public double deformation;
 
-        using var bcolorRamp = new BurstGradient(mod.craterColourRamp);
-
-        fixed (float* prs = rs)
+        public void Execute()
         {
-            BuildVertices(
-                in data.burstData,
-                in bcolorRamp,
-                new(prs, rs.Length),
-                mod.rFactor,
-                mod.rOffset,
-                mod.colorOpacity,
-                mod.DebugColorMapping
-            );
+            for (int i = 0; i < data.VertexCount; ++i)
+            {
+                double vorH = voronoi.GetValue(data.directionFromCenter[i]);
+                double spxH = simplex.noise(data.directionFromCenter[i]);
+                double jtt = spxH * jitter * jitterCurve.Evaluate((float)vorH);
+                double r = vorH + jtt;
+                double h = craterCurve.Evaluate((float)r);
+
+                rs[i] = (float)r;
+                data.vertHeight[i] += (h + jitterHeight * jtt * h) * deformation;
+            }
         }
     }
 
-    [BurstCompile(FloatMode = FloatMode.Fast)]
-    [BurstPQSAutoPatch]
-    static void BuildHeights(
-        [NoAlias] in BurstQuadBuildDataV1 data,
-        [NoAlias] in BurstVoronoi voronoi,
-        [NoAlias] in BurstSimplex simplex,
-        [NoAlias] in BurstAnimationCurve jitterCurve,
-        [NoAlias] in BurstAnimationCurve craterCurve,
-        [NoAlias] in MemorySpan<float> rs,
-        double jitter,
-        double jitterHeight,
-        double deformation
-    )
+    [BurstCompile]
+    struct BuildVerticesJob : IJob
     {
-        if (rs.Length != data.VertexCount)
-            BurstException.ThrowIndexOutOfRange();
+        public BurstQuadBuildData data;
+        public BurstGradient craterColorRamp;
+        public NativeArray<float> rs;
+        public float rFactor;
+        public float rOffset;
+        public float colorOpacity;
+        public bool debugColorMapping;
 
-        for (int i = 0; i < data.VertexCount; ++i)
+        public void Execute()
         {
-            double vorH = voronoi.GetValue(data.directionFromCenter[i]);
-            double spxH = simplex.noise(data.directionFromCenter[i]);
-            double jtt = spxH * jitter * jitterCurve.Evaluate((float)vorH);
-            double r = vorH + jtt;
-            double h = craterCurve.Evaluate((float)r);
+            for (int i = 0; i < data.VertexCount; ++i)
+            {
+                float r = rs[i] * rFactor + rOffset;
+                Color c;
 
-            rs[i] = (float)r;
-            data.vertHeight[i] += (h + jitterHeight * jtt * h) * deformation;
-        }
-    }
+                if (debugColorMapping)
+                    c = Color.Lerp(Color.magenta, data.vertColor[i], r);
+                else
+                    c = Color.Lerp(
+                        data.vertColor[i],
+                        craterColorRamp.Evaluate(r),
+                        (1f - r) * colorOpacity
+                    );
 
-    [BurstCompile(FloatMode = FloatMode.Fast)]
-    [BurstPQSAutoPatch]
-    static void BuildVertices(
-        [NoAlias] in BurstQuadBuildDataV1 data,
-        [NoAlias] in BurstGradient craterColorRamp,
-        [NoAlias] in MemorySpan<float> rs,
-        float rFactor,
-        float rOffset,
-        float colorOpacity,
-        bool debugColorMapping
-    )
-    {
-        if (rs.Length != data.VertexCount)
-            BurstException.ThrowIndexOutOfRange();
-
-        for (int i = 0; i < data.VertexCount; ++i)
-        {
-            float r = rs[i] * rFactor + rOffset;
-            Color c;
-
-            if (debugColorMapping)
-                c = Color.Lerp(Color.magenta, data.vertColor[i], r);
-            else
-                c = Color.Lerp(
-                    data.vertColor[i],
-                    craterColorRamp.Evaluate(r),
-                    (1f - r) * colorOpacity
-                );
+                data.vertColor[i] = c;
+            }
         }
     }
 }

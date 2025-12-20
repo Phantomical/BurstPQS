@@ -1,42 +1,54 @@
-using BurstPQS.Util;
 using Unity.Burst;
+using Unity.Jobs;
 
 namespace BurstPQS.Mod;
 
 [BurstCompile]
-public class AltitudeAlpha : BatchPQSModV1<PQSMod_AltitudeAlpha>
+[BatchPQSMod(typeof(PQSMod_AltitudeAlpha))]
+public class AltitudeAlpha(PQSMod_AltitudeAlpha mod)
+    : BatchPQSMod<PQSMod_AltitudeAlpha>(mod),
+        IBatchPQSModState
 {
-    public AltitudeAlpha(PQSMod_AltitudeAlpha mod)
-        : base(mod) { }
-
-    public override void OnBatchVertexBuild(in QuadBuildDataV1 data)
+    public JobHandle ScheduleBuildHeights(QuadBuildData data, JobHandle handle)
     {
-        BuildVertices(in data.burstData, mod.sphere.radius, mod.atmosphereDepth, mod.invert);
+        var job = new BuildHeightsJob
+        {
+            data = data.burst,
+            atmosphereDepth = mod.atmosphereDepth,
+            invert = mod.invert,
+        };
+
+        return job.Schedule(handle);
     }
 
-    [BurstCompile(FloatMode = FloatMode.Fast)]
-    [BurstPQSAutoPatch]
-    static void BuildVertices(
-        [NoAlias] in BurstQuadBuildDataV1 data,
-        double radius,
-        double atmosphereDepth,
-        bool invert
-    )
+    public JobHandle ScheduleBuildVertices(QuadBuildData data, JobHandle handle) => handle;
+
+    public void OnQuadBuilt(QuadBuildData data) { }
+
+    [BurstCompile]
+    struct BuildHeightsJob : IJob
     {
-        if (invert)
+        public BurstQuadBuildData data;
+        public double atmosphereDepth;
+        public bool invert;
+
+        public void Execute()
         {
-            for (int i = 0; i < data.VertexCount; ++i)
+            if (invert)
             {
-                double h = (data.vertHeight[i] - radius) / atmosphereDepth;
-                data.vertColor[i].a = (float)(1.0 - h);
+                for (int i = 0; i < data.VertexCount; ++i)
+                {
+                    double h = (data.vertHeight[i] - data.sphere.radius) / atmosphereDepth;
+                    data.vertColor[i].a = (float)(1.0 - h);
+                }
             }
-        }
-        else
-        {
-            for (int i = 0; i < data.VertexCount; ++i)
+            else
             {
-                double h = (data.vertHeight[i] - radius) / atmosphereDepth;
-                data.vertColor[i].a = (float)h;
+                for (int i = 0; i < data.VertexCount; ++i)
+                {
+                    double h = (data.vertHeight[i] - data.sphere.radius) / atmosphereDepth;
+                    data.vertColor[i].a = (float)h;
+                }
             }
         }
     }

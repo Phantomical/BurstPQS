@@ -44,8 +44,8 @@ public class VertexHeightNoiseVertHeightCurve2(PQSMod_VertexHeightNoiseVertHeigh
     struct BuildHeightsJob : IJob
     {
         public BurstQuadBuildData data;
-        public RidgedMultifractal ridgedAdd;
-        public RidgedMultifractal ridgedSub;
+        public BurstRidgedMultifractal ridgedAdd;
+        public BurstRidgedMultifractal ridgedSub;
         public BurstSimplex simplex;
         public BurstAnimationCurve simplexCurve;
         public double simplexHeightStart;

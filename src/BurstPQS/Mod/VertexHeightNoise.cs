@@ -25,21 +25,27 @@ public class VertexHeightNoise : BatchPQSModV1<PQSMod_VertexHeightNoise>
 
     [BurstCompile(FloatMode = FloatMode.Fast)]
     [BurstPQSAutoPatch]
-    static void BuildVertexPerlin(in BurstQuadBuildDataV1 data, in Perlin noise, float deformity) =>
-        BuildVertex(in data, in noise, deformity);
+    static void BuildVertexPerlin(
+        in BurstQuadBuildDataV1 data,
+        in BurstPerlin noise,
+        float deformity
+    ) => BuildVertex(in data, in noise, deformity);
 
     [BurstCompile(FloatMode = FloatMode.Fast)]
     [BurstPQSAutoPatch]
     static void BuildVertexRidgedMultifractal(
         in BurstQuadBuildDataV1 data,
-        in RidgedMultifractal noise,
+        in BurstRidgedMultifractal noise,
         float blend
     ) => BuildVertex(in data, in noise, blend);
 
     [BurstCompile(FloatMode = FloatMode.Fast)]
     [BurstPQSAutoPatch]
-    static void BuildVertexBillow(in BurstQuadBuildDataV1 data, in Billow noise, float deformity) =>
-        BuildVertex(in data, in noise, deformity);
+    static void BuildVertexBillow(
+        in BurstQuadBuildDataV1 data,
+        in BurstBillow noise,
+        float deformity
+    ) => BuildVertex(in data, in noise, deformity);
 
     static void BuildVertex<N>(in BurstQuadBuildDataV1 data, in N noise, float deformity)
         where N : IModule

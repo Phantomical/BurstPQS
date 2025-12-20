@@ -52,8 +52,8 @@ public class VertexHeightNoiseVertHeightCurve3
     [BurstPQSAutoPatch]
     static void BuildVertex(
         [NoAlias] in BurstQuadBuildDataV1 data,
-        [NoAlias] in RidgedMultifractal ridgedAdd,
-        [NoAlias] in RidgedMultifractal ridgedSub,
+        [NoAlias] in BurstRidgedMultifractal ridgedAdd,
+        [NoAlias] in BurstRidgedMultifractal ridgedSub,
         [NoAlias] in BurstSimplex curveMultiplier,
         [NoAlias] in BurstSimplex deformity,
         [NoAlias] in BurstAnimationCurve inputHeightCurve,
