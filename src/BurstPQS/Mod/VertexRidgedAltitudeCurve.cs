@@ -8,7 +8,6 @@ namespace BurstPQS.Mod;
 
 [BurstCompile]
 [BatchPQSMod(typeof(PQSMod_VertexRidgedAltitudeCurve))]
-[BatchPQSShim]
 public class VertexRidgedAltitudeCurve(PQSMod_VertexRidgedAltitudeCurve mod)
     : BatchPQSMod<PQSMod_VertexRidgedAltitudeCurve>(mod),
         IBatchPQSModState
@@ -43,7 +42,7 @@ public class VertexRidgedAltitudeCurve(PQSMod_VertexRidgedAltitudeCurve mod)
 
     public void OnQuadBuilt(QuadBuildData data) { }
 
-    [BurstCompile(FloatMode = FloatMode.Fast)]
+    [BurstCompile]
     struct BuildHeightsJob : IJob
     {
         public BurstQuadBuildData data;

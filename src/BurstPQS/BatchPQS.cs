@@ -18,7 +18,6 @@ namespace BurstPQS;
 public unsafe class BatchPQS : MonoBehaviour
 {
     static bool ForceFallback = false;
-    static bool ForceOriginal = true;
 
     private PQS pqs;
     private BatchPQSMod[] mods;
@@ -98,28 +97,11 @@ public unsafe class BatchPQS : MonoBehaviour
         var handle = initJob.Schedule();
         JobHandle.ScheduleBatchedJobs();
 
-        if (ForceOriginal)
-        {
-            foreach (var state in states)
-                handle = state.ScheduleBuildHeights(data, handle);
-            foreach (var state in states)
-                handle = state.ScheduleBuildVertices(data, handle);
-            JobHandle.ScheduleBatchedJobs();
-        }
-        else
-        {
-            for (int i = 0; i < data.VertexCount; ++i)
-            {
-                data.CopyTo(vbData, i);
-
-                foreach (var mod in pqs.mods)
-                    mod.OnVertexBuildHeight(vbData);
-                foreach (var mod in pqs.mods)
-                    mod.OnVertexBuild(vbData);
-
-                data.CopyFrom(vbData, i);
-            }
-        }
+        foreach (var state in states)
+            handle = state.ScheduleBuildHeights(data, handle);
+        foreach (var state in states)
+            handle = state.ScheduleBuildVertices(data, handle);
+        JobHandle.ScheduleBatchedJobs();
 
         var buildJob = new BuildVerticesJob
         {
