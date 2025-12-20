@@ -6,7 +6,7 @@ namespace BurstPQS.Mod;
 
 [BurstCompile]
 [BatchPQSMod(typeof(PQSMod_AltitudeUV))]
-[BatchPQSShim]
+// [BatchPQSShim]
 public class AltitudeUV(PQSMod_AltitudeUV mod)
     : BatchPQSMod<PQSMod_AltitudeUV>(mod),
         IBatchPQSModState

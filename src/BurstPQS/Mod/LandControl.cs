@@ -12,7 +12,7 @@ using UnityEngine;
 namespace BurstPQS.Mod;
 
 [BurstCompile]
-// [BatchPQSMod(typeof(PQSLandControl))]
+[BatchPQSMod(typeof(PQSLandControl))]
 public class LandControl(PQSLandControl mod) : BatchPQSMod<PQSLandControl>(mod)
 {
     public readonly struct BurstLerpRange(PQSLandControl.LerpRange range)
@@ -26,15 +26,14 @@ public class LandControl(PQSLandControl mod) : BatchPQSMod<PQSLandControl>(mod)
 
         public double Lerp(double point)
         {
-            if (point <= startStart || point >= endEnd)
+            if (point <= startStart)
                 return 0.0;
-
             if (point < startEnd)
                 return (point - startStart) * startDelta;
             if (point <= endStart)
                 return 1.0;
             if (point < endEnd)
-                return (point - endStart) * endDelta;
+                return 1.0 - (point - endStart) * endDelta;
             return 0.0;
         }
     }
@@ -46,8 +45,8 @@ public class LandControl(PQSLandControl mod) : BatchPQSMod<PQSLandControl>(mod)
         public bool latitudeDouble = lc.latitudeDouble;
         public BurstLerpRange latitudeDoubleRange = new(lc.latitudeDoubleRange);
         public BurstLerpRange longitudeRange = new(lc.longitudeRange);
-        public BurstSimplex coverageSimplex;
-        public BurstSimplex noiseSimplex;
+        public BurstSimplex coverageSimplex = new(lc.coverageSimplex);
+        public BurstSimplex noiseSimplex = new(lc.noiseSimplex);
         public double minimumRealHeight = lc.minimumRealHeight;
         public double alterRealHeight = lc.alterRealHeight;
         public double coverageBlend = lc.coverageBlend;
@@ -151,7 +150,13 @@ public class LandControl(PQSLandControl mod) : BatchPQSMod<PQSLandControl>(mod)
                 useHeightMap = mod.useHeightMap,
             };
 
-            return job.Schedule(handle);
+            handle = job.Schedule(handle);
+            job.heightMap.Dispose(handle);
+            job.altitudeSimplex.Dispose(handle);
+            job.latitudeSimplex.Dispose(handle);
+            job.longitudeSimplex.Dispose(handle);
+
+            return handle;
         }
 
         public override JobHandle ScheduleBuildVertices(QuadBuildData data, JobHandle handle)
@@ -171,7 +176,6 @@ public class LandControl(PQSLandControl mod) : BatchPQSMod<PQSLandControl>(mod)
             handle = job.Schedule(handle);
 
             vHeights.Dispose(handle);
-            vHeights = default;
 
             return handle;
         }
@@ -217,9 +221,9 @@ public class LandControl(PQSLandControl mod) : BatchPQSMod<PQSLandControl>(mod)
 
         public override void Dispose()
         {
-            lcActive.Dispose();
-            lcDeltas.Dispose();
-            vHeights.Dispose();
+            lcActive.Dispose(default);
+            lcDeltas.Dispose(default);
+            vHeights.Dispose(default);
         }
     }
 
@@ -297,9 +301,12 @@ public class LandControl(PQSLandControl mod) : BatchPQSMod<PQSLandControl>(mod)
                         lc.coverageBlend
                     );
 
-                    lcDeltas[baseIndex + itr] = delta;
-                    lcActive[baseIndex + itr] = delta == 0.0;
-                    totalDelta += delta;
+                    if (delta != 0.0)
+                    {
+                        lcDeltas[baseIndex + itr] = delta;
+                        lcActive[baseIndex + itr] = true;
+                        totalDelta += delta;
+                    }
                 }
 
                 for (int itr = 0; itr < landClasses.Length; ++itr)
@@ -376,7 +383,7 @@ public class LandControl(PQSLandControl mod) : BatchPQSMod<PQSLandControl>(mod)
     }
 }
 
-[BatchPQSMod(typeof(PQSLandControl))]
+// [BatchPQSMod(typeof(PQSLandControl))]
 public class LandControlShim(PQSLandControl mod) : BatchPQSMod<PQSLandControl>(mod)
 {
     public override IBatchPQSModState OnQuadPreBuild(QuadBuildData data)
