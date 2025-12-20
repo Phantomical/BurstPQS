@@ -7,13 +7,13 @@ namespace BurstPQS.Mod;
 
 [BurstCompile]
 [BatchPQSMod(typeof(PQSMod_VertexHeightNoiseVertHeightCurve2))]
-[BatchPQSShim]
 public class VertexHeightNoiseVertHeightCurve2(PQSMod_VertexHeightNoiseVertHeightCurve2 mod)
     : BatchPQSMod<PQSMod_VertexHeightNoiseVertHeightCurve2>(mod),
         IBatchPQSModState
 {
     public JobHandle ScheduleBuildHeights(QuadBuildData data, JobHandle handle)
     {
+        handle.Complete();
         var bsimplex = new BurstSimplex(mod.simplex);
         var bcurve = new BurstAnimationCurve(mod.simplexCurve);
 
@@ -24,7 +24,6 @@ public class VertexHeightNoiseVertHeightCurve2(PQSMod_VertexHeightNoiseVertHeigh
             ridgedSub = new(mod.ridgedSub),
             simplex = bsimplex,
             simplexCurve = bcurve,
-            sphereRadiusMin = mod.sphere.radiusMin,
             simplexHeightStart = mod.simplexHeightStart,
             simplexHeightEnd = mod.simplexHeightEnd,
             deformity = mod.deformity,
@@ -42,6 +41,7 @@ public class VertexHeightNoiseVertHeightCurve2(PQSMod_VertexHeightNoiseVertHeigh
 
     public void OnQuadBuilt(QuadBuildData data) { }
 
+    [BurstCompile]
     struct BuildHeightsJob : IJob
     {
         public BurstQuadBuildData data;
@@ -49,7 +49,6 @@ public class VertexHeightNoiseVertHeightCurve2(PQSMod_VertexHeightNoiseVertHeigh
         public RidgedMultifractal ridgedSub;
         public BurstSimplex simplex;
         public BurstAnimationCurve simplexCurve;
-        public double sphereRadiusMin;
         public double simplexHeightStart;
         public double simplexHeightEnd;
         public double hDeltaR;
@@ -64,7 +63,7 @@ public class VertexHeightNoiseVertHeightCurve2(PQSMod_VertexHeightNoiseVertHeigh
 
             for (int i = 0; i < data.VertexCount; ++i)
             {
-                h = data.vertHeight[i] - sphereRadiusMin;
+                h = data.vertHeight[i] - data.sphere.radiusMin;
                 if (h <= simplexHeightStart)
                     t = 0f;
                 else if (h >= simplexHeightEnd)

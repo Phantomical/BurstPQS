@@ -66,7 +66,7 @@ public struct BurstAnimationCurve : IDisposable
             ref readonly Keyframe k0 = ref keys[i - 1];
             ref readonly Keyframe k1 = ref keys[i];
 
-            if (k1.time > time)
+            if (time > k1.time)
                 continue;
 
             return Interpolate(time, in k0, in k1);
