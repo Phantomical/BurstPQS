@@ -1,6 +1,5 @@
 using System;
 using System.Collections.Generic;
-using System.Drawing.Printing;
 using System.Runtime.CompilerServices;
 using BurstPQS.Collections;
 using BurstPQS.Patches;
@@ -19,6 +18,7 @@ namespace BurstPQS;
 public unsafe class BatchPQS : MonoBehaviour
 {
     static bool ForceFallback = false;
+    static bool ForceOriginal = false;
 
     private PQS pqs;
     private BatchPQSMod[] mods;
@@ -65,7 +65,7 @@ public unsafe class BatchPQS : MonoBehaviour
             return false;
 
         pqs.buildQuad = quad;
-        pqs.Mod_OnQuadPreBuild(quad);
+        // pqs.Mod_OnQuadPreBuild(quad);
 
         using var data = new QuadBuildData(pqs, PQS.cacheVertCount);
         using CacheData cache = new(data.VertexCount);
@@ -98,23 +98,28 @@ public unsafe class BatchPQS : MonoBehaviour
         var handle = initJob.Schedule();
         JobHandle.ScheduleBatchedJobs();
 
-        foreach (var state in states)
-            handle = state.ScheduleBuildHeights(data, handle);
-        foreach (var state in states)
-            handle = state.ScheduleBuildVertices(data, handle);
-        JobHandle.ScheduleBatchedJobs();
+        if (ForceOriginal)
+        {
+            foreach (var state in states)
+                handle = state.ScheduleBuildHeights(data, handle);
+            foreach (var state in states)
+                handle = state.ScheduleBuildVertices(data, handle);
+            JobHandle.ScheduleBatchedJobs();
+        }
+        else
+        {
+            for (int i = 0; i < data.VertexCount; ++i)
+            {
+                data.CopyTo(vbData, i);
 
-        // for (int i = 0; i < PQS.cacheVertCount; ++i)
-        // {
-        //     data.CopyTo(vbData, i);
-        //     pqs.vertexIndex = i;
+                foreach (var mod in pqs.mods)
+                    mod.OnVertexBuildHeight(vbData);
+                foreach (var mod in pqs.mods)
+                    mod.OnVertexBuild(vbData);
 
-        //     pqs.Mod_OnVertexBuildHeight(vbData);
-        //     foreach (var mod in pqs.mods)
-        //         mod.OnVertexBuild(vbData);
-
-        //     data.CopyFrom(vbData, i);
-        // }
+                data.CopyFrom(vbData, i);
+            }
+        }
 
         var buildJob = new BuildVerticesJob
         {
@@ -142,7 +147,9 @@ public unsafe class BatchPQS : MonoBehaviour
             meshVertMin = quad.meshVertMin,
         };
 
-        buildJob.Schedule(handle).Complete();
+        handle.Complete();
+        buildJob.Execute();
+        // buildJob.Schedule(handle).Complete();
 
         CopyGeneratedData(data, cache);
         pqs.meshVertMin = minmax[0];
@@ -398,7 +405,7 @@ public unsafe class BatchPQS : MonoBehaviour
 
             for (int i = 0; i < data.VertexCount; ++i)
             {
-                var latitude = Math.Asin(MathUtil.Clamp01(data.directionFromCenter[i].y));
+                var latitude = Math.Asin(MathUtil.Clamp(data.directionFromCenter[i].y, -1.0, 1.0));
                 var directionXZ = new Vector3d(
                     data.directionFromCenter[i].x,
                     0.0,
@@ -415,8 +422,10 @@ public unsafe class BatchPQS : MonoBehaviour
 
                 data.latitude[i] = latitude;
                 data.longitude[i] = longitude;
-                data.u[i] = latitude / Math.PI + 0.5;
-                data.v[i] = longitude / Math.PI * 0.5;
+                var sy = latitude / Math.PI + 0.5;
+                var sx = longitude / Math.PI * 0.5;
+                data.u[i] = sx;
+                data.v[i] = sy;
             }
         }
     }
