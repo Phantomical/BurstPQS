@@ -6,6 +6,7 @@ using Unity.Jobs;
 namespace BurstPQS.Mod;
 
 [BurstCompile]
+[BatchPQSMod(typeof(PQSMod_RemoveQuadMap))]
 public class RemoveQuadMap(PQSMod_RemoveQuadMap mod) : BatchPQSMod<PQSMod_RemoveQuadMap>(mod)
 {
     public override IBatchPQSModState OnQuadPreBuild(QuadBuildData data)
