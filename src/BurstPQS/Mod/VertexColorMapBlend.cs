@@ -1,36 +1,52 @@
 using BurstPQS.Util;
 using Unity.Burst;
+using Unity.Jobs;
 using UnityEngine;
 
 namespace BurstPQS.Mod;
 
 [BurstCompile]
-public class VertexColorMapBlend : BatchPQSModV1<PQSMod_VertexColorMapBlend>
+[BatchPQSMod(typeof(PQSMod_VertexColorMapBlend))]
+public class VertexColorMapBlend(PQSMod_VertexColorMapBlend mod)
+    : BatchPQSMod<PQSMod_VertexColorMapBlend>(mod),
+        IBatchPQSModState
 {
-    public VertexColorMapBlend(PQSMod_VertexColorMapBlend mod)
-        : base(mod) { }
+    public JobHandle ScheduleBuildHeights(QuadBuildData data, JobHandle handle) => handle;
 
-    public override void OnBatchVertexBuild(in QuadBuildDataV1 data)
+    public JobHandle ScheduleBuildVertices(QuadBuildData data, JobHandle handle)
     {
-        using var mapSO = new BurstMapSO(mod.vertexColorMap);
-        BuildVertices(in data.burstData, in mapSO, mod.blend);
+        var job = new BuildVerticesJob
+        {
+            data = data.burst,
+            vertexColorMap = new(mod.vertexColorMap),
+            blend = mod.blend,
+        };
+
+        handle = job.Schedule(handle);
+        job.vertexColorMap.Dispose(handle);
+
+        return handle;
     }
 
-    [BurstCompile(FloatMode = FloatMode.Fast)]
-    [BurstPQSAutoPatch]
-    static void BuildVertices(
-        [NoAlias] in BurstQuadBuildDataV1 data,
-        [NoAlias] in BurstMapSO vertexColorMap,
-        float blend
-    )
+    public void OnQuadBuilt(QuadBuildData data) { }
+
+    [BurstCompile]
+    struct BuildVerticesJob : IJob
     {
-        for (int i = 0; i < data.VertexCount; ++i)
+        public BurstQuadBuildData data;
+        public BurstMapSO vertexColorMap;
+        public float blend;
+
+        public void Execute()
         {
-            data.vertColor[i] = Color.Lerp(
-                data.vertColor[i],
-                vertexColorMap.GetPixelColor(data.u[i], data.v[i]),
-                blend
-            );
+            for (int i = 0; i < data.VertexCount; ++i)
+            {
+                data.vertColor[i] = Color.Lerp(
+                    data.vertColor[i],
+                    vertexColorMap.GetPixelColor(data.u[i], data.v[i]),
+                    blend
+                );
+            }
         }
     }
 }
