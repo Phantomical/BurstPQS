@@ -1,52 +1,63 @@
 using BurstPQS.Noise;
 using BurstPQS.Util;
 using Unity.Burst;
+using Unity.Jobs;
 
 namespace BurstPQS.Mod;
 
 [BurstCompile]
-public class VertexSimplexHeightMap : BatchPQSModV1<PQSMod_VertexSimplexHeightMap>
+[BatchPQSMod(typeof(PQSMod_VertexSimplexHeightMap))]
+public class VertexSimplexHeightMap(PQSMod_VertexSimplexHeightMap mod)
+    : BatchPQSMod<PQSMod_VertexSimplexHeightMap>(mod),
+        IBatchPQSModState
 {
-    public VertexSimplexHeightMap(PQSMod_VertexSimplexHeightMap mod)
-        : base(mod) { }
-
-    public override void OnBatchVertexBuildHeight(in QuadBuildDataV1 data)
+    public JobHandle ScheduleBuildHeights(QuadBuildData data, JobHandle handle)
     {
-        using var bsimplex = new BurstSimplex(mod.simplex);
-        using var bheightMap = new BurstMapSO(mod.heightMap);
+        var job = new BuildHeightsJob
+        {
+            data = data.burst,
+            simplex = new(mod.simplex),
+            heightMap = new(mod.heightMap),
+            heightStart = mod.heightStart,
+            heightEnd = mod.heightEnd,
+            deformity = mod.deformity,
+        };
 
-        BuildHeights(
-            in data.burstData,
-            in bsimplex,
-            in bheightMap,
-            mod.heightStart,
-            mod.heightEnd,
-            mod.deformity
-        );
+        handle = job.Schedule(handle);
+        job.simplex.Dispose(handle);
+        job.heightMap.Dispose(handle);
+
+        return handle;
     }
 
-    [BurstCompile(FloatMode = FloatMode.Fast)]
-    [BurstPQSAutoPatch]
-    static void BuildHeights(
-        [NoAlias] in BurstQuadBuildDataV1 data,
-        [NoAlias] in BurstSimplex simplex,
-        [NoAlias] in BurstMapSO heightMap,
-        double heightStart,
-        double heightEnd,
-        double deformity
-    )
+    public JobHandle ScheduleBuildVertices(QuadBuildData data, JobHandle handle) => handle;
+
+    public void OnQuadBuilt(QuadBuildData data) { }
+
+    [BurstCompile]
+    struct BuildHeightsJob : IJob
     {
-        double hDeltaR = 1.0 / (heightEnd - heightStart);
+        public BurstQuadBuildData data;
+        public BurstSimplex simplex;
+        public BurstMapSO heightMap;
+        public double heightStart;
+        public double heightEnd;
+        public double deformity;
 
-        for (int i = 0; i < data.VertexCount; ++i)
+        public void Execute()
         {
-            double h = heightMap.GetPixelFloat(data.u[i], data.v[i]);
-            if (h < heightStart || h > heightEnd)
-                continue;
+            double hDeltaR = 1.0 / (heightEnd - heightStart);
 
-            h = (h - heightStart) * hDeltaR;
-            data.vertHeight[i] +=
-                (simplex.noise(data.directionFromCenter[i]) + 1.0) * 0.5 * deformity * h;
+            for (int i = 0; i < data.VertexCount; ++i)
+            {
+                double h = heightMap.GetPixelFloat(data.u[i], data.v[i]);
+                if (h < heightStart || h > heightEnd)
+                    continue;
+
+                h = (h - heightStart) * hDeltaR;
+                data.vertHeight[i] +=
+                    (simplex.noise(data.directionFromCenter[i]) + 1.0) * 0.5 * deformity * h;
+            }
         }
     }
 }

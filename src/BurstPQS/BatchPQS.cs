@@ -78,6 +78,7 @@ public unsafe class BatchPQS : MonoBehaviour
         quad.meshVertMin = double.MinValue;
 
         var states = new List<IBatchPQSModState>(mods.Length);
+        using var sguard = new StateDisposer(states);
         foreach (var mod in mods)
         {
             var state = mod.OnQuadPreBuild(data);
@@ -498,6 +499,23 @@ public unsafe class BatchPQS : MonoBehaviour
         }
     }
 #pragma warning restore IDE1006 // Naming Styles
+
+    struct StateDisposer(List<IBatchPQSModState> states) : IDisposable
+    {
+        public void Dispose()
+        {
+            if (states is null)
+                return;
+
+            foreach (var state in states)
+            {
+                if (state is BatchPQSModState disposable)
+                    disposable.Dispose();
+            }
+
+            states = null;
+        }
+    }
 
     #region Method Injections
     internal void PostSetupMods()
