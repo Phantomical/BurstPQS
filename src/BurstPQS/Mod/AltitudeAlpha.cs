@@ -9,9 +9,11 @@ public class AltitudeAlpha(PQSMod_AltitudeAlpha mod)
     : BatchPQSMod<PQSMod_AltitudeAlpha>(mod),
         IBatchPQSModState
 {
-    public JobHandle ScheduleBuildHeights(QuadBuildData data, JobHandle handle)
+    public JobHandle ScheduleBuildHeights(QuadBuildData data, JobHandle handle) => handle;
+
+    public JobHandle ScheduleBuildVertices(QuadBuildData data, JobHandle handle)
     {
-        var job = new BuildHeightsJob
+        var job = new BuildVerticesJob
         {
             data = data.burst,
             atmosphereDepth = mod.atmosphereDepth,
@@ -21,12 +23,10 @@ public class AltitudeAlpha(PQSMod_AltitudeAlpha mod)
         return job.Schedule(handle);
     }
 
-    public JobHandle ScheduleBuildVertices(QuadBuildData data, JobHandle handle) => handle;
-
     public void OnQuadBuilt(QuadBuildData data) { }
 
     [BurstCompile]
-    struct BuildHeightsJob : IJob
+    struct BuildVerticesJob : IJob
     {
         public BurstQuadBuildData data;
         public double atmosphereDepth;

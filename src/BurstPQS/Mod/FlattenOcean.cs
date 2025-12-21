@@ -1,26 +1,35 @@
 using System;
-using BurstPQS.Collections;
-using BurstPQS.Util;
 using Unity.Burst;
+using Unity.Jobs;
 
 namespace BurstPQS.Mod;
 
 [BurstCompile]
-public class FlattenOcean : BatchPQSModV1<PQSMod_FlattenOcean>
+[BatchPQSMod(typeof(PQSMod_FlattenOcean))]
+public class FlattenOcean(PQSMod_FlattenOcean mod)
+    : BatchPQSMod<PQSMod_FlattenOcean>(mod),
+        IBatchPQSModState
 {
-    public FlattenOcean(PQSMod_FlattenOcean mod)
-        : base(mod) { }
-
-    public override void OnBatchVertexBuildHeight(in QuadBuildDataV1 data)
+    public JobHandle ScheduleBuildHeights(QuadBuildData data, JobHandle handle)
     {
-        BuildHeights(data.vertHeight, mod.oceanRad);
+        var job = new BuildHeightsJob { data = data.burst, oceanRad = mod.oceanRad };
+        return job.Schedule(handle);
     }
 
-    [BurstCompile(FloatMode = FloatMode.Fast)]
-    [BurstPQSAutoPatch]
-    static void BuildHeights([NoAlias] in MemorySpan<double> vertHeight, double oceanRad)
+    public JobHandle ScheduleBuildVertices(QuadBuildData data, JobHandle handle) => handle;
+
+    public void OnQuadBuilt(QuadBuildData data) { }
+
+    [BurstCompile]
+    struct BuildHeightsJob : IJob
     {
-        for (int i = 0; i < vertHeight.Length; ++i)
-            vertHeight[i] = Math.Max(vertHeight[i], oceanRad);
+        public BurstQuadBuildData data;
+        public double oceanRad;
+
+        public void Execute()
+        {
+            for (int i = 0; i < data.VertexCount; ++i)
+                data.vertHeight[i] = Math.Max(data.vertHeight[i], oceanRad);
+        }
     }
 }
