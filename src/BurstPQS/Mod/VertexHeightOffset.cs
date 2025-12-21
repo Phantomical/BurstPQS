@@ -1,25 +1,34 @@
-using BurstPQS.Collections;
-using BurstPQS.Util;
 using Unity.Burst;
+using Unity.Jobs;
 
 namespace BurstPQS.Mod;
 
 [BurstCompile]
-public class VertexHeightOffset : BatchPQSModV1<PQSMod_VertexHeightOffset>
+[BatchPQSMod(typeof(PQSMod_VertexHeightOffset))]
+public class VertexHeightOffset(PQSMod_VertexHeightOffset mod)
+    : BatchPQSMod<PQSMod_VertexHeightOffset>(mod),
+        IBatchPQSModState
 {
-    public VertexHeightOffset(PQSMod_VertexHeightOffset mod)
-        : base(mod) { }
+    public void OnQuadBuilt(QuadBuildData data) { }
 
-    public override void OnBatchVertexBuildHeight(in QuadBuildDataV1 data)
+    public JobHandle ScheduleBuildHeights(QuadBuildData data, JobHandle handle)
     {
-        BuildHeights(data.vertHeight, mod.offset);
+        var job = new BuildHeightsJob { data = data.burst, offset = mod.offset };
+        return job.Schedule(handle);
     }
 
+    public JobHandle ScheduleBuildVertices(QuadBuildData data, JobHandle handle) => handle;
+
     [BurstCompile]
-    [BurstPQSAutoPatch]
-    static void BuildHeights([NoAlias] in MemorySpan<double> vertHeight, double offset)
+    struct BuildHeightsJob : IJob
     {
-        for (int i = 0; i < vertHeight.Length; ++i)
-            vertHeight[i] += offset;
+        public BurstQuadBuildData data;
+        public double offset;
+
+        public void Execute()
+        {
+            for (int i = 0; i < data.VertexCount; ++i)
+                data.vertHeight[i] += offset;
+        }
     }
 }
