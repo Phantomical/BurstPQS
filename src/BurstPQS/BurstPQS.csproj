@@ -2,28 +2,37 @@
   <PropertyGroup>
     <Description>Burst-Accelerated PQS</Description>
 
-    <GenerateKSPAssemblyAttribute>true</GenerateKSPAssemblyAttribute>
-    <GenerateKSPAssemblyDependencyAttributes>true</GenerateKSPAssemblyDependencyAttributes>
-
-    <KSPBinaryType>binary</KSPBinaryType>
+    <KSPBT_ModRoot>$(GameDataOutDir)</KSPBT_ModRoot>
+    <KSPBT_ModPluginFolder>Plugins</KSPBT_ModPluginFolder>
   </PropertyGroup>
 
   <ItemGroup>
+    <PackageReference Include="KSPBuildTools" Version="1.1.0" />
+  
     <PackageReference Include="JsonPoke" Version="1.2.0" />
     <PackageReference Include="Krafs.Publicizer" Version="2.3.0">
       <IncludeAssets>runtime; build; native; contentfiles; analyzers; buildtransitive</IncludeAssets>
       <PrivateAssets>all</PrivateAssets>
     </PackageReference>
 
-    <Reference Include="0Harmony.dll">
-      <HintPath>$(DepSet1)\000_Harmony\0Harmony.dll</HintPath>
-      <Private>false</Private>
+    <ModReference Include="HarmonyKSP">
+      <DLLPath>GameData/000_Harmony/0Harmony.dll</DLLPath>
       <CKANIdentifier>Harmony2</CKANIdentifier>
-      <KSPAssemblyName>HarmonyKSP</KSPAssemblyName>
-      <KSPAssemblyVersion>1.0.0</KSPAssemblyVersion>
-    </Reference>
+      <CKANVersion>2.2.1.0</CKANVersion>
+      <KSPAssemblyVersion>0.0.0</KSPAssemblyVersion>
+    </ModReference>
 
-    <Reference Include="$(GameData)/000_KSPBurst/Plugins/*.dll">
+    <ModReference Include="KSPBurst">
+      <DLLPath>GameData/000_KSPBurst/Plugins/Unity.Burst.dll</DLLPath>
+      <CKANIdentifier>KSPBurst</CKANIdentifier>
+      <CKANVersion>1.5.5.2</CKANVersion>
+      <KSPAssemblyVersion>1.5.5</KSPAssemblyVersion>
+    </ModReference>
+
+    <Reference Include="$(KSPBT_GameRoot)/GameData/000_KSPBurst/Plugins/Unity.*.dll">
+      <Private>false</Private>
+    </Reference>
+    <Reference Include="$(KSPBT_GameRoot)/GameData/000_KSPBurst/Plugins/System.Runtime.CompilerServices.Unsafe.dll">
       <Private>false</Private>
     </Reference>
 
@@ -36,6 +45,9 @@
 
   <ItemGroup>
     <Publicize Include="Assembly-CSharp" />
+    <Publicize Include="UnityEngine.CoreModule:Unity.Profiling.ProfilerMarker.Internal_Begin" />
+    <Publicize Include="UnityEngine.CoreModule:Unity.Profiling.ProfilerMarker.Internal_End" />
+    <Publicize Include="UnityEngine.CoreModule:Unity.Profiling.ProfilerMarker+AutoScope.m_Ptr" />
   </ItemGroup>
 
   <!--
@@ -62,6 +74,16 @@
     <Copy SourceFiles="@(Patches)" DestinationFolder="$(GameDataOutDir)\%(RecursiveDir)" />
   </Target>
 
+  <Target Name="CopyExtrasToPluginFolder" AfterTargets="KSPBT_CopyDLLsToPluginFolder">
+    <ItemGroup>
+      <_ExtrasToCopy Include="$(TargetDir)/**/*.pdb" />
+      <_ExtrasToCopy Include="$(TargetDir)/**/*.xml" />
+    </ItemGroup>
+
+    <Copy SourceFiles="@(_ExtrasToCopy)" DestinationFolder="$(KSPBT_ModRoot)/$(KSPBT_ModPluginFolder)/%(RecursiveDir)" />
+  </Target>
+
+  <!-- 
   <Target Name="GenerateKSPVersionFile" AfterTargets="Build">
     <ReadLinesFromFile File="$(ProjectDir)\$(ProjectName).version">
       <Output TaskParameter="Lines" ItemName="_JSONLines" />
@@ -93,5 +115,5 @@
     </JsonPoke>
     <WriteLinesToFile File="$(GameDataOutDir)\$(ProjectName).version" Lines="$(_JSON)"
       Overwrite="true" />
-  </Target>
+  </Target> -->
 </Project>

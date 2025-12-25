@@ -228,8 +228,6 @@ public unsafe struct BurstQuadBuildData : IDisposable
         if (data is null)
             throw new Exception("malloc returned null");
 
-        UnsafeUtility.MemClear(data, size);
-
         _data = data;
         _vertexCount = vertexCount;
     }
@@ -238,6 +236,15 @@ public unsafe struct BurstQuadBuildData : IDisposable
     {
         UnsafeUtility.Free(_data, Allocator.TempJob);
         _data = null;
+    }
+
+    public void Clear()
+    {
+        if (_data is null)
+            return;
+
+        var size = TotalElemSize * VertexCount;
+        UnsafeUtility.MemClear(_data, size);
     }
 
     #region Access Structs

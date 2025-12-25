@@ -1,6 +1,8 @@
 using System;
 using System.Collections.Generic;
 using System.Runtime.CompilerServices;
+using System.Threading.Tasks;
+using BurstPQS.Async;
 using BurstPQS.Collections;
 using BurstPQS.Patches;
 using BurstPQS.Util;
@@ -15,9 +17,13 @@ using UnityEngine;
 namespace BurstPQS;
 
 [BurstCompile]
-public unsafe class BatchPQS : MonoBehaviour
+public class BatchPQS : MonoBehaviour
 {
     static bool ForceFallback = false;
+    static readonly ProfilerMarker BuildQuadMarker = new("BatchPQS.BuildQuad");
+    static readonly ProfilerMarker BuildQuadAsyncMarker = new("BatchPQS.BuildQuadAsync");
+    static readonly ProfilerMarker UpdateQuadsMarker = new("BatchPQS.UpdateQuads");
+    static readonly ProfilerMarker UpdateQuadsInitMarker = new("BatchPQS.UpdateQuadsInit");
 
     private PQS pqs;
     private BatchPQSMod[] mods;
@@ -46,7 +52,189 @@ public unsafe class BatchPQS : MonoBehaviour
         }
     }
 
-    static readonly ProfilerMarker BuildQuadMarker = new("BatchPQS.BuildQuad");
+    async ValueTask<bool> BuildQuadAsync(PQ quad)
+    {
+        using var scope = BuildQuadAsyncMarker.Auto();
+
+        if (fallback || ForceFallback)
+            return PQS_RevPatch.BuildQuad(pqs, quad);
+
+        if (quad.isBuilt)
+            return false;
+        if (quad.isSubdivided)
+            return false;
+
+        if (quad == null || quad.gameObject == null)
+            return false;
+
+        pqs.buildQuad = quad;
+        // pqs.Mod_OnQuadPreBuild(quad);
+
+        using var data = new QuadBuildData(pqs, PQS.cacheVertCount);
+        using CacheData cache = new(data.VertexCount);
+        using var minmax = new NativeArray<double>(2, Allocator.TempJob);
+
+        var vbData = PQS.vbData;
+        vbData.buildQuad = quad;
+        vbData.allowScatter = true;
+        vbData.gnomonicPlane = quad.plane;
+        quad.meshVertMax = double.MaxValue;
+        quad.meshVertMin = double.MinValue;
+
+        var states = new List<IBatchPQSModState>(mods.Length);
+        using var sguard = new StateDisposer(states);
+        foreach (var mod in mods)
+        {
+            var state = mod.OnQuadPreBuild(data);
+            if (state is not null)
+                states.Add(state);
+        }
+
+        var initJob = new InitBuildDataJob
+        {
+            quadMatrix = quad.quadMatrix,
+            data = data.burst,
+            reqVertexMapCoords = pqs.reqVertexMapCoods,
+            cacheSideVertCount = PQS.cacheSideVertCount,
+            cacheMeshSize = PQS.cacheMeshSize,
+        };
+
+        var handle = initJob.Schedule();
+
+        foreach (var state in states)
+            handle = state.ScheduleBuildHeights(data, handle);
+        foreach (var state in states)
+            handle = state.ScheduleBuildVertices(data, handle);
+
+        var buildJob = new BuildVerticesJob
+        {
+            data = data.burst,
+            cache = cache,
+            minmax = minmax,
+
+            pqsTransform = transform.localToWorldMatrix,
+            inverseQuadTransform = data.buildQuad.transform.worldToLocalMatrix,
+
+            surfaceRelativeQuads = pqs.surfaceRelativeQuads,
+            reqCustomNormals = pqs.reqCustomNormals,
+            reqSphereUV = pqs.reqSphereUV,
+            reqUVQuad = pqs.reqUVQuad,
+            reqUV2 = pqs.reqUV2,
+            reqUV3 = pqs.reqUV3,
+            reqUV4 = pqs.reqUV4,
+
+            uvSW = quad.uvSW,
+            uvDelta = quad.uvDelta,
+            cacheSideVertCount = PQS.cacheSideVertCount,
+
+            radius = pqs.radius,
+            meshVertMax = quad.meshVertMax,
+            meshVertMin = quad.meshVertMin,
+        };
+
+        handle = buildJob.Schedule(handle);
+
+        using (new SuspendProfileScope(scope))
+            await JobSynchronizationContext.WaitForJob(handle);
+
+        CopyGeneratedData(data, cache);
+        pqs.buildQuad = quad;
+        pqs.meshVertMin = minmax[0];
+        pqs.meshVertMax = minmax[1];
+
+        quad.mesh.vertices = quad.verts;
+        quad.mesh.triangles = PQS.cacheIndices[0];
+        quad.mesh.RecalculateBounds();
+        quad.edgeState = PQS.EdgeState.Reset;
+        pqs.Mod_OnMeshBuild();
+        foreach (var state in states)
+            state.OnQuadBuilt(data);
+        pqs.buildQuad = null;
+
+        return true;
+    }
+
+    internal async void UpdateQuadsInit()
+    {
+        using var scope = UpdateQuadsInitMarker.Auto();
+
+        if (fallback || ForceFallback)
+        {
+            PQS_RevPatch.UpdateQuadsInit(pqs);
+            return;
+        }
+
+        pqs.CreateQuads();
+        pqs.isThinking = true;
+        pqs.quadAllowBuild = false;
+
+        int lastQuadCount;
+        for (int iter = 0; iter < 10; iter = ((lastQuadCount >= pqs.quadCount) ? (iter + 1) : 0))
+        {
+            lastQuadCount = pqs.quadCount;
+            for (int num4 = 5; num4 >= 0; num4--)
+                pqs.quads[num4].UpdateSubdivisionInit();
+        }
+
+        pqs.quadAllowBuild = true;
+        var tasks = new ValueTask[6];
+        for (int i = 0; i < 6; ++i)
+            tasks[i] = UpdateSubdivision(pqs.quads[i]);
+        await ValueTask.WhenAll(tasks);
+
+        pqs.isThinking = false;
+    }
+
+    internal async void UpdateQuads()
+    {
+        using var scope = UpdateQuadsMarker.Auto();
+
+        if (fallback || ForceFallback)
+        {
+            PQS_RevPatch.UpdateQuadsInit(pqs);
+            return;
+        }
+
+        if (pqs.quads == null)
+            return;
+
+        pqs.isThinking = true;
+        pqs.maxFrameEnd = Time.realtimeSinceStartup + pqs.maxFrameTime / 2;
+
+        for (int i = 1; i < pqs.quads.Length; ++i)
+        {
+            var quad = pqs.quads[i];
+            var prev = i - 1;
+
+            while (prev >= 0)
+            {
+                if (
+                    (
+                        pqs.relativeTargetPosition - pqs.quads[prev].positionPlanetRelative
+                    ).sqrMagnitude
+                    <= (pqs.relativeTargetPosition - quad.positionPlanetRelative).sqrMagnitude
+                )
+                    break;
+
+                pqs.quads[prev + 1] = pqs.quads[prev];
+                prev--;
+            }
+
+            pqs.quads[prev + 1] = quad;
+        }
+
+        var count = Mathf.Min(pqs.quads.Length, 5);
+        var tasks = new ValueTask[count];
+        for (int i = 0; i < count; ++i)
+            tasks[i] = UpdateSubdivision(pqs.quads[i]);
+
+        await ValueTask.WhenAll(tasks);
+
+        if (pqs.reqCustomNormals)
+            pqs.UpdateEdges();
+
+        pqs.isThinking = false;
+    }
 
     public bool BuildQuad(PQ quad)
     {
@@ -166,7 +354,7 @@ public unsafe class BatchPQS : MonoBehaviour
             CopyTo(PQS.cacheUV4s, cache.cacheUV4s);
     }
 
-    void CopyTo<T>(T[] dst, MemorySpan<T> src)
+    static void CopyTo<T>(T[] dst, MemorySpan<T> src)
         where T : unmanaged
     {
         if (dst.Length != src.Length)
@@ -179,48 +367,485 @@ public unsafe class BatchPQS : MonoBehaviour
         );
     }
 
-    void OnVertexBuildPost(PQS.VertexBuildData data)
+    #region Async Quad Methods
+    async ValueTask BuildAsync(PQ quad)
     {
-        if (pqs.isFakeBuild)
+        if (quad.isBuilt || !quad.isActive || !pqs.quadAllowBuild || quad.isCached)
             return;
 
-        if (pqs.surfaceRelativeQuads)
+        if (quad.isSubdivided)
         {
-            pqs.BuildVertexSurfaceRelative(data);
+            var tasks = new FixedArray4<ValueTask>();
+            for (int i = 0; i < 4; ++i)
+                tasks[i] = BuildAsync(quad.subNodes[i]);
+
+            await ValueTask.WhenAll(tasks);
         }
         else
         {
-            pqs.BuildVertexHeight(data);
-        }
-        if (!pqs.reqCustomNormals)
-        {
-            pqs.BuildVertexSphereNormal(data);
-        }
-        if (pqs.reqColorChannel)
-        {
-            pqs.BuildVertexColor(data);
-        }
-        if (pqs.reqSphereUV)
-        {
-            pqs.BuildVertexSphereUV(data);
-        }
-        if (pqs.reqUVQuad)
-        {
-            pqs.BuildVertexQuadUV(data);
-        }
-        if (pqs.reqUV2)
-        {
-            pqs.BuildVertexUV2(data);
-        }
-        if (pqs.reqUV3)
-        {
-            pqs.BuildVertexUV3(data);
-        }
-        if (pqs.reqUV4)
-        {
-            pqs.BuildVertexUV4(data);
+            quad.isBuilt = await BuildQuadAsync(quad);
+            if (quad.isBuilt)
+                quad.QueueForNormalUpdate();
         }
     }
+
+    async ValueTask UpdateSubdivisionInit(PQ quad)
+    {
+        quad.UpdateSubdivisionInit();
+
+        if (quad.isSubdivided)
+        {
+            if (quad.subdivision > pqs.minLevel)
+            {
+                if (
+                    quad.subdivision > pqs.maxLevel
+                    || quad.gcDist
+                        > pqs.collapseThresholds[quad.subdivision] * quad.subdivideThresholdFactor
+                )
+                {
+                    quad.Collapse();
+                    return;
+                }
+            }
+
+            var tasks = new FixedArray4<ValueTask>();
+            for (int i = 0; i < 4; ++i)
+            {
+                if (quad.subNodes[i])
+                    tasks[i] = UpdateSubdivisionInit(quad.subNodes[i]);
+                else
+                    tasks[i] = ValueTask.CompletedTask;
+            }
+
+            await ValueTask.WhenAll(tasks);
+        }
+        else if (
+            quad.gcDist
+                < pqs.subdivisionThresholds[quad.subdivision] * quad.subdivideThresholdFactor
+            && quad.subdivision < pqs.maxLevel
+        )
+        {
+            await Subdivide(quad);
+        }
+        else
+        {
+            quad.onUpdate?.Invoke(quad);
+        }
+    }
+
+    async ValueTask UpdateSubdivision(PQ quad)
+    {
+        quad.UpdateTargetRelativity();
+        // quad.outOfTime = Time.realtimeSinceStartup > pqs.maxFrameEnd;
+        quad.outOfTime = false;
+
+        var subdivision = quad.subdivision;
+        var sphereRoot = pqs;
+
+        if (quad.isSubdivided)
+        {
+            quad.meshRenderer.enabled = false;
+            bool flag =
+                quad.gcDist > pqs.collapseThresholds[subdivision] * quad.subdivideThresholdFactor;
+
+            if (quad.subdivision <= pqs.maxLevel && (!flag || quad.outOfTime))
+            {
+                if (flag)
+                    quad.isPendingCollapse = true;
+
+                var tasks = new FixedArray4<ValueTask>();
+                for (int i = 0; i < 4; ++i)
+                {
+                    if (quad.subNodes[i])
+                        tasks[i] = UpdateSubdivision(quad.subNodes[i]);
+                    else
+                        tasks[i] = ValueTask.CompletedTask;
+                }
+
+                foreach (var task in tasks)
+                    await task;
+            }
+            else if (!quad.Collapse())
+            {
+                var tasks = new ValueTask[4];
+                for (int i = 0; i < 4; ++i)
+                {
+                    if (quad.subNodes[i])
+                        tasks[i] = UpdateSubdivision(quad.subNodes[i]);
+                    else
+                        tasks[i] = ValueTask.CompletedTask;
+                }
+
+                foreach (var task in tasks)
+                    await task;
+            }
+        }
+        else if (
+            subdivision >= sphereRoot.minLevel
+            && (
+                !(
+                    quad.gcDist
+                    < sphereRoot.subdivisionThresholds[subdivision] * quad.subdivideThresholdFactor
+                )
+                || subdivision >= sphereRoot.maxLevelAtCurrentTgtSpeed
+                || quad.outOfTime
+            )
+        )
+        {
+            await UpdateVisibility(quad);
+        }
+        else
+        {
+            await Subdivide(quad);
+        }
+
+        quad.onUpdate?.Invoke(quad);
+    }
+
+    async ValueTask SetVisible(PQ quad)
+    {
+        if (quad.isVisible)
+            return;
+
+        quad.isVisible = true;
+        if (!quad.isBuilt)
+            await BuildAsync(quad);
+        quad.meshRenderer.enabled = !quad.isForcedInvisible;
+        quad.onVisible?.Invoke(quad);
+    }
+
+    async ValueTask<bool> Subdivide(PQ quad)
+    {
+        var north = quad.north;
+        var south = quad.south;
+        var east = quad.east;
+        var west = quad.west;
+        var subdivision = quad.subdivision;
+        var sphereRoot = pqs;
+        var subNodes = quad.subNodes;
+
+        if (north.subdivision < subdivision)
+            return false;
+        if (east.subdivision < subdivision)
+            return false;
+        if (south.subdivision < subdivision)
+            return false;
+        if (west.subdivision < subdivision)
+            return false;
+
+        if (quad.isSubdivided)
+            return true;
+        if (!quad.isActive)
+            return false;
+
+        for (int i = 0; i < 4; ++i)
+        {
+            if (subNodes[i] != null)
+            {
+                subNodes[i].isActive = true;
+                Debug.Log(quad.subNodes[i].gameObject.name);
+                Debug.Break();
+                continue;
+            }
+
+            PQ subnode = sphereRoot.AssignQuad(subdivision + 1);
+            int num = i % 2;
+            int num2 = i / 2;
+            subnode.scalePlaneRelative = quad.scalePlaneRelative * 0.5;
+            subnode.scalePlanetRelative = sphereRoot.radius * subnode.scalePlaneRelative;
+            subnode.quadRoot = quad.quadRoot ?? quad;
+            subnode.CreateParent = quad;
+            subnode.positionParentRelative =
+                subnode.quadRoot.planeRotation
+                * new Vector3d(
+                    ((double)num - 0.5) * quad.scalePlaneRelative,
+                    0.0,
+                    ((double)num2 - 0.5) * quad.scalePlaneRelative
+                );
+            subnode.positionPlanePosition =
+                quad.positionPlanePosition + subnode.positionParentRelative;
+            subnode.positionPlanetRelative = subnode.positionPlanePosition.normalized;
+            subnode.positionPlanet =
+                subnode.positionPlanetRelative
+                * sphereRoot.GetSurfaceHeight(subnode.positionPlanetRelative);
+            subnode.plane = quad.plane;
+            subnode.sphereRoot = sphereRoot;
+            subnode.subdivision = subdivision + 1;
+            subnode.parent = quad;
+            subnode.Corner = i;
+            subnode.name = base.gameObject.name + i;
+            subnode.gameObject.layer = base.gameObject.layer;
+            sphereRoot.QuadCreated(subnode);
+            quad.subNodes[i] = subnode;
+        }
+
+        subNodes[0].north = subNodes[2];
+        subNodes[0].east = subNodes[1];
+        subNodes[1].north = subNodes[3];
+        subNodes[1].west = subNodes[0];
+        subNodes[2].south = subNodes[0];
+        subNodes[2].east = subNodes[3];
+        subNodes[3].south = subNodes[1];
+        subNodes[3].west = subNodes[2];
+
+        PQ left;
+        PQ right;
+
+        if (north.subdivision == subdivision && north.isSubdivided)
+        {
+            north.GetEdgeQuads(quad, out left, out right);
+            subNodes[2].north = left;
+            subNodes[3].north = right;
+            left.SetNeighbour(quad, subNodes[2]);
+            right.SetNeighbour(quad, subNodes[3]);
+        }
+        else
+        {
+            subNodes[2].north = north;
+            subNodes[3].north = north;
+        }
+
+        if (south.subdivision == subdivision && south.isSubdivided)
+        {
+            south.GetEdgeQuads(quad, out left, out right);
+            subNodes[1].south = left;
+            subNodes[0].south = right;
+            left.SetNeighbour(quad, subNodes[1]);
+            right.SetNeighbour(quad, subNodes[0]);
+        }
+        else
+        {
+            subNodes[1].south = south;
+            subNodes[0].south = south;
+        }
+
+        if (east.subdivision == subdivision && east.isSubdivided)
+        {
+            east.GetEdgeQuads(quad, out left, out right);
+            subNodes[3].east = left;
+            subNodes[1].east = right;
+            left.SetNeighbour(quad, subNodes[3]);
+            right.SetNeighbour(quad, subNodes[1]);
+        }
+        else
+        {
+            subNodes[3].east = east;
+            subNodes[1].east = east;
+        }
+
+        if (west.subdivision == subdivision && west.isSubdivided)
+        {
+            west.GetEdgeQuads(quad, out left, out right);
+            subNodes[0].west = left;
+            subNodes[2].west = right;
+            left.SetNeighbour(quad, subNodes[0]);
+            right.SetNeighbour(quad, subNodes[2]);
+        }
+        else
+        {
+            subNodes[0].west = west;
+            subNodes[2].west = west;
+        }
+
+        if (sphereRoot.reqUVQuad)
+        {
+            Vector2 uvDel;
+            Vector2 uvMidPoint;
+            Vector2 uvMidS;
+            Vector2 uvMidW;
+            var uvSW = quad.uvSW;
+
+            uvDel = quad.uvDelta * 0.5f;
+            uvMidPoint.x = uvSW.x + uvDel.x;
+            uvMidPoint.y = uvSW.y + uvDel.y;
+            uvMidS.x = uvMidPoint.x;
+            uvMidS.y = uvSW.y;
+            uvMidW.x = uvSW.x;
+            uvMidW.y = uvMidPoint.y;
+            subNodes[0].uvSW = uvMidPoint;
+            subNodes[0].uvDelta = uvDel;
+            subNodes[1].uvSW = uvMidW;
+            subNodes[1].uvDelta = uvDel;
+            subNodes[2].uvSW = uvMidS;
+            subNodes[2].uvDelta = uvDel;
+            subNodes[3].uvSW = uvSW;
+            subNodes[3].uvDelta = uvDel;
+        }
+
+        quad.isSubdivided = true;
+        quad.SetInvisible();
+
+        var tasks = new FixedArray4<ValueTask>();
+        for (int i = 0; i < 4; ++i)
+        {
+            if (
+                subNodes[i].north == null
+                || subNodes[i].south == null
+                || subNodes[i].east == null
+                || subNodes[i].west == null
+            )
+            {
+                Debug.Log("Subdivide: " + base.gameObject.name + " " + i);
+                Debug.Break();
+            }
+
+            if (!subNodes[i].isCached)
+                subNodes[i].SetupQuad(quad, (PQ.QuadChild)i);
+
+            if (pqs.quadAllowBuild)
+                tasks[i] = UpdateVisibility(subNodes[i]);
+        }
+
+        if (pqs.quadAllowBuild)
+            await ValueTask.WhenAll(tasks);
+
+        north.QueueForNormalUpdate();
+        south.QueueForNormalUpdate();
+        east.QueueForNormalUpdate();
+        west.QueueForNormalUpdate();
+        PQ rightmostCornerPQ = await GetRightmostCornerPQ(quad, north);
+        if (rightmostCornerPQ != null)
+            rightmostCornerPQ.QueueForCornerNormalUpdate();
+        rightmostCornerPQ = await GetRightmostCornerPQ(quad, west);
+        if (rightmostCornerPQ != null)
+            rightmostCornerPQ.QueueForCornerNormalUpdate();
+        rightmostCornerPQ = await GetRightmostCornerPQ(quad, south);
+        if (rightmostCornerPQ != null)
+            rightmostCornerPQ.QueueForCornerNormalUpdate();
+        rightmostCornerPQ = await GetRightmostCornerPQ(quad, east);
+        if (rightmostCornerPQ != null)
+            rightmostCornerPQ.QueueForCornerNormalUpdate();
+
+        return true;
+    }
+
+    async ValueTask UpdateVisibility(PQ quad)
+    {
+        if (!quad.isSubdivided && quad.gcd1 < pqs.visibleRadius)
+        {
+            await SetVisible(quad);
+            var newEdgeState = quad.GetEdgeState();
+            if (newEdgeState != quad.edgeState)
+            {
+                quad.mesh.triangles = PQS.cacheIndices[(int)newEdgeState];
+                quad.edgeState = newEdgeState;
+                quad.QueueForNormalUpdate();
+            }
+        }
+        else
+        {
+            quad.SetInvisible();
+        }
+    }
+
+    async ValueTask<PQ> GetRightmostCornerPQ(PQ self, PQ nextQuad)
+    {
+        PQ quad = self;
+        if (nextQuad.subdivision < self.subdivision)
+            quad = quad.parent;
+
+        var edge = nextQuad.GetEdge(quad);
+        if (edge == PQS.QuadEdge.Null)
+        {
+            if (
+                !quad.isPendingCollapse
+                && !quad.parent.isPendingCollapse
+                && !nextQuad.isPendingCollapse
+                && !nextQuad.parent.isPendingCollapse
+            )
+                Debug.Log(
+                    $"[PQ] Edge in GetRightmostCornerPQ is null! Caller: {quad} nextQuad: {nextQuad}"
+                );
+
+            return null;
+        }
+
+        var rotatedEdge = PQS.GetEdgeRotatedCounterclockwise(edge);
+        quad = nextQuad.GetSidePQ(rotatedEdge);
+        if (!quad.isBuilt)
+            await BuildAsync(quad);
+        if (quad.isSubdivided)
+            quad.GetEdgeQuads(nextQuad, out _, out quad);
+        if (!quad.isBuilt)
+            await BuildAsync(quad);
+        return quad;
+    }
+    #endregion
+
+    #region BuildNormals
+    delegate void BuildNormalsDelegate(
+        in NativeArray<Vector3> verts,
+        in NativeArray<int> indices,
+        in NativeArray<Vector3> _vertNormals,
+        int cacheTriCount
+    );
+
+    static BuildNormalsDelegate BuildNormalsFp = null;
+
+    public static unsafe void BuildNormals(PQ quad)
+    {
+        BuildNormalsFp ??= BurstCompiler
+            .CompileFunctionPointer<BuildNormalsDelegate>(BuildNormalsBurst)
+            .Invoke;
+
+        fixed (Vector3* verts = quad.verts)
+        fixed (int* indices = PQS.cacheIndices[0])
+        fixed (Vector3* vertNormals = quad.vertNormals)
+        {
+            BuildNormalsFp(
+                NativeArrayUnsafeUtility.ConvertExistingDataToNativeArray<Vector3>(
+                    verts,
+                    quad.verts.Length,
+                    Allocator.Invalid
+                ),
+                NativeArrayUnsafeUtility.ConvertExistingDataToNativeArray<int>(
+                    indices,
+                    PQS.cacheIndices[0].Length,
+                    Allocator.Invalid
+                ),
+                NativeArrayUnsafeUtility.ConvertExistingDataToNativeArray<Vector3>(
+                    vertNormals,
+                    quad.vertNormals.Length,
+                    Allocator.Invalid
+                ),
+                PQS.cacheTriCount
+            );
+        }
+    }
+
+    [BurstCompile(FloatMode = FloatMode.Fast)]
+    static void BuildNormalsBurst(
+        in NativeArray<Vector3> verts,
+        in NativeArray<int> indices,
+        in NativeArray<Vector3> _vertNormals,
+        int cacheTriCount
+    )
+    {
+        var vertNormals = _vertNormals;
+        var triNormals = new NativeArray<Vector3>(cacheTriCount, Allocator.Temp);
+
+        vertNormals.Clear();
+
+        for (int i = 0; i < cacheTriCount; i++)
+        {
+            var ab = verts[indices[i * 3 + 1]] - verts[indices[i * 3]];
+            var ac = verts[indices[i * 3 + 2]] - verts[indices[i * 3]];
+            var normal = Vector3.Cross(ab, ac);
+
+            triNormals[i] = normal.normalized;
+        }
+
+        for (int i = 0; i < cacheTriCount; ++i)
+        {
+            vertNormals[indices[i * 3 + 0]] += triNormals[i];
+            vertNormals[indices[i * 3 + 1]] += triNormals[i];
+            vertNormals[indices[i * 3 + 2]] += triNormals[i];
+        }
+
+        for (int i = 0; i < vertNormals.Length; ++i)
+            vertNormals[i] = vertNormals[i].normalized;
+    }
+    #endregion
 
     #region Jobs
     #region InitBuildData
@@ -235,6 +860,8 @@ public unsafe class BatchPQS : MonoBehaviour
 
         public void Execute()
         {
+            data.Clear();
+
             if (cacheSideVertCount * cacheSideVertCount != data.VertexCount)
             {
                 Debug.LogError("[BurstPQS] CacheVerts length was not equal to data vertex count");
@@ -442,7 +1069,7 @@ public unsafe class BatchPQS : MonoBehaviour
     #endregion
 
 #pragma warning disable IDE1006 // Naming Styles
-    readonly struct CacheData : IDisposable
+    readonly unsafe struct CacheData : IDisposable
     {
         readonly int _vertexCount;
 
