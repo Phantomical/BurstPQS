@@ -13,13 +13,14 @@ using Unity.Jobs;
 using Unity.Mathematics;
 using Unity.Profiling;
 using UnityEngine;
+using static PQS;
 
 namespace BurstPQS;
 
 [BurstCompile]
 public class BatchPQS : MonoBehaviour
 {
-    static bool ForceFallback = false;
+    static bool ForceFallback = true;
     static readonly ProfilerMarker BuildQuadMarker = new("BatchPQS.BuildQuad");
     static readonly ProfilerMarker BuildQuadAsyncMarker = new("BatchPQS.BuildQuadAsync");
     static readonly ProfilerMarker UpdateQuadsMarker = new("BatchPQS.UpdateQuads");
@@ -191,7 +192,7 @@ public class BatchPQS : MonoBehaviour
 
         if (fallback || ForceFallback)
         {
-            PQS_RevPatch.UpdateQuadsInit(pqs);
+            PQS_RevPatch.UpdateQuads(pqs);
             return;
         }
 
@@ -199,7 +200,7 @@ public class BatchPQS : MonoBehaviour
             return;
 
         pqs.isThinking = true;
-        pqs.maxFrameEnd = Time.realtimeSinceStartup + pqs.maxFrameTime / 2;
+        pqs.maxFrameEnd = Time.realtimeSinceStartup + pqs.maxFrameTime / 3;
 
         for (int i = 1; i < pqs.quads.Length; ++i)
         {
@@ -231,7 +232,7 @@ public class BatchPQS : MonoBehaviour
         await ValueTask.WhenAll(tasks);
 
         if (pqs.reqCustomNormals)
-            pqs.UpdateEdges();
+            await UpdateEdges();
 
         pqs.isThinking = false;
     }
@@ -436,8 +437,8 @@ public class BatchPQS : MonoBehaviour
     async ValueTask UpdateSubdivision(PQ quad)
     {
         quad.UpdateTargetRelativity();
-        // quad.outOfTime = Time.realtimeSinceStartup > pqs.maxFrameEnd;
-        quad.outOfTime = false;
+        quad.outOfTime = Time.realtimeSinceStartup > pqs.maxFrameEnd;
+        // quad.outOfTime = false;
 
         var subdivision = quad.subdivision;
         var sphereRoot = pqs;
@@ -467,7 +468,7 @@ public class BatchPQS : MonoBehaviour
             }
             else if (!quad.Collapse())
             {
-                var tasks = new ValueTask[4];
+                var tasks = new FixedArray4<ValueTask>();
                 for (int i = 0; i < 4; ++i)
                 {
                     if (quad.subNodes[i])
@@ -500,6 +501,695 @@ public class BatchPQS : MonoBehaviour
         }
 
         quad.onUpdate?.Invoke(quad);
+    }
+
+    async ValueTask UpdateEdges()
+    {
+        var cache = new Dictionary<PQ, ValueTask>();
+        var tasks = new Queue<ValueTask>();
+
+        while (true)
+        {
+            int count;
+            while ((count = pqs.normalUpdateList.Count) > 0)
+            {
+                count -= 1;
+                var quad = pqs.normalUpdateList[count];
+                pqs.normalUpdateList.RemoveAt(count);
+
+                if (quad == null)
+                    continue;
+
+                if (quad.isSubdivided && quad.isVisible)
+                    tasks.Enqueue(UpdateEdgeNormals(quad, cache));
+            }
+
+            if (!tasks.TryDequeue(out var task))
+                break;
+
+            await task;
+        }
+    }
+
+    async ValueTask UpdateEdgeNormalsWrap(PQ q, Dictionary<PQ, ValueTask> cache)
+    {
+        await UpdateEdgeNormals(q, cache);
+        q.isQueuedForNormalUpdate = false;
+        q.isQueuedOnlyForCornerNormalUpdate = false;
+    }
+
+    async ValueTask UpdateEdgeNormals(PQ q, Dictionary<PQ, ValueTask> cache)
+    {
+        if (
+            q == null
+            || !q.isActive
+            || (q.parent != null && !q.parent.isSubdivided)
+            || q.parent == null
+        )
+            return;
+
+        if (!q.isBuilt)
+        {
+            if (!cache.TryGetValue(q, out var task))
+                return;
+
+            await task;
+        }
+
+        bool updateEdgeNormals = !q.isQueuedOnlyForCornerNormalUpdate;
+        Vector3 vector = q.edgeNormals[0][0];
+        Vector3 vector2 = q.edgeNormals[0][cacheRes];
+        Vector3 vector3 = q.edgeNormals[1][0];
+        Vector3 vector4 = q.edgeNormals[1][cacheRes];
+        Vector3 zero;
+        bool flag2 = false;
+        bool flag3 = false;
+        bool flag4 = false;
+        bool flag5 = false;
+
+        if (q.north.subdivision == q.subdivision)
+        {
+            if (q.north.isSubdivided)
+            {
+                q.north.GetEdgeQuads(q, out var left, out var right);
+                if (left != null && right != null)
+                {
+                    var leftEdge = left.GetEdge(q);
+                    var rightEdge = right.GetEdge(q);
+                    if (leftEdge == QuadEdge.Null || rightEdge == QuadEdge.Null)
+                        return;
+
+                    await ValueTask.WhenAll(
+                        BuildAsyncCached(left, cache),
+                        BuildAsyncCached(right, cache)
+                    );
+
+                    zero = q.edgeNormals[0][cacheResDiv2];
+                    if (right.isBuilt)
+                    {
+                        if (updateEdgeNormals)
+                        {
+                            pqs.CombineEdgeNormals(
+                                q,
+                                cacheResDiv2Plus1,
+                                vi(0, 0),
+                                1,
+                                q.edgeNormals[0],
+                                0,
+                                1,
+                                right.edgeNormals[(int)rightEdge],
+                                cacheRes,
+                                -2
+                            );
+                        }
+                        vector += right.edgeNormals[(int)rightEdge][cacheRes];
+                        zero += right.edgeNormals[(int)rightEdge][0];
+                    }
+                    if (left.isBuilt)
+                    {
+                        if (updateEdgeNormals)
+                        {
+                            pqs.CombineEdgeNormals(
+                                q,
+                                cacheResDiv2Plus1,
+                                vi(cacheResDiv2, 0),
+                                1,
+                                q.edgeNormals[0],
+                                cacheResDiv2,
+                                1,
+                                left.edgeNormals[(int)leftEdge],
+                                cacheRes,
+                                -2
+                            );
+                        }
+                        vector2 += left.edgeNormals[(int)leftEdge][0];
+                        zero += left.edgeNormals[(int)leftEdge][cacheRes];
+                    }
+                    q.vertNormals[vi(cacheResDiv2, 0)] = zero.normalized;
+                }
+            }
+            else
+            {
+                var leftEdge = q.north.GetEdge(q);
+                if (leftEdge == QuadEdge.Null)
+                    return;
+
+                if (!q.north.isBuilt)
+                    await BuildAsyncCached(q.north, cache);
+
+                if (q.north.isBuilt)
+                {
+                    if (updateEdgeNormals)
+                    {
+                        pqs.CombineEdgeNormals(
+                            q,
+                            cacheSideVertCount,
+                            vi(0, 0),
+                            1,
+                            q.edgeNormals[0],
+                            0,
+                            1,
+                            q.north.edgeNormals[(int)leftEdge],
+                            cacheRes,
+                            -1
+                        );
+                    }
+                    vector += q.north.edgeNormals[(int)leftEdge][cacheRes];
+                    vector2 += q.north.edgeNormals[(int)leftEdge][0];
+                }
+            }
+        }
+        else if (q.north.subdivision < q.subdivision)
+        {
+            q.parent.GetEdgeQuads(q.north, out var left, out var right);
+            var leftEdge = q.north.GetEdge(q.parent);
+            if (leftEdge == QuadEdge.Null)
+                return;
+
+            if (!q.north.isBuilt)
+                await BuildAsyncCached(q.north, cache);
+
+            if (q.north.isBuilt)
+            {
+                if (left == q)
+                {
+                    if (updateEdgeNormals)
+                    {
+                        pqs.CombineEdgeNormals(
+                            q,
+                            cacheResDiv2Plus1,
+                            vi(0, 0),
+                            2,
+                            q.edgeNormals[0],
+                            0,
+                            2,
+                            q.north.edgeNormals[(int)leftEdge],
+                            cacheRes,
+                            -1
+                        );
+                    }
+                    vector += q.north.edgeNormals[(int)leftEdge][cacheRes];
+                    vector2 += q.north.edgeNormals[(int)leftEdge][cacheResDiv2];
+                    flag3 = true;
+                }
+                else if (right == q)
+                {
+                    if (updateEdgeNormals)
+                    {
+                        pqs.CombineEdgeNormals(
+                            q,
+                            cacheResDiv2Plus1,
+                            vi(0, 0),
+                            2,
+                            q.edgeNormals[0],
+                            0,
+                            2,
+                            q.north.edgeNormals[(int)leftEdge],
+                            cacheResDiv2,
+                            -1
+                        );
+                    }
+                    vector += q.north.edgeNormals[(int)leftEdge][cacheResDiv2];
+                    vector2 += q.north.edgeNormals[(int)leftEdge][0];
+                    flag2 = true;
+                }
+            }
+        }
+
+        if (q.south.subdivision == q.subdivision)
+        {
+            if (q.south.isSubdivided)
+            {
+                q.south.GetEdgeQuads(q, out var left, out var right);
+                if (left != null && right != null)
+                {
+                    var leftEdge = left.GetEdge(q);
+                    var rightEdge = right.GetEdge(q);
+                    if (leftEdge == QuadEdge.Null || rightEdge == QuadEdge.Null)
+                        return;
+
+                    await ValueTask.WhenAll(
+                        BuildAsyncCached(left, cache),
+                        BuildAsyncCached(right, cache)
+                    );
+
+                    zero = q.edgeNormals[1][cacheResDiv2];
+                    if (right.isBuilt)
+                    {
+                        if (updateEdgeNormals)
+                        {
+                            pqs.CombineEdgeNormals(
+                                q,
+                                cacheResDiv2Plus1,
+                                vi(cacheRes, cacheRes),
+                                -1,
+                                q.edgeNormals[1],
+                                0,
+                                1,
+                                right.edgeNormals[(int)rightEdge],
+                                cacheRes,
+                                -2
+                            );
+                        }
+                        vector3 += right.edgeNormals[(int)rightEdge][cacheRes];
+                        zero += right.edgeNormals[(int)rightEdge][0];
+                    }
+                    if (left.isBuilt)
+                    {
+                        if (updateEdgeNormals)
+                        {
+                            pqs.CombineEdgeNormals(
+                                q,
+                                cacheResDiv2Plus1,
+                                vi(cacheResDiv2, cacheRes),
+                                -1,
+                                q.edgeNormals[1],
+                                cacheResDiv2,
+                                1,
+                                left.edgeNormals[(int)leftEdge],
+                                cacheRes,
+                                -2
+                            );
+                        }
+                        vector4 += left.edgeNormals[(int)leftEdge][0];
+                        zero += left.edgeNormals[(int)leftEdge][cacheRes];
+                    }
+                    q.vertNormals[vi(cacheResDiv2, cacheRes)] = zero.normalized;
+                }
+            }
+            else
+            {
+                var leftEdge = q.south.GetEdge(q);
+                if (leftEdge == QuadEdge.Null)
+                    return;
+
+                if (!q.south.isBuilt)
+                    await BuildAsyncCached(q.south, cache);
+
+                if (q.south.isBuilt)
+                {
+                    if (updateEdgeNormals)
+                    {
+                        pqs.CombineEdgeNormals(
+                            q,
+                            cacheSideVertCount,
+                            vi(cacheRes, cacheRes),
+                            -1,
+                            q.edgeNormals[1],
+                            0,
+                            1,
+                            q.south.edgeNormals[(int)leftEdge],
+                            cacheRes,
+                            -1
+                        );
+                    }
+                    vector3 += q.south.edgeNormals[(int)leftEdge][cacheRes];
+                    vector4 += q.south.edgeNormals[(int)leftEdge][0];
+                }
+            }
+        }
+        else if (q.south.subdivision < q.subdivision)
+        {
+            q.parent.GetEdgeQuads(q.south, out var left, out var right);
+            var leftEdge = q.south.GetEdge(q.parent);
+            if (leftEdge == QuadEdge.Null)
+                return;
+
+            if (!q.south.isBuilt)
+                await BuildAsyncCached(q.south, cache);
+
+            if (q.south.isBuilt)
+            {
+                if (left == q)
+                {
+                    if (updateEdgeNormals)
+                    {
+                        pqs.CombineEdgeNormals(
+                            q,
+                            cacheResDiv2Plus1,
+                            vi(cacheRes, cacheRes),
+                            -2,
+                            q.edgeNormals[1],
+                            0,
+                            2,
+                            q.south.edgeNormals[(int)leftEdge],
+                            cacheRes,
+                            -1
+                        );
+                    }
+                    vector3 += q.south.edgeNormals[(int)leftEdge][cacheRes];
+                    vector4 += q.south.edgeNormals[(int)leftEdge][cacheResDiv2];
+                    flag5 = true;
+                }
+                else if (right == q)
+                {
+                    if (updateEdgeNormals)
+                    {
+                        pqs.CombineEdgeNormals(
+                            q,
+                            cacheResDiv2Plus1,
+                            vi(cacheRes, cacheRes),
+                            -2,
+                            q.edgeNormals[1],
+                            0,
+                            2,
+                            q.south.edgeNormals[(int)leftEdge],
+                            cacheResDiv2,
+                            -1
+                        );
+                    }
+                    vector3 += q.south.edgeNormals[(int)leftEdge][cacheResDiv2];
+                    vector4 += q.south.edgeNormals[(int)leftEdge][0];
+                    flag4 = true;
+                }
+            }
+        }
+
+        if (q.east.subdivision == q.subdivision)
+        {
+            if (q.east.isSubdivided)
+            {
+                q.east.GetEdgeQuads(q, out var left, out var right);
+                if (left != null && right != null)
+                {
+                    var leftEdge = left.GetEdge(q);
+                    var rightEdge = right.GetEdge(q);
+                    if (leftEdge == QuadEdge.Null || rightEdge == QuadEdge.Null)
+                        return;
+
+                    await ValueTask.WhenAll(
+                        BuildAsyncCached(left, cache),
+                        BuildAsyncCached(right, cache)
+                    );
+
+                    zero = q.edgeNormals[2][cacheResDiv2];
+                    if (right.isBuilt)
+                    {
+                        if (updateEdgeNormals)
+                        {
+                            pqs.CombineEdgeNormals(
+                                q,
+                                cacheResDiv2Plus1,
+                                vi(0, cacheRes),
+                                -cacheSideVertCount,
+                                q.edgeNormals[2],
+                                0,
+                                1,
+                                right.edgeNormals[(int)rightEdge],
+                                cacheRes,
+                                -2
+                            );
+                        }
+                        vector4 += right.edgeNormals[(int)rightEdge][cacheRes];
+                        zero += right.edgeNormals[(int)rightEdge][0];
+                    }
+                    if (left.isBuilt)
+                    {
+                        if (updateEdgeNormals)
+                        {
+                            pqs.CombineEdgeNormals(
+                                q,
+                                cacheResDiv2Plus1,
+                                vi(0, cacheResDiv2),
+                                -cacheSideVertCount,
+                                q.edgeNormals[2],
+                                cacheResDiv2,
+                                1,
+                                left.edgeNormals[(int)leftEdge],
+                                cacheRes,
+                                -2
+                            );
+                        }
+                        vector += left.edgeNormals[(int)leftEdge][0];
+                        zero += left.edgeNormals[(int)leftEdge][cacheRes];
+                    }
+                    q.vertNormals[vi(0, cacheResDiv2)] = zero.normalized;
+                }
+            }
+            else
+            {
+                var leftEdge = q.east.GetEdge(q);
+                if (leftEdge == QuadEdge.Null)
+                    return;
+                if (!q.east.isBuilt)
+                    await BuildAsyncCached(q.east, cache);
+
+                if (q.east.isBuilt)
+                {
+                    if (updateEdgeNormals)
+                    {
+                        pqs.CombineEdgeNormals(
+                            q,
+                            cacheSideVertCount,
+                            vi(0, cacheRes),
+                            -cacheSideVertCount,
+                            q.edgeNormals[2],
+                            0,
+                            1,
+                            q.east.edgeNormals[(int)leftEdge],
+                            cacheRes,
+                            -1
+                        );
+                    }
+                    vector += q.east.edgeNormals[(int)leftEdge][0];
+                    vector4 += q.east.edgeNormals[(int)leftEdge][cacheRes];
+                }
+            }
+        }
+        else if (q.east.subdivision < q.subdivision)
+        {
+            q.parent.GetEdgeQuads(q.east, out var left, out var right);
+            var leftEdge = q.east.GetEdge(q.parent);
+            if (leftEdge == QuadEdge.Null)
+                return;
+
+            if (!q.east.isBuilt)
+                await BuildAsyncCached(q.east, cache);
+
+            if (q.east.isBuilt)
+            {
+                if (right == q)
+                {
+                    if (updateEdgeNormals)
+                    {
+                        pqs.CombineEdgeNormals(
+                            q,
+                            cacheResDiv2Plus1,
+                            vi(0, cacheRes),
+                            -(cacheSideVertCount * 2),
+                            q.edgeNormals[2],
+                            0,
+                            2,
+                            q.east.edgeNormals[(int)leftEdge],
+                            cacheResDiv2,
+                            -1
+                        );
+                    }
+                    vector += q.east.edgeNormals[(int)leftEdge][0];
+                    vector4 += q.east.edgeNormals[(int)leftEdge][cacheResDiv2];
+                    flag5 = true;
+                }
+                else if (left == q)
+                {
+                    if (updateEdgeNormals)
+                    {
+                        pqs.CombineEdgeNormals(
+                            q,
+                            cacheResDiv2Plus1,
+                            vi(0, cacheRes),
+                            -(cacheSideVertCount * 2),
+                            q.edgeNormals[2],
+                            0,
+                            2,
+                            q.east.edgeNormals[(int)leftEdge],
+                            cacheRes,
+                            -1
+                        );
+                    }
+                    vector += q.east.edgeNormals[(int)leftEdge][cacheResDiv2];
+                    vector4 += q.east.edgeNormals[(int)leftEdge][cacheRes];
+                    flag2 = true;
+                }
+            }
+        }
+
+        if (q.west.subdivision == q.subdivision)
+        {
+            if (q.west.isSubdivided)
+            {
+                q.west.GetEdgeQuads(q, out var left, out var right);
+                if (left != null && right != null)
+                {
+                    var leftEdge = left.GetEdge(q);
+                    var rightEdge = right.GetEdge(q);
+                    if (leftEdge == QuadEdge.Null || rightEdge == QuadEdge.Null)
+                        return;
+
+                    await ValueTask.WhenAll(
+                        BuildAsyncCached(left, cache),
+                        BuildAsyncCached(right, cache)
+                    );
+
+                    zero = q.edgeNormals[3][cacheResDiv2];
+                    if (right.isBuilt)
+                    {
+                        if (updateEdgeNormals)
+                        {
+                            pqs.CombineEdgeNormals(
+                                q,
+                                cacheResDiv2Plus1,
+                                vi(cacheRes, 0),
+                                cacheSideVertCount,
+                                q.edgeNormals[3],
+                                0,
+                                1,
+                                right.edgeNormals[(int)rightEdge],
+                                cacheRes,
+                                -2
+                            );
+                        }
+                        vector2 += right.edgeNormals[(int)rightEdge][cacheRes];
+                        zero += right.edgeNormals[(int)rightEdge][0];
+                    }
+
+                    if (left.isBuilt)
+                    {
+                        if (updateEdgeNormals)
+                        {
+                            pqs.CombineEdgeNormals(
+                                q,
+                                cacheResDiv2Plus1,
+                                vi(cacheRes, cacheResDiv2),
+                                cacheSideVertCount,
+                                q.edgeNormals[3],
+                                cacheResDiv2,
+                                1,
+                                left.edgeNormals[(int)leftEdge],
+                                cacheRes,
+                                -2
+                            );
+                        }
+                        vector3 += left.edgeNormals[(int)leftEdge][0];
+                        zero += left.edgeNormals[(int)leftEdge][cacheRes];
+                    }
+                    q.vertNormals[vi(cacheRes, cacheResDiv2)] = zero.normalized;
+                }
+            }
+            else
+            {
+                var leftEdge = q.west.GetEdge(q);
+                if (leftEdge == QuadEdge.Null)
+                    return;
+
+                if (!q.west.isBuilt)
+                    await BuildAsyncCached(q.west, cache);
+
+                if (q.west.isBuilt)
+                {
+                    if (updateEdgeNormals)
+                    {
+                        pqs.CombineEdgeNormals(
+                            q,
+                            cacheSideVertCount,
+                            vi(cacheRes, 0),
+                            cacheSideVertCount,
+                            q.edgeNormals[3],
+                            0,
+                            1,
+                            q.west.edgeNormals[(int)leftEdge],
+                            cacheRes,
+                            -1
+                        );
+                    }
+                    vector2 += q.west.edgeNormals[(int)leftEdge][cacheRes];
+                    vector3 += q.west.edgeNormals[(int)leftEdge][0];
+                }
+            }
+        }
+        else if (q.west.subdivision < q.subdivision)
+        {
+            q.parent.GetEdgeQuads(q.west, out var left, out var right);
+            var leftEdge = q.west.GetEdge(q.parent);
+            if (!q.west.isBuilt)
+                await BuildAsyncCached(q.west, cache);
+
+            if (q.west.isBuilt)
+            {
+                if (left == q)
+                {
+                    if (updateEdgeNormals)
+                    {
+                        pqs.CombineEdgeNormals(
+                            q,
+                            cacheResDiv2Plus1,
+                            vi(cacheRes, 0),
+                            cacheSideVertCount * 2,
+                            q.edgeNormals[3],
+                            0,
+                            2,
+                            q.west.edgeNormals[(int)leftEdge],
+                            cacheRes,
+                            -1
+                        );
+                    }
+                    vector2 += q.west.edgeNormals[(int)leftEdge][cacheRes];
+                    vector3 += q.west.edgeNormals[(int)leftEdge][cacheResDiv2];
+                    flag4 = true;
+                }
+                else if (right == q)
+                {
+                    if (updateEdgeNormals)
+                    {
+                        pqs.CombineEdgeNormals(
+                            q,
+                            cacheResDiv2Plus1,
+                            vi(cacheRes, 0),
+                            cacheSideVertCount * 2,
+                            q.edgeNormals[3],
+                            0,
+                            2,
+                            q.west.edgeNormals[(int)leftEdge],
+                            cacheResDiv2,
+                            -1
+                        );
+                    }
+                    vector2 += q.west.edgeNormals[(int)leftEdge][cacheResDiv2];
+                    vector3 += q.west.edgeNormals[(int)leftEdge][0];
+                    flag3 = true;
+                }
+            }
+        }
+
+        if (!flag2)
+            vector += pqs.GetRightmostCornerNormal(q, q.north);
+        if (!flag3)
+            vector2 += pqs.GetRightmostCornerNormal(q, q.west);
+        if (!flag4)
+            vector3 += pqs.GetRightmostCornerNormal(q, q.south);
+        if (!flag5)
+            vector4 += pqs.GetRightmostCornerNormal(q, q.east);
+
+        q.vertNormals[vi(0, 0)] = vector.normalized;
+        q.vertNormals[vi(cacheRes, 0)] = vector2.normalized;
+        q.vertNormals[vi(cacheRes, cacheRes)] = vector3.normalized;
+        q.vertNormals[vi(0, cacheRes)] = vector4.normalized;
+        q.mesh.normals = q.vertNormals;
+        pqs.Mod_OnQuadUpdateNormals(q);
+        if (pqs.reqBuildTangents)
+        {
+            BuildTangents(q);
+        }
+    }
+
+    ValueTask BuildAsyncCached(PQ quad, Dictionary<PQ, ValueTask> cache)
+    {
+        if (quad.isBuilt)
+            return ValueTask.CompletedTask;
+        if (cache.TryGetValue(quad, out var task))
+            return task;
+        task = BuildAsync(quad);
+        cache.Add(quad, task);
+        return task;
     }
 
     async ValueTask SetVisible(PQ quad)

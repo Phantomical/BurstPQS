@@ -12,19 +12,25 @@ public class VertexRidgedAltitudeCurve(PQSMod_VertexRidgedAltitudeCurve mod)
     : BatchPQSMod<PQSMod_VertexRidgedAltitudeCurve>(mod),
         IBatchPQSModState
 {
+    BurstAnimationCurve simplexCurve = new(mod.simplexCurve);
+
     public override IBatchPQSModState OnQuadPreBuild(QuadBuildData data) => this;
+
+    public override void Dispose()
+    {
+        simplexCurve.Dispose();
+    }
 
     public JobHandle ScheduleBuildHeights(QuadBuildData data, JobHandle handle)
     {
         var bsimplex = new BurstSimplex(mod.simplex);
-        var bsimplexCurve = new BurstAnimationCurve(mod.simplexCurve);
 
         var job = new BuildHeightsJob
         {
             data = data.burst,
             simplex = bsimplex,
             ridgedAdd = new(mod.ridgedAdd),
-            simplexCurve = bsimplexCurve,
+            simplexCurve = simplexCurve,
             simplexHeightStart = mod.simplexHeightStart,
             radiusMin = mod.sphere != null ? mod.sphere.radiusMax : mod.ridgedMinimum,
             hDeltaR = mod.hDeltaR,
@@ -33,7 +39,6 @@ public class VertexRidgedAltitudeCurve(PQSMod_VertexRidgedAltitudeCurve mod)
         };
         handle = job.Schedule(handle);
         bsimplex.Dispose(handle);
-        bsimplexCurve.Dispose(handle);
 
         return handle;
     }

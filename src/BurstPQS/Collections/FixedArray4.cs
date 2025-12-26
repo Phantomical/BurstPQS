@@ -10,10 +10,10 @@ namespace BurstPQS.Collections;
 [StructLayout(LayoutKind.Sequential)]
 public struct FixedArray4<T> : IEnumerable<T>
 {
-    T v0;
-    T v1;
-    T v2;
-    T v3;
+    public T v0;
+    public T v1;
+    public T v2;
+    public T v3;
 
     public readonly int Length => 4;
 

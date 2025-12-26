@@ -11,10 +11,16 @@ public class VertexHeightNoiseVertHeightCurve2(PQSMod_VertexHeightNoiseVertHeigh
     : BatchPQSMod<PQSMod_VertexHeightNoiseVertHeightCurve2>(mod),
         IBatchPQSModState
 {
+    BurstAnimationCurve simplexCurve = new(mod.simplexCurve);
+
+    public override void Dispose()
+    {
+        simplexCurve.Dispose();
+    }
+
     public JobHandle ScheduleBuildHeights(QuadBuildData data, JobHandle handle)
     {
         var bsimplex = new BurstSimplex(mod.simplex);
-        var bcurve = new BurstAnimationCurve(mod.simplexCurve);
 
         var job = new BuildHeightsJob
         {
@@ -22,7 +28,7 @@ public class VertexHeightNoiseVertHeightCurve2(PQSMod_VertexHeightNoiseVertHeigh
             ridgedAdd = new(mod.ridgedAdd),
             ridgedSub = new(mod.ridgedSub),
             simplex = bsimplex,
-            simplexCurve = bcurve,
+            simplexCurve = simplexCurve,
             simplexHeightStart = mod.simplexHeightStart,
             simplexHeightEnd = mod.simplexHeightEnd,
             deformity = mod.deformity,
@@ -31,7 +37,6 @@ public class VertexHeightNoiseVertHeightCurve2(PQSMod_VertexHeightNoiseVertHeigh
 
         handle = job.Schedule(handle);
         bsimplex.Dispose(handle);
-        bcurve.Dispose(handle);
 
         return handle;
     }

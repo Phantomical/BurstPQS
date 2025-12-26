@@ -1,4 +1,5 @@
 using System;
+using System.Threading;
 using BurstPQS.Async;
 using HarmonyLib;
 
@@ -40,6 +41,7 @@ internal static class PQS_UpdateQuadsInit_Patch
         if (batchPQS is null)
             return true;
 
+        using (ExecutionContext.SuppressFlow())
         using (JobSynchronizationContext.Enter())
             batchPQS.UpdateQuadsInit();
         return false;
@@ -56,6 +58,7 @@ internal static class PQS_UpdateQuads_Patch
         if (batchPQS is null)
             return true;
 
+        using (ExecutionContext.SuppressFlow())
         using (JobSynchronizationContext.Enter())
             batchPQS.UpdateQuads();
         return false;
@@ -83,4 +86,8 @@ internal static class PQS_RevPatch
     [HarmonyReversePatch(HarmonyReversePatchType.Snapshot)]
     [HarmonyPatch(typeof(PQS), nameof(PQS.UpdateQuadsInit))]
     public static void UpdateQuadsInit(PQS pqs) => throw new NotImplementedException();
+
+    [HarmonyReversePatch(HarmonyReversePatchType.Snapshot)]
+    [HarmonyPatch(typeof(PQS), nameof(PQS.UpdateQuads))]
+    public static void UpdateQuads(PQS pqs) => throw new NotImplementedException();
 }

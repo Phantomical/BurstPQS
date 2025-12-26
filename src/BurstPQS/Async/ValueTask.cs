@@ -10,7 +10,11 @@ internal readonly struct ValueTask : IEquatable<ValueTask>
 {
     readonly Task _task;
 
-    public bool IsCompleted => _task?.IsCompleted ?? true;
+    public bool IsCompleted
+    {
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        get => _task?.IsCompleted ?? true;
+    }
     public bool IsCompletedSuccessfully
     {
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
@@ -22,10 +26,24 @@ internal readonly struct ValueTask : IEquatable<ValueTask>
             return _task.Status == TaskStatus.RanToCompletion;
         }
     }
-    public bool IsFaulted => _task?.IsFaulted ?? false;
-    public bool IsCanceled => _task?.IsCanceled ?? false;
+    public bool IsFaulted
+    {
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        get => _task?.IsFaulted ?? false;
+    }
+    public bool IsCanceled
+    {
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        get => _task?.IsCanceled ?? false;
+    }
 
-    public static ValueTask CompletedTask => default;
+    public TaskStatus Status => _task?.Status ?? TaskStatus.RanToCompletion;
+
+    public static ValueTask CompletedTask
+    {
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        get => default;
+    }
 
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
     public ValueTask() { }
@@ -49,31 +67,73 @@ internal readonly struct ValueTask : IEquatable<ValueTask>
         return false;
     }
 
+    [MethodImpl(MethodImplOptions.AggressiveInlining)]
     public bool Equals(ValueTask other) => _task == other._task;
 
+    [MethodImpl(MethodImplOptions.AggressiveInlining)]
     public static bool operator ==(ValueTask lhs, ValueTask rhs) => lhs.Equals(rhs);
 
+    [MethodImpl(MethodImplOptions.AggressiveInlining)]
     public static bool operator !=(ValueTask lhs, ValueTask rhs) => !lhs.Equals(rhs);
 
+    [MethodImpl(MethodImplOptions.AggressiveInlining)]
     public Task AsTask() => _task ?? Task.CompletedTask;
 
+    [MethodImpl(MethodImplOptions.AggressiveInlining)]
     public ValueTaskAwaiter GetAwaiter() => new(this);
 
+    [MethodImpl(MethodImplOptions.AggressiveInlining)]
     public static AsyncValueTaskMethodBuilder CreateAsyncMethodBuilder() =>
         AsyncValueTaskMethodBuilder.Create();
 
-    internal static async ValueTask WhenAll(FixedArray4<ValueTask> tasks)
-    {
-        await tasks[0];
-        await tasks[1];
-        await tasks[2];
-        await tasks[3];
-    }
+    internal static ValueTask WhenAll(FixedArray4<ValueTask> tasks) =>
+        WhenAll(tasks.v0, tasks.v1, tasks.v2, tasks.v3);
 
-    internal static async ValueTask WhenAll(ValueTask[] tasks)
+    internal static ValueTask WhenAll(params Span<ValueTask> tasks)
     {
-        foreach (var task in tasks)
-            await task;
+        int count = 0;
+        for (int i = 0; i < tasks.Length; ++i)
+        {
+            ref var task = ref tasks[i];
+
+            switch (task.Status)
+            {
+                case TaskStatus.RanToCompletion:
+                    break;
+
+                case TaskStatus.Canceled:
+                case TaskStatus.Faulted:
+                    task.GetAwaiter().GetResult();
+                    break;
+
+                default:
+                    count += 1;
+                    break;
+            }
+        }
+
+        if (count == 0)
+            return CompletedTask;
+
+        var array = new Task[count];
+        for (int j = 0, i = 0; i < tasks.Length; ++i)
+        {
+            ref var task = ref tasks[i];
+
+            switch (task.Status)
+            {
+                case TaskStatus.RanToCompletion:
+                case TaskStatus.Canceled:
+                case TaskStatus.Faulted:
+                    break;
+
+                default:
+                    array[j++] = task.AsTask();
+                    break;
+            }
+        }
+
+        return new(Task.WhenAll(array));
     }
 
     private static void ThrowTaskNullException() => throw new ArgumentNullException("task");
@@ -83,10 +143,16 @@ internal readonly struct ValueTaskAwaiter : INotifyCompletion, ICriticalNotifyCo
 {
     private readonly ValueTask _value;
 
-    public bool IsCompleted => _value.IsCompleted;
+    public bool IsCompleted
+    {
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        get => _value.IsCompleted;
+    }
 
+    [MethodImpl(MethodImplOptions.AggressiveInlining)]
     internal ValueTaskAwaiter(ValueTask value) => _value = value;
 
+    [MethodImpl(MethodImplOptions.AggressiveInlining)]
     public void GetResult()
     {
         if (_value.IsCompletedSuccessfully)
@@ -159,6 +225,7 @@ internal struct AsyncValueTaskMethodBuilder
     public void SetStateMachine(IAsyncStateMachine stateMachine) =>
         _methodBuilder.SetStateMachine(stateMachine);
 
+    [MethodImpl(MethodImplOptions.AggressiveInlining)]
     public void SetResult()
     {
         if (_useBuilder)
@@ -167,8 +234,10 @@ internal struct AsyncValueTaskMethodBuilder
             _haveResult = true;
     }
 
+    [MethodImpl(MethodImplOptions.AggressiveInlining)]
     public void SetException(Exception exception) => _methodBuilder.SetException(exception);
 
+    [MethodImpl(MethodImplOptions.AggressiveInlining)]
     public void AwaitOnCompleted<TAwaiter, TStateMachine>(
         ref TAwaiter awaiter,
         ref TStateMachine stateMachine

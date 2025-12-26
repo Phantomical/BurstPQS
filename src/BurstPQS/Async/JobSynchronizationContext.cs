@@ -114,7 +114,7 @@ internal class JobSynchronizationContext : SynchronizationContext
         }
     }
 
-    public static async Task WaitForJob(JobHandle handle)
+    public static Task WaitForJob(JobHandle handle)
     {
         if (Current is not JobSynchronizationContext context)
             throw new InvalidOperationException(
@@ -122,11 +122,9 @@ internal class JobSynchronizationContext : SynchronizationContext
             );
 
         var tcs = new TaskCompletionSource<object>();
-        var task = tcs.Task;
-
         context.WaitJob(handle, tcs);
 
-        await task;
+        return tcs.Task;
     }
 
     public static ContextGuard Enter() => new();
