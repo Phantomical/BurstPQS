@@ -16,9 +16,8 @@ public class VoronoiCraters(PQSMod_VoronoiCraters mod) : BatchPQSMod<PQSMod_Voro
         return new State(mod);
     }
 
-    class State(PQSMod_VoronoiCraters mod) : BatchPQSModState
+    class State(PQSMod_VoronoiCraters mod) : BatchPQSModState<PQSMod_VoronoiCraters>(mod)
     {
-        readonly PQSMod_VoronoiCraters mod = mod;
         NativeArray<float> rs;
 
         public override JobHandle ScheduleBuildHeights(QuadBuildData data, JobHandle handle)

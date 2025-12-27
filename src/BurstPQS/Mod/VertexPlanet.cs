@@ -54,6 +54,11 @@ public class VertexPlanet(PQSMod_VertexPlanet mod) : BatchPQSMod<PQSMod_VertexPl
     }
 
     NativeArray<BurstLandClass> landClasses;
+    BurstSimplexWrapper continental;
+    BurstSimplexWrapper continentalSmoothing;
+    BurstSimplexWrapper continentalSharpnessMap;
+    BurstSimplexWrapper continentalRuggedness;
+    BurstSimplex terrainType;
 
     public override void OnSetup()
     {
@@ -61,6 +66,12 @@ public class VertexPlanet(PQSMod_VertexPlanet mod) : BatchPQSMod<PQSMod_VertexPl
 
         for (int i = 0; i < mod.landClasses.Length; ++i)
             landClasses[i] = new(mod.landClasses[i]);
+
+        continental = new(mod.continental);
+        continentalSmoothing = new(mod.continentalSmoothing);
+        continentalSharpnessMap = new(mod.continentalSharpnessMap);
+        continentalRuggedness = new(mod.continentalRuggedness);
+        terrainType = new(mod.terrainType.simplex);
     }
 
     public override void Dispose()
@@ -68,6 +79,12 @@ public class VertexPlanet(PQSMod_VertexPlanet mod) : BatchPQSMod<PQSMod_VertexPl
         foreach (var lc in landClasses)
             lc.Dispose();
         landClasses.Dispose();
+
+        continental.Dispose();
+        continentalSmoothing.Dispose();
+        continentalSharpnessMap.Dispose();
+        continentalRuggedness.Dispose();
+        terrainType.Dispose();
     }
 
     public override IBatchPQSModState OnQuadPreBuild(QuadBuildData data)
@@ -75,11 +92,12 @@ public class VertexPlanet(PQSMod_VertexPlanet mod) : BatchPQSMod<PQSMod_VertexPl
         return new State(data, this);
     }
 
-    class State(QuadBuildData data, VertexPlanet batchMod) : BatchPQSModState
+    class State(QuadBuildData data, VertexPlanet batchMod)
+        : BatchPQSModState<PQSMod_VertexPlanet>(batchMod.mod)
     {
-        public PQSMod_VertexPlanet mod = batchMod.mod;
-        public NativeArray<double> preSmoothHeights = new(data.VertexCount, Allocator.TempJob);
-        public NativeArray<BurstLandClass> landClasses = batchMod.landClasses;
+        readonly VertexPlanet batchMod = batchMod;
+        NativeArray<double> preSmoothHeights = new(data.VertexCount, Allocator.TempJob);
+        NativeArray<BurstLandClass> landClasses = batchMod.landClasses;
 
         public override JobHandle ScheduleBuildHeights(QuadBuildData data, JobHandle handle)
         {
@@ -87,14 +105,14 @@ public class VertexPlanet(PQSMod_VertexPlanet mod) : BatchPQSMod<PQSMod_VertexPl
             {
                 data = data.burst,
                 preSmoothHeights = preSmoothHeights,
-                continental = new(mod.continental),
-                continentalSmoothing = new(mod.continentalSmoothing),
+                continental = batchMod.continental,
+                continentalSmoothing = batchMod.continentalSmoothing,
                 continentalSharpness = new(
                     mod.continentalSharpness,
                     new((LibNoise.RidgedMultifractal)mod.continentalSharpness.noise)
                 ),
-                continentalSharpnessMap = new(mod.continentalSharpnessMap),
-                continentalRuggedness = new(mod.continentalRuggedness),
+                continentalSharpnessMap = batchMod.continentalSharpnessMap,
+                continentalRuggedness = batchMod.continentalRuggedness,
                 terrainRidgeBalance = mod.terrainRidgeBalance,
                 terrainRidgesMax = mod.terrainRidgesMax,
                 terrainRidgesMin = mod.terrainRidgesMin,
@@ -107,13 +125,7 @@ public class VertexPlanet(PQSMod_VertexPlanet mod) : BatchPQSMod<PQSMod_VertexPl
                 deformity = mod.deformity,
             };
 
-            handle = job.Schedule(handle);
-            job.continental.Dispose(handle);
-            job.continentalSmoothing.Dispose(handle);
-            job.continentalSharpnessMap.Dispose(handle);
-            job.continentalRuggedness.Dispose(handle);
-
-            return handle;
+            return job.Schedule(handle);
         }
 
         public override JobHandle ScheduleBuildVertices(QuadBuildData data, JobHandle handle)
@@ -123,17 +135,14 @@ public class VertexPlanet(PQSMod_VertexPlanet mod) : BatchPQSMod<PQSMod_VertexPl
                 data = data.burst,
                 landClasses = landClasses,
                 continentalHeightPreSmooth = preSmoothHeights,
-                terrainType = new(mod.terrainType.simplex),
+                terrainType = batchMod.terrainType,
                 terrainTypeDeformity = mod.terrainType.deformity,
                 buildHeightColors = mod.buildHeightColors,
                 colorDeformity = mod.colorDeformity,
             };
+            preSmoothHeights = default;
 
-            handle = job.Schedule(handle);
-            job.terrainType.Dispose(handle);
-            preSmoothHeights.Dispose(handle);
-
-            return handle;
+            return job.Schedule(handle);
         }
 
         public override void Dispose()
@@ -147,6 +156,8 @@ public class VertexPlanet(PQSMod_VertexPlanet mod) : BatchPQSMod<PQSMod_VertexPl
     struct BuildHeightsJob : IJob
     {
         public BurstQuadBuildData data;
+
+        [DeallocateOnJobCompletion]
         public NativeArray<double> preSmoothHeights;
         public BurstSimplexWrapper continental;
         public BurstSimplexWrapper continentalSmoothing;

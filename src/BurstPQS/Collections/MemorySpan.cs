@@ -104,15 +104,21 @@ public readonly unsafe struct MemorySpan<T> : IEnumerable<T>
 
     readonly IEnumerator IEnumerable.GetEnumerator() => GetEnumerator();
 
+    [method: MethodImpl(MethodImplOptions.AggressiveInlining)]
     public struct Enumerator(MemorySpan<T> span) : IEnumerator<T>
     {
         T* current = span.data - 1;
         readonly T* end = span.data + span.Length;
 
-        public readonly ref T Current => ref *current;
+        public readonly ref T Current
+        {
+            [MethodImpl(MethodImplOptions.AggressiveInlining)]
+            get => ref *current;
+        }
         readonly T IEnumerator<T>.Current => Current;
         readonly object IEnumerator.Current => Current;
 
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public bool MoveNext()
         {
             current += 1;

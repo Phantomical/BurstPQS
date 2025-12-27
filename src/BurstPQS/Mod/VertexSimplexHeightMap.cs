@@ -8,15 +8,16 @@ namespace BurstPQS.Mod;
 [BurstCompile]
 [BatchPQSMod(typeof(PQSMod_VertexSimplexHeightMap))]
 public class VertexSimplexHeightMap(PQSMod_VertexSimplexHeightMap mod)
-    : BatchPQSMod<PQSMod_VertexSimplexHeightMap>(mod),
-        IBatchPQSModState
+    : InlineBatchPQSMod<PQSMod_VertexSimplexHeightMap>(mod)
 {
-    public JobHandle ScheduleBuildHeights(QuadBuildData data, JobHandle handle)
+    BurstSimplex simplex = new(mod.simplex);
+
+    public override JobHandle ScheduleBuildHeights(QuadBuildData data, JobHandle handle)
     {
         var job = new BuildHeightsJob
         {
             data = data.burst,
-            simplex = new(mod.simplex),
+            simplex = simplex,
             heightMap = new(mod.heightMap),
             heightStart = mod.heightStart,
             heightEnd = mod.heightEnd,
@@ -24,15 +25,15 @@ public class VertexSimplexHeightMap(PQSMod_VertexSimplexHeightMap mod)
         };
 
         handle = job.Schedule(handle);
-        job.simplex.Dispose(handle);
         job.heightMap.Dispose(handle);
 
         return handle;
     }
 
-    public JobHandle ScheduleBuildVertices(QuadBuildData data, JobHandle handle) => handle;
-
-    public void OnQuadBuilt(QuadBuildData data) { }
+    public override void Dispose()
+    {
+        simplex.Dispose();
+    }
 
     [BurstCompile]
     struct BuildHeightsJob : IJob

@@ -6,19 +6,13 @@ namespace BurstPQS.Mod;
 
 [BurstCompile]
 [BatchPQSMod(typeof(PQSMod_FlattenOcean))]
-public class FlattenOcean(PQSMod_FlattenOcean mod)
-    : BatchPQSMod<PQSMod_FlattenOcean>(mod),
-        IBatchPQSModState
+public class FlattenOcean(PQSMod_FlattenOcean mod) : InlineBatchPQSMod<PQSMod_FlattenOcean>(mod)
 {
-    public JobHandle ScheduleBuildHeights(QuadBuildData data, JobHandle handle)
+    public override JobHandle ScheduleBuildHeights(QuadBuildData data, JobHandle handle)
     {
         var job = new BuildHeightsJob { data = data.burst, oceanRad = mod.oceanRad };
         return job.Schedule(handle);
     }
-
-    public JobHandle ScheduleBuildVertices(QuadBuildData data, JobHandle handle) => handle;
-
-    public void OnQuadBuilt(QuadBuildData data) { }
 
     [BurstCompile]
     struct BuildHeightsJob : IJob

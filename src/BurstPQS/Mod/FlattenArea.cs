@@ -8,11 +8,9 @@ namespace BurstPQS.Mod;
 
 [BurstCompile]
 [BatchPQSMod(typeof(PQSMod_FlattenArea))]
-public class FlattenArea(PQSMod_FlattenArea mod)
-    : BatchPQSMod<PQSMod_FlattenArea>(mod),
-        IBatchPQSModState
+public class FlattenArea(PQSMod_FlattenArea mod) : InlineBatchPQSMod<PQSMod_FlattenArea>(mod)
 {
-    public JobHandle ScheduleBuildHeights(QuadBuildData data, JobHandle handle)
+    public override JobHandle ScheduleBuildHeights(QuadBuildData data, JobHandle handle)
     {
         if (!mod.overrideQuadBuildCheck && !mod.quadActive)
             return handle;
@@ -34,10 +32,6 @@ public class FlattenArea(PQSMod_FlattenArea mod)
 
         return job.Schedule(handle);
     }
-
-    public JobHandle ScheduleBuildVertices(QuadBuildData data, JobHandle handle) => handle;
-
-    public void OnQuadBuilt(QuadBuildData data) { }
 
     [BurstCompile]
     struct BuildHeightsJob : IJob

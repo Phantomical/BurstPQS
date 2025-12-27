@@ -12,7 +12,7 @@ namespace BurstPQS.Mod;
 [BatchPQSMod(typeof(PQSMod_MapDecal))]
 public class MapDecal(PQSMod_MapDecal mod) : BatchPQSMod<PQSMod_MapDecal>(mod)
 {
-    class State(PQSMod_MapDecal mod) : BatchPQSModState
+    class State(PQSMod_MapDecal mod) : BatchPQSModState<PQSMod_MapDecal>(mod)
     {
         BurstInfo info = new(mod);
         NativeArray<bool> vertActive;
@@ -63,11 +63,6 @@ public class MapDecal(PQSMod_MapDecal mod) : BatchPQSMod<PQSMod_MapDecal>(mod)
             vertActive.Dispose(handle);
 
             return base.ScheduleBuildHeights(data, handle);
-        }
-
-        public override void OnQuadBuilt(QuadBuildData data)
-        {
-            mod.OnQuadBuilt(data.buildQuad);
         }
 
         public override void Dispose()

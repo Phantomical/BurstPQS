@@ -6,10 +6,8 @@ public sealed class Shim(PQSMod mod) : BatchPQSMod
 {
     readonly PQSMod mod = mod;
 
-    class State(PQSMod mod) : BatchPQSModState
+    class State(PQSMod mod) : BatchPQSModState<PQSMod>(mod)
     {
-        readonly PQSMod mod = mod;
-
         public override JobHandle ScheduleBuildHeights(QuadBuildData data, JobHandle handle)
         {
             handle.Complete();
@@ -44,11 +42,6 @@ public sealed class Shim(PQSMod mod) : BatchPQSMod
             }
 
             return handle;
-        }
-
-        public override void OnQuadBuilt(QuadBuildData data)
-        {
-            mod.OnQuadBuilt(data.buildQuad);
         }
 
         public override string ToString() => mod.ToString();

@@ -7,27 +7,26 @@ namespace BurstPQS.Mod;
 [BurstCompile]
 [BatchPQSMod(typeof(PQSMod_VertexSimplexHeight))]
 public class VertexSimplexHeight(PQSMod_VertexSimplexHeight mod)
-    : BatchPQSMod<PQSMod_VertexSimplexHeight>(mod),
-        IBatchPQSModState
+    : InlineBatchPQSMod<PQSMod_VertexSimplexHeight>(mod)
 {
-    public JobHandle ScheduleBuildHeights(QuadBuildData data, JobHandle handle)
+    BurstSimplex simplex = new(mod.simplex);
+
+    public override JobHandle ScheduleBuildHeights(QuadBuildData data, JobHandle handle)
     {
         var job = new BuildHeightsJob
         {
             data = data.burst,
-            simplex = new(mod.simplex),
+            simplex = simplex,
             deformity = mod.deformity,
         };
 
-        handle = job.Schedule(handle);
-        job.simplex.Dispose(handle);
-
-        return handle;
+        return job.Schedule(handle);
     }
 
-    public JobHandle ScheduleBuildVertices(QuadBuildData data, JobHandle handle) => handle;
-
-    public void OnQuadBuilt(QuadBuildData data) { }
+    public override void Dispose()
+    {
+        simplex.Dispose();
+    }
 
     [BurstCompile]
     struct BuildHeightsJob : IJob

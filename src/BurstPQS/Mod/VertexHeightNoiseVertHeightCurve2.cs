@@ -8,26 +8,25 @@ namespace BurstPQS.Mod;
 [BurstCompile]
 [BatchPQSMod(typeof(PQSMod_VertexHeightNoiseVertHeightCurve2))]
 public class VertexHeightNoiseVertHeightCurve2(PQSMod_VertexHeightNoiseVertHeightCurve2 mod)
-    : BatchPQSMod<PQSMod_VertexHeightNoiseVertHeightCurve2>(mod),
-        IBatchPQSModState
+    : InlineBatchPQSMod<PQSMod_VertexHeightNoiseVertHeightCurve2>(mod)
 {
     BurstAnimationCurve simplexCurve = new(mod.simplexCurve);
+    BurstSimplex simplex = new(mod.simplex);
 
     public override void Dispose()
     {
         simplexCurve.Dispose();
+        simplex.Dispose();
     }
 
-    public JobHandle ScheduleBuildHeights(QuadBuildData data, JobHandle handle)
+    public override JobHandle ScheduleBuildHeights(QuadBuildData data, JobHandle handle)
     {
-        var bsimplex = new BurstSimplex(mod.simplex);
-
         var job = new BuildHeightsJob
         {
             data = data.burst,
             ridgedAdd = new(mod.ridgedAdd),
             ridgedSub = new(mod.ridgedSub),
-            simplex = bsimplex,
+            simplex = simplex,
             simplexCurve = simplexCurve,
             simplexHeightStart = mod.simplexHeightStart,
             simplexHeightEnd = mod.simplexHeightEnd,
@@ -35,15 +34,8 @@ public class VertexHeightNoiseVertHeightCurve2(PQSMod_VertexHeightNoiseVertHeigh
             hDeltaR = mod.hDeltaR,
         };
 
-        handle = job.Schedule(handle);
-        bsimplex.Dispose(handle);
-
-        return handle;
+        return job.Schedule(handle);
     }
-
-    public JobHandle ScheduleBuildVertices(QuadBuildData data, JobHandle handle) => handle;
-
-    public void OnQuadBuilt(QuadBuildData data) { }
 
     [BurstCompile]
     struct BuildHeightsJob : IJob

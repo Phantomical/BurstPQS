@@ -1,23 +1,14 @@
+using Mono.Cecil.Mdb;
 using Unity.Jobs;
 
 namespace BurstPQS.Mod;
 
 [BatchPQSMod(typeof(PQSROCControl))]
-public class ROCControl(PQSROCControl mod) : BatchPQSMod<PQSROCControl>(mod), IBatchPQSModState
+public class ROCControl(PQSROCControl mod) : InlineBatchPQSMod<PQSROCControl>(mod)
 {
-    public override IBatchPQSModState OnQuadPreBuild(QuadBuildData data)
-    {
-        mod.OnQuadPreBuild(data.buildQuad);
-        return this;
-    }
-
-    public void OnQuadBuilt(QuadBuildData data)
+    public override JobHandle OnQuadBuilt(QuadBuildData data)
     {
         mod.allowROCScatter = data.allowScatter[data.VertexCount - 1];
-        mod.OnQuadBuilt(data.buildQuad);
+        return base.OnQuadBuilt(data);
     }
-
-    public JobHandle ScheduleBuildHeights(QuadBuildData data, JobHandle handle) => handle;
-
-    public JobHandle ScheduleBuildVertices(QuadBuildData data, JobHandle handle) => handle;
 }

@@ -8,7 +8,8 @@ namespace BurstPQS.Mod;
 
 [BurstCompile]
 [BatchPQSMod(typeof(PQSMod_HeightColorMap))]
-public class HeightColorMap : BatchPQSMod<PQSMod_HeightColorMap>, IBatchPQSModState
+public class HeightColorMap(PQSMod_HeightColorMap mod)
+    : InlineBatchPQSMod<PQSMod_HeightColorMap>(mod)
 {
     public struct BurstLandClass(PQSMod_HeightColorMap.LandClass landClass)
     {
@@ -19,9 +20,6 @@ public class HeightColorMap : BatchPQSMod<PQSMod_HeightColorMap>, IBatchPQSModSt
     }
 
     public NativeArray<BurstLandClass> burstLandClasses;
-
-    public HeightColorMap(PQSMod_HeightColorMap mod)
-        : base(mod) { }
 
     public override void OnSetup()
     {
@@ -40,9 +38,7 @@ public class HeightColorMap : BatchPQSMod<PQSMod_HeightColorMap>, IBatchPQSModSt
         burstLandClasses.Dispose();
     }
 
-    public JobHandle ScheduleBuildHeights(QuadBuildData data, JobHandle handle) => handle;
-
-    public JobHandle ScheduleBuildVertices(QuadBuildData data, JobHandle handle)
+    public override JobHandle ScheduleBuildVertices(QuadBuildData data, JobHandle handle)
     {
         var job = new BuildVerticesJob
         {
@@ -53,8 +49,6 @@ public class HeightColorMap : BatchPQSMod<PQSMod_HeightColorMap>, IBatchPQSModSt
 
         return job.Schedule(handle);
     }
-
-    public void OnQuadBuilt(QuadBuildData data) { }
 
     [BurstCompile]
     struct BuildVerticesJob : IJob

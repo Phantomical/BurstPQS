@@ -15,9 +15,8 @@ public class RemoveQuadMap(PQSMod_RemoveQuadMap mod) : BatchPQSMod<PQSMod_Remove
         return new State(mod);
     }
 
-    class State(PQSMod_RemoveQuadMap mod) : BatchPQSModState
+    class State(PQSMod_RemoveQuadMap mod) : BatchPQSModState<PQSMod_RemoveQuadMap>(mod)
     {
-        readonly PQSMod_RemoveQuadMap mod = mod;
         NativeArray<bool> quadVisible = new(1, Allocator.TempJob);
 
         public override JobHandle ScheduleBuildVertices(QuadBuildData data, JobHandle handle)
@@ -28,7 +27,7 @@ public class RemoveQuadMap(PQSMod_RemoveQuadMap mod) : BatchPQSMod<PQSMod_Remove
                 map = new(mod.map),
                 minHeight = mod.minHeight,
                 maxHeight = mod.maxHeight,
-                quadVisisble = quadVisible,
+                quadVisible = quadVisible,
             };
             handle = job.Schedule(handle);
             job.map.Dispose(handle);
@@ -36,10 +35,10 @@ public class RemoveQuadMap(PQSMod_RemoveQuadMap mod) : BatchPQSMod<PQSMod_Remove
             return handle;
         }
 
-        public override void OnQuadBuilt(QuadBuildData data)
+        public override JobHandle OnQuadBuilt(QuadBuildData data)
         {
             mod.quadVisible = quadVisible[0];
-            mod.OnQuadBuilt(data.buildQuad);
+            return base.OnQuadBuilt(data);
         }
 
         public override void Dispose()
@@ -55,7 +54,7 @@ public class RemoveQuadMap(PQSMod_RemoveQuadMap mod) : BatchPQSMod<PQSMod_Remove
         public BurstMapSO map;
         public float minHeight;
         public float maxHeight;
-        public NativeArray<bool> quadVisisble;
+        public NativeArray<bool> quadVisible;
 
         public void Execute()
         {
@@ -71,7 +70,7 @@ public class RemoveQuadMap(PQSMod_RemoveQuadMap mod) : BatchPQSMod<PQSMod_Remove
                 }
             }
 
-            quadVisisble[0] = visible;
+            quadVisible[0] = visible;
         }
     }
 }

@@ -6,11 +6,9 @@ namespace BurstPQS.Mod;
 
 [BurstCompile]
 [BatchPQSMod(typeof(PQSMod_AltitudeUV))]
-public class AltitudeUV(PQSMod_AltitudeUV mod)
-    : BatchPQSMod<PQSMod_AltitudeUV>(mod),
-        IBatchPQSModState
+public class AltitudeUV(PQSMod_AltitudeUV mod) : InlineBatchPQSMod<PQSMod_AltitudeUV>(mod)
 {
-    public JobHandle ScheduleBuildHeights(QuadBuildData data, JobHandle handle)
+    public override JobHandle ScheduleBuildHeights(QuadBuildData data, JobHandle handle)
     {
         var job = new BuildVerticesJob
         {
@@ -23,10 +21,6 @@ public class AltitudeUV(PQSMod_AltitudeUV mod)
 
         return job.Schedule(handle);
     }
-
-    public JobHandle ScheduleBuildVertices(QuadBuildData data, JobHandle handle) => handle;
-
-    public void OnQuadBuilt(QuadBuildData data) { }
 
     [BurstCompile]
     struct BuildVerticesJob : IJob

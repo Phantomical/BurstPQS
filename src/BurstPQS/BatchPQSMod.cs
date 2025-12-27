@@ -49,12 +49,20 @@ public interface IBatchPQSModState
     JobHandle ScheduleBuildVertices(QuadBuildData data, JobHandle handle);
 
     /// <summary>
+    /// Schedule work to be completed after all the vertex data has been built.
+    /// </summary>
+    /// <param name="data"></param>
+    /// <param name="handle"></param>
+    /// <returns>A new job handle that will continue the chain, or default otherwise.</returns>
+    JobHandle ScheduleBuildComplete(QuadBuildData data, JobHandle handle);
+
+    /// <summary>
     /// Called on the main thread when the all the vertices have been built for
     /// this patch. Use this method to perform any writeback to the actual PQSMod
     /// and to dispose of any native resources that weren't disposed of after the
     /// job completed.
     /// </summary>
-    void OnQuadBuilt(QuadBuildData data);
+    JobHandle OnQuadBuilt(QuadBuildData data);
 }
 
 public abstract class BatchPQSModState : IDisposable, IBatchPQSModState
@@ -63,9 +71,24 @@ public abstract class BatchPQSModState : IDisposable, IBatchPQSModState
 
     public virtual JobHandle ScheduleBuildVertices(QuadBuildData data, JobHandle handle) => handle;
 
-    public virtual void OnQuadBuilt(QuadBuildData data) { }
+    public virtual JobHandle ScheduleBuildComplete(QuadBuildData data, JobHandle handle) => default;
+
+    public virtual JobHandle OnQuadBuilt(QuadBuildData data) => default;
 
     public virtual void Dispose() { }
+}
+
+public abstract class BatchPQSModState<T>(T mod) : BatchPQSModState
+    where T : PQSMod
+{
+    protected T mod = mod;
+    public T Mod => mod;
+
+    public override JobHandle OnQuadBuilt(QuadBuildData data)
+    {
+        mod.OnQuadBuilt(data.buildQuad);
+        return default;
+    }
 }
 
 public abstract class BatchPQSMod : IDisposable
@@ -89,8 +112,7 @@ public abstract class BatchPQSMod : IDisposable
     /// </summary>
     /// <param name="data"></param>
     /// <returns></returns>
-    public virtual IBatchPQSModState OnQuadPreBuild(QuadBuildData data) =>
-        this as IBatchPQSModState;
+    public virtual IBatchPQSModState OnQuadPreBuild(QuadBuildData data) => null;
 
     /// <summary>
     /// Called during PQS teardown. All scheduled jobs will be completed at
@@ -179,25 +201,7 @@ public abstract class BatchPQSMod : IDisposable
         throw new UnsupportedPQSModException($"PQSMod {type.Name} is not compatible with BatchPQS");
     }
 
-    class BatchPQSModShim(PQSMod mod) : BatchPQSMod, IBatchPQSModState
-    {
-        public override IBatchPQSModState OnQuadPreBuild(QuadBuildData data)
-        {
-            mod.OnQuadPreBuild(data.buildQuad);
-            return this;
-        }
-
-        public void OnQuadBuilt(QuadBuildData data)
-        {
-            mod.OnQuadBuilt(data.buildQuad);
-        }
-
-        public JobHandle ScheduleBuildHeights(QuadBuildData data, JobHandle handle) => handle;
-
-        public JobHandle ScheduleBuildVertices(QuadBuildData data, JobHandle handle) => handle;
-
-        public override string ToString() => mod.ToString();
-    }
+    class BatchPQSModShim(PQSMod mod) : InlineBatchPQSMod<PQSMod>(mod) { }
 
     #endregion
 }
@@ -214,6 +218,28 @@ public abstract class BatchPQSMod<T>(T mod) : BatchPQSMod
         if (mod is null)
             return $"null ({GetType().Name})";
         return $"{mod.name}";
+    }
+}
+
+public abstract class InlineBatchPQSMod<T>(T mod) : BatchPQSMod<T>(mod), IBatchPQSModState
+    where T : PQSMod
+{
+    public override IBatchPQSModState OnQuadPreBuild(QuadBuildData data)
+    {
+        mod.OnQuadPreBuild(data.buildQuad);
+        return this;
+    }
+
+    public virtual JobHandle ScheduleBuildHeights(QuadBuildData data, JobHandle handle) => handle;
+
+    public virtual JobHandle ScheduleBuildVertices(QuadBuildData data, JobHandle handle) => handle;
+
+    public virtual JobHandle ScheduleBuildComplete(QuadBuildData data, JobHandle handle) => default;
+
+    public virtual JobHandle OnQuadBuilt(QuadBuildData data)
+    {
+        mod.OnQuadBuilt(data.buildQuad);
+        return default;
     }
 }
 

@@ -8,10 +8,11 @@ namespace BurstPQS.Mod;
 [BurstCompile]
 [BatchPQSMod(typeof(PQSMod_VertexSimplexNoiseColor))]
 public class VertexSimplexNoiseColor(PQSMod_VertexSimplexNoiseColor mod)
-    : BatchPQSMod<PQSMod_VertexSimplexNoiseColor>(mod),
-        IBatchPQSModState
+    : InlineBatchPQSMod<PQSMod_VertexSimplexNoiseColor>(mod)
 {
-    public JobHandle ScheduleBuildVertices(QuadBuildData data, JobHandle handle)
+    BurstSimplex simplex = new(mod.simplex);
+
+    public override JobHandle ScheduleBuildVertices(QuadBuildData data, JobHandle handle)
     {
         var job = new BuildVerticesJob
         {
@@ -21,15 +22,14 @@ public class VertexSimplexNoiseColor(PQSMod_VertexSimplexNoiseColor mod)
             colorEnd = mod.colorEnd,
             blend = mod.blend,
         };
-        handle = job.Schedule(handle);
-        job.simplex.Dispose(handle);
 
-        return handle;
+        return job.Schedule(handle);
     }
 
-    public JobHandle ScheduleBuildHeights(QuadBuildData data, JobHandle handle) => handle;
-
-    public void OnQuadBuilt(QuadBuildData data) { }
+    public override void Dispose()
+    {
+        simplex.Dispose();
+    }
 
     [BurstCompile]
     struct BuildVerticesJob : IJob

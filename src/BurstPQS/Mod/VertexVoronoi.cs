@@ -1,5 +1,4 @@
 using BurstPQS.Noise;
-using BurstPQS.Util;
 using Unity.Burst;
 using Unity.Jobs;
 
@@ -8,10 +7,10 @@ namespace BurstPQS.Mod;
 [BurstCompile]
 [BatchPQSMod(typeof(PQSMod_VertexVoronoi))]
 public class VertexVoronoi(PQSMod_VertexVoronoi mod)
-    : BatchPQSMod<PQSMod_VertexVoronoi>(mod),
+    : InlineBatchPQSMod<PQSMod_VertexVoronoi>(mod),
         IBatchPQSModState
 {
-    public JobHandle ScheduleBuildHeights(QuadBuildData data, JobHandle handle)
+    public override JobHandle ScheduleBuildHeights(QuadBuildData data, JobHandle handle)
     {
         var job = new BuildHeightsJob
         {
@@ -22,10 +21,6 @@ public class VertexVoronoi(PQSMod_VertexVoronoi mod)
 
         return job.Schedule(handle);
     }
-
-    public JobHandle ScheduleBuildVertices(QuadBuildData data, JobHandle handle) => handle;
-
-    public void OnQuadBuilt(QuadBuildData data) { }
 
     [BurstCompile]
     struct BuildHeightsJob : IJob

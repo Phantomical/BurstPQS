@@ -8,12 +8,9 @@ namespace BurstPQS.Mod;
 [BurstCompile]
 [BatchPQSMod(typeof(PQSMod_VertexColorMapBlend))]
 public class VertexColorMapBlend(PQSMod_VertexColorMapBlend mod)
-    : BatchPQSMod<PQSMod_VertexColorMapBlend>(mod),
-        IBatchPQSModState
+    : InlineBatchPQSMod<PQSMod_VertexColorMapBlend>(mod)
 {
-    public JobHandle ScheduleBuildHeights(QuadBuildData data, JobHandle handle) => handle;
-
-    public JobHandle ScheduleBuildVertices(QuadBuildData data, JobHandle handle)
+    public override JobHandle ScheduleBuildVertices(QuadBuildData data, JobHandle handle)
     {
         var job = new BuildVerticesJob
         {
@@ -27,8 +24,6 @@ public class VertexColorMapBlend(PQSMod_VertexColorMapBlend mod)
 
         return handle;
     }
-
-    public void OnQuadBuilt(QuadBuildData data) { }
 
     [BurstCompile]
     struct BuildVerticesJob : IJob

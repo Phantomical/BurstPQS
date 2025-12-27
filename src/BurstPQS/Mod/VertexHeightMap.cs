@@ -7,10 +7,9 @@ namespace BurstPQS.Mod;
 [BurstCompile]
 [BatchPQSMod(typeof(PQSMod_VertexHeightMap))]
 public class VertexHeightMap(PQSMod_VertexHeightMap mod)
-    : BatchPQSMod<PQSMod_VertexHeightMap>(mod),
-        IBatchPQSModState
+    : InlineBatchPQSMod<PQSMod_VertexHeightMap>(mod)
 {
-    public JobHandle ScheduleBuildHeights(QuadBuildData data, JobHandle handle)
+    public override JobHandle ScheduleBuildHeights(QuadBuildData data, JobHandle handle)
     {
         var heightMap = new BurstMapSO(mod.heightMap);
         var job = new BuildHeightsJob
@@ -25,10 +24,6 @@ public class VertexHeightMap(PQSMod_VertexHeightMap mod)
         heightMap.Dispose(handle);
         return handle;
     }
-
-    public JobHandle ScheduleBuildVertices(QuadBuildData data, JobHandle handle) => handle;
-
-    public void OnQuadBuilt(QuadBuildData data) { }
 
     [BurstCompile]
     struct BuildHeightsJob : IJob

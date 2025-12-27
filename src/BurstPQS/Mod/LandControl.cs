@@ -176,10 +176,10 @@ public class LandControl(PQSLandControl mod) : BatchPQSMod<PQSLandControl>(mod)
             return handle;
         }
 
-        public override void OnQuadBuilt(QuadBuildData data)
+        public override JobHandle OnQuadBuilt(QuadBuildData data)
         {
             if (!mod.scatterActive)
-                return;
+                return default;
 
             var lcActive = new BitSpan(new MemorySpan<ulong>(this.lcActive));
 
@@ -213,6 +213,8 @@ public class LandControl(PQSLandControl mod) : BatchPQSMod<PQSLandControl>(mod)
                     }
                 }
             }
+
+            return default;
         }
 
         public override void Dispose()

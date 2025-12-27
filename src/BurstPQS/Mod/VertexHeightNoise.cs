@@ -8,10 +8,9 @@ namespace BurstPQS.Mod;
 [BurstCompile]
 [BatchPQSMod(typeof(PQSMod_VertexHeightNoise))]
 public class VertexHeightNoise(PQSMod_VertexHeightNoise mod)
-    : BatchPQSMod<PQSMod_VertexHeightNoise>(mod),
-        IBatchPQSModState
+    : InlineBatchPQSMod<PQSMod_VertexHeightNoise>(mod)
 {
-    public JobHandle ScheduleBuildHeights(QuadBuildData data, JobHandle handle)
+    public override JobHandle ScheduleBuildHeights(QuadBuildData data, JobHandle handle)
     {
         var p = new BuildHeightsData { data = data.burst, deformity = mod.deformity };
 
@@ -40,10 +39,6 @@ public class VertexHeightNoise(PQSMod_VertexHeightNoise mod)
 
         return handle;
     }
-
-    public JobHandle ScheduleBuildVertices(QuadBuildData data, JobHandle handle) => handle;
-
-    public void OnQuadBuilt(QuadBuildData data) { }
 
     struct BuildHeightsData
     {
