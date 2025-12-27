@@ -62,17 +62,22 @@ public class LandControl(PQSLandControl mod) : BatchPQSMod<PQSLandControl>(mod)
     }
 
     NativeArray<BurstLandClass> burstLandClasses;
+    BurstSimplex altitudeSimplex;
+    BurstSimplex latitudeSimplex;
+    BurstSimplex longitudeSimplex;
 
     public override void OnSetup()
     {
-        base.OnSetup();
-
         burstLandClasses = new NativeArray<BurstLandClass>(
             mod.landClasses.Length,
             Allocator.Persistent
         );
         for (int i = 0; i < mod.landClasses.Length; ++i)
             burstLandClasses[i] = new(mod.landClasses[i]);
+
+        altitudeSimplex = new(mod.altitudeSimplex);
+        latitudeSimplex = new(mod.latitudeSimplex);
+        longitudeSimplex = new(mod.longitudeSimplex);
     }
 
     public override IBatchPQSModState OnQuadPreBuild(QuadBuildData data)
@@ -84,27 +89,34 @@ public class LandControl(PQSLandControl mod) : BatchPQSMod<PQSLandControl>(mod)
 
     public override void Dispose()
     {
-        base.Dispose();
+        altitudeSimplex.Dispose();
+        latitudeSimplex.Dispose();
+        longitudeSimplex.Dispose();
 
+        using var blcs = burstLandClasses;
         foreach (var blc in burstLandClasses)
             blc.Dispose();
-        burstLandClasses.Dispose();
     }
 
-    class State : BatchPQSModState
+    class State : BatchPQSModState<PQSLandControl>
     {
-        public PQSLandControl mod;
+        NativeArray<ulong> lcActive;
+        NativeArray<double> lcDeltas;
+        NativeArray<double> vHeights;
 
-        public NativeArray<ulong> lcActive;
-        public NativeArray<double> lcDeltas;
-        public NativeArray<double> vHeights;
-
-        public NativeArray<BurstLandClass> landClasses;
+        NativeArray<BurstLandClass> landClasses;
+        BurstSimplex altitudeSimplex;
+        BurstSimplex latitudeSimplex;
+        BurstSimplex longitudeSimplex;
 
         public State(LandControl batchMod, QuadBuildData data)
+            : base(batchMod.mod)
         {
             mod = batchMod.Mod;
             landClasses = batchMod.burstLandClasses;
+            altitudeSimplex = batchMod.altitudeSimplex;
+            latitudeSimplex = batchMod.latitudeSimplex;
+            longitudeSimplex = batchMod.longitudeSimplex;
 
             int lcActiveCount = data.VertexCount * landClasses.Length;
 
@@ -137,9 +149,9 @@ public class LandControl(PQSLandControl mod) : BatchPQSMod<PQSLandControl>(mod)
                 vHeights = vHeights,
 
                 heightMap = mod.useHeightMap ? new(mod.heightMap) : null,
-                altitudeSimplex = new(mod.altitudeSimplex),
-                latitudeSimplex = new(mod.latitudeSimplex),
-                longitudeSimplex = new(mod.longitudeSimplex),
+                altitudeSimplex = altitudeSimplex,
+                latitudeSimplex = latitudeSimplex,
+                longitudeSimplex = longitudeSimplex,
 
                 altitudeBlend = mod.altitudeBlend,
                 latitudeBlend = mod.latitudeBlend,
@@ -149,9 +161,6 @@ public class LandControl(PQSLandControl mod) : BatchPQSMod<PQSLandControl>(mod)
 
             handle = job.Schedule(handle);
             job.heightMap?.Dispose(handle);
-            job.altitudeSimplex.Dispose(handle);
-            job.latitudeSimplex.Dispose(handle);
-            job.longitudeSimplex.Dispose(handle);
 
             return handle;
         }
