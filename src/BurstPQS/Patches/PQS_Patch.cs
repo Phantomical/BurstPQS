@@ -1,6 +1,4 @@
 using System;
-using System.Threading;
-using BurstPQS.Async;
 using HarmonyLib;
 
 namespace BurstPQS.Patches;
@@ -16,8 +14,8 @@ internal static class PQS_SetupMods_Patch
     }
 }
 
-// [HarmonyPatch(typeof(PQS), nameof(PQS.BuildQuad))]
-// [HarmonyPriority(Priority.VeryLow)]
+[HarmonyPatch(typeof(PQS), nameof(PQS.BuildQuad))]
+[HarmonyPriority(Priority.VeryLow)]
 internal static class PQS_BuildQuad_Patch
 {
     static bool Prefix(PQS __instance, PQ quad, ref bool __result)
@@ -27,50 +25,6 @@ internal static class PQS_BuildQuad_Patch
             return true;
 
         __result = batchPQS.BuildQuad(quad);
-        return false;
-    }
-}
-
-[HarmonyPatch(typeof(PQS), nameof(PQS.UpdateQuadsInit))]
-[HarmonyPriority(Priority.VeryLow)]
-internal static class PQS_UpdateQuadsInit_Patch
-{
-    static bool Prefix(PQS __instance)
-    {
-        var batchPQS = __instance.GetComponent<BatchPQS>();
-        if (batchPQS is null)
-            return true;
-
-        using (ExecutionContext.SuppressFlow())
-        using (JobSynchronizationContext.Enter())
-            batchPQS.UpdateQuadsInit();
-        return false;
-    }
-}
-
-[HarmonyPatch(typeof(PQS), nameof(PQS.UpdateQuads))]
-[HarmonyPriority(Priority.VeryLow)]
-internal static class PQS_UpdateQuads_Patch
-{
-    static bool Prefix(PQS __instance)
-    {
-        var batchPQS = __instance.GetComponent<BatchPQS>();
-        if (batchPQS is null)
-            return true;
-
-        using (ExecutionContext.SuppressFlow())
-        using (JobSynchronizationContext.Enter())
-            batchPQS.UpdateQuads();
-        return false;
-    }
-}
-
-[HarmonyPatch(typeof(PQS), nameof(PQS.BuildNormals))]
-internal static class PQS_BuildNormals_Patch
-{
-    static bool Prefix(PQ quad)
-    {
-        BatchPQS.BuildNormals(quad);
         return false;
     }
 }
