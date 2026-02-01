@@ -97,6 +97,15 @@ public readonly unsafe struct MemorySpan<T> : IEnumerable<T>
         return new(data + start, length);
     }
 
+    public readonly NativeArray<T> AsNativeArray()
+    {
+        return NativeArrayUnsafeUtility.ConvertExistingDataToNativeArray<T>(
+            data,
+            Length,
+            Allocator.Invalid
+        );
+    }
+
     #region IEnumerator
     public readonly Enumerator GetEnumerator() => new(this);
 
