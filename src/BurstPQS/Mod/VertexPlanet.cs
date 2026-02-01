@@ -123,7 +123,7 @@ public class VertexPlanet(PQSMod_VertexPlanet mod) : BatchPQSMod<PQSMod_VertexPl
     // Running this through burst seems to have different results?
     // The struct does NOT have [BurstCompile] because the heights computation
     // produces different results when burst compiled.
-    unsafe struct BuildJob : IBatchPQSHeightJob, IBatchPQSVertexJob, IDisposable
+    struct BuildJob : IBatchPQSHeightJob, IBatchPQSVertexJob
     {
         public NativeArray<BurstLandClass> landClasses;
         public BurstSimplexWrapper continental;
@@ -146,17 +146,13 @@ public class VertexPlanet(PQSMod_VertexPlanet mod) : BatchPQSMod<PQSMod_VertexPl
         public bool buildHeightColors;
         public double colorDeformity;
 
-        double* preSmoothHeights;
+        NativeArray<double> preSmoothHeights;
 
         // csharpier-ignore
         public void BuildHeights(in BuildHeightsData data)
         {
             int vertexCount = data.VertexCount;
-            preSmoothHeights = (double*)UnsafeUtility.Malloc(
-                vertexCount * sizeof(double),
-                UnsafeUtility.AlignOf<double>(),
-                Allocator.Temp
-            );
+            preSmoothHeights = new(data.VertexCount, Allocator.Temp);
 
             double continentalDeformity;
             double continental2Height;
@@ -267,15 +263,6 @@ public class VertexPlanet(PQSMod_VertexPlanet mod) : BatchPQSMod<PQSMod_VertexPl
 
                 data.vertColor[i] = c1;
                 data.vertColor[i].a = (float)preSmoothHeights[i];
-            }
-        }
-
-        public void Dispose()
-        {
-            if (preSmoothHeights != null)
-            {
-                UnsafeUtility.Free(preSmoothHeights, Allocator.Temp);
-                preSmoothHeights = null;
             }
         }
     }
