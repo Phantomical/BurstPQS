@@ -1,7 +1,10 @@
 using System;
 using System.Runtime.CompilerServices;
+using System.Security.Policy;
 using BurstPQS.Util;
+using LibNoise.Models;
 using Unity.Burst;
+using Unity.Collections;
 using Unity.Collections.LowLevel.Unsafe;
 using UnityEngine;
 
@@ -23,139 +26,51 @@ public class MapDecalTangent(PQSMod_MapDecalTangent mod) : BatchPQSMod<PQSMod_Ma
         if (mod.colorMap is not null)
             colorMap = new BurstMapSO(mod.colorMap);
 
-        jobSet.Add(
-            new BuildJob
-            {
-                info = new BurstInfo(mod),
-                heightMap = heightMap,
-                colorMap = colorMap,
-                sphereIsBuildingMaps = mod.sphere.isBuildingMaps,
-                sphereRadius = mod.sphere.radius,
-            }
-        );
+        jobSet.Add(new BuildJob(mod) { heightMap = heightMap, colorMap = colorMap });
     }
 
     [BurstCompile]
-    struct BuildJob : IBatchPQSHeightJob, IBatchPQSVertexJob, IDisposable
+    struct BuildJob(PQSMod_MapDecalTangent mod)
+        : IBatchPQSHeightJob,
+            IBatchPQSVertexJob,
+            IDisposable
     {
-        public BurstInfo info;
         public BurstMapSO? heightMap;
         public BurstMapSO? colorMap;
-        public bool sphereIsBuildingMaps;
-        public double sphereRadius;
 
-        unsafe bool* vertActive;
-        unsafe bool* removeScatterFlags;
-
-        public void BuildHeights(in BuildHeightsData data)
-        {
-            info.BuildHeights(
-                in data,
-                heightMap,
-                sphereIsBuildingMaps,
-                sphereRadius,
-                out vertActive,
-                out removeScatterFlags
-            );
-        }
-
-        public void BuildVertices(in BuildVerticesData data)
-        {
-            unsafe
-            {
-                info.BuildVerts(in data, colorMap, vertActive, removeScatterFlags, sphereRadius);
-            }
-        }
-
-        public void Dispose()
-        {
-            unsafe
-            {
-                if (vertActive != null)
-                {
-                    UnsafeUtility.Free(vertActive, Unity.Collections.Allocator.Temp);
-                    vertActive = null;
-                }
-
-                if (removeScatterFlags != null)
-                {
-                    UnsafeUtility.Free(removeScatterFlags, Unity.Collections.Allocator.Temp);
-                    removeScatterFlags = null;
-                }
-            }
-
-            heightMap?.Dispose();
-            colorMap?.Dispose();
-        }
-    }
-
-    struct BurstInfo(PQSMod_MapDecalTangent mod)
-    {
         public double radius = mod.radius;
-
         public double heightMapDeformity = mod.heightMapDeformity;
-
         public bool cullBlack = mod.cullBlack;
-
         public bool useAlphaHeightSmoothing = mod.useAlphaHeightSmoothing;
-
         public bool absolute = mod.absolute;
-
         public double absoluteOffset = mod.absoluteOffset;
-
         public float smoothHeight = mod.smoothHeight;
-
         public float smoothColor = mod.smoothColor;
-
         public bool removeScatter = mod.removeScatter;
-
         public bool DEBUG_HighlightInclusion = mod.DEBUG_HighlightInclusion;
-
         public double inclusionAngle = mod.inclusionAngle;
-
         public bool quadActive = mod.quadActive;
-
         public Vector3d posNorm = mod.posNorm;
-
         public Quaternion rot = mod.rot;
         public bool buildHeight = mod.buildHeight;
         public float smoothCR = mod.smoothCR;
-
         public float smoothC1M = mod.smoothC1M;
-
         public float smoothHR = mod.smoothHR;
-
         public float smoothH1M = mod.smoothH1M;
 
-        [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        public readonly unsafe void BuildHeights(
-            in BuildHeightsData data,
-            BurstMapSO? nHeightMap,
-            bool sphereIsBuildingMaps,
-            double sphereRadius,
-            out bool* vertActive,
-            out bool* removeScatterFlags
-        )
+        public bool sphereIsBuildingMaps = mod.sphere.isBuildingMaps;
+
+        NativeArray<bool> vertActive;
+        NativeArray<bool> removeScatterFlags;
+
+        public void BuildHeights(in BuildHeightsData data)
         {
-            int vertexCount = data.VertexCount;
+            vertActive = new(data.VertexCount, Allocator.Temp);
+            removeScatterFlags = new(data.VertexCount, Allocator.Temp);
 
-            vertActive = (bool*)
-                UnsafeUtility.Malloc(
-                    vertexCount * sizeof(bool),
-                    UnsafeUtility.AlignOf<bool>(),
-                    Unity.Collections.Allocator.Temp
-                );
-            UnsafeUtility.MemClear(vertActive, vertexCount * sizeof(bool));
+            var sphere = data.sphere;
 
-            removeScatterFlags = (bool*)
-                UnsafeUtility.Malloc(
-                    vertexCount * sizeof(bool),
-                    UnsafeUtility.AlignOf<bool>(),
-                    Unity.Collections.Allocator.Temp
-                );
-            UnsafeUtility.MemClear(removeScatterFlags, vertexCount * sizeof(bool));
-
-            for (int i = 0; i < vertexCount; ++i)
+            for (int i = 0; i < data.VertexCount; ++i)
             {
                 if (sphereIsBuildingMaps)
                 {
@@ -165,15 +80,15 @@ public class MapDecalTangent(PQSMod_MapDecalTangent mod) : BatchPQSMod<PQSMod_Ma
                 }
 
                 var vertRot = rot * data.directionFromCenter[i];
-                var u = (float)((vertRot.x * sphereRadius / radius + 1.0) * 0.5);
-                var v = (float)((vertRot.z * sphereRadius / radius + 1.0) * 0.5);
+                var u = (float)((vertRot.x * sphere.radius / radius + 1.0) * 0.5);
+                var v = (float)((vertRot.z * sphere.radius / radius + 1.0) * 0.5);
 
                 if (u < 0f || u > 1f || v < 0f || v > 1f)
                     continue;
 
                 if (buildHeight || sphereIsBuildingMaps)
                     vertActive[i] = true;
-                if (nHeightMap is not BurstMapSO heightMap)
+                if (this.heightMap is not BurstMapSO heightMap)
                     return;
 
                 var ha = heightMap.GetPixelHeightAlpha(u, v);
@@ -191,7 +106,7 @@ public class MapDecalTangent(PQSMod_MapDecalTangent mod) : BatchPQSMod<PQSMod_Ma
                     / Vector3d.Dot(data.directionFromCenter[i], posNorm);
 
                 if (absolute)
-                    height += sphereRadius + absoluteOffset;
+                    height += sphere.radius + absoluteOffset;
 
                 if (cullBlack && ha.height <= 0f)
                 {
@@ -204,15 +119,10 @@ public class MapDecalTangent(PQSMod_MapDecalTangent mod) : BatchPQSMod<PQSMod_Ma
             }
         }
 
-        [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        public readonly unsafe void BuildVerts(
-            in BuildVerticesData data,
-            BurstMapSO? nColorMap,
-            bool* vertActive,
-            bool* removeScatterFlags,
-            double sphereRadius
-        )
+        public void BuildVertices(in BuildVerticesData data)
         {
+            var sphere = data.sphere;
+
             for (int i = 0; i < data.VertexCount; ++i)
             {
                 if (removeScatterFlags[i])
@@ -226,14 +136,14 @@ public class MapDecalTangent(PQSMod_MapDecalTangent mod) : BatchPQSMod<PQSMod_Ma
                 }
 
                 var vertRot = rot * data.directionFromCenter[i];
-                var u = (float)((vertRot.x * sphereRadius / radius + 1.0) * 0.5);
-                var v = (float)((vertRot.z * sphereRadius / radius + 1.0) * 0.5);
+                var u = (float)((vertRot.x * sphere.radius / radius + 1.0) * 0.5);
+                var v = (float)((vertRot.z * sphere.radius / radius + 1.0) * 0.5);
 
                 if (DEBUG_HighlightInclusion)
                 {
                     data.vertColor[i] = Color.green;
                 }
-                else if (nColorMap is BurstMapSO colorMap)
+                else if (this.colorMap is BurstMapSO colorMap)
                 {
                     var c1 = colorMap.GetPixelColor(u, v);
                     var smoothFactor = c1.a * GetColorSmoothing(u, v);
@@ -248,6 +158,15 @@ public class MapDecalTangent(PQSMod_MapDecalTangent mod) : BatchPQSMod<PQSMod_Ma
                     }
                 }
             }
+        }
+
+        public void Dispose()
+        {
+            heightMap?.Dispose();
+            colorMap?.Dispose();
+
+            heightMap = null;
+            colorMap = null;
         }
 
         private readonly float GetHeightSmoothing(float u, float v)
