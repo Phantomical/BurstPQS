@@ -4,7 +4,6 @@ using System.Linq.Expressions;
 using System.Reflection;
 using System.Runtime.CompilerServices;
 using BurstPQS.Collections;
-using RUI.Algorithms;
 using Unity.Burst;
 using Unity.Burst.CompilerServices;
 using Unity.Collections;
@@ -16,6 +15,13 @@ using UnityEngine;
 #pragma warning disable IDE1006 // Naming Styles
 
 namespace BurstPQS;
+
+// You can implement build behaviour for a PQSMod by implementing some of the
+// traits below on a struct and then registering them with the job set in
+// OnQuadPreBuild.
+//
+// They will be called on the quad job thread and properly burst compiled if
+// you annotate the job struct with [BurstCompile].
 
 public struct SphereData(PQS sphere)
 {
