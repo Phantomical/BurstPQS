@@ -114,11 +114,7 @@ public class LandControl(PQSLandControl mod) : BatchPQSMod<PQSLandControl>(mod)
             blc.Dispose();
     }
 
-    unsafe struct BuildJob
-        : IBatchPQSHeightJob,
-            IBatchPQSVertexJob,
-            IBatchPQSMeshBuiltJob,
-            IDisposable
+    struct BuildJob : IBatchPQSHeightJob, IBatchPQSVertexJob, IBatchPQSMeshBuiltJob, IDisposable
     {
         public NativeArray<BurstLandClass> landClasses;
         public BurstSimplex altitudeSimplex;
@@ -136,43 +132,24 @@ public class LandControl(PQSLandControl mod) : BatchPQSMod<PQSLandControl>(mod)
         public PQSLandControl mod;
 
         // Cross-phase state allocated in BuildHeights, used through OnMeshBuilt
-        ulong* lcActive;
-        double* lcDeltas;
-        double* vHeights;
-        bool* allowScatterCopy;
-        int vertexCount;
-        int landClassCount;
+        NativeArray<ulong> lcActive;
+        NativeArray<double> lcDeltas;
+        NativeArray<double> vHeights;
+        NativeArray<bool> allowScatterCopy;
 
         public void BuildHeights(in BuildHeightsData data)
         {
-            vertexCount = data.VertexCount;
-            landClassCount = landClasses.Length;
-
-            int lcActiveCount = vertexCount * landClassCount;
+            int landClassCount = landClasses.Length;
+            int lcActiveCount = data.VertexCount * landClasses.Length;
             int lcActiveUlongCount = (lcActiveCount + 63) / 64;
 
-            lcActive = (ulong*)
-                UnsafeUtility.Malloc(
-                    lcActiveUlongCount * sizeof(ulong),
-                    UnsafeUtility.AlignOf<ulong>(),
-                    Allocator.Temp
-                );
-            lcDeltas = (double*)
-                UnsafeUtility.Malloc(
-                    lcActiveCount * sizeof(double),
-                    UnsafeUtility.AlignOf<double>(),
-                    Allocator.Temp
-                );
-            vHeights = (double*)
-                UnsafeUtility.Malloc(
-                    vertexCount * sizeof(double),
-                    UnsafeUtility.AlignOf<double>(),
-                    Allocator.Temp
-                );
+            lcActive = new(lcActiveUlongCount, Allocator.TempJob);
+            lcDeltas = new(lcActiveCount, Allocator.TempJob);
+            vHeights = new(data.VertexCount, Allocator.TempJob);
 
-            var lcActiveBits = new BitSpan(new MemorySpan<ulong>(lcActive, lcActiveUlongCount));
-            var lcDeltasSpan = new MemorySpan<double>(lcDeltas, lcActiveCount);
-            var vHeightsSpan = new MemorySpan<double>(vHeights, vertexCount);
+            var lcActiveBits = new BitSpan(new MemorySpan<ulong>(lcActive));
+            var lcDeltasSpan = new MemorySpan<double>(lcDeltas);
+            var vHeightsSpan = new MemorySpan<double>(vHeights);
 
             lcActiveBits.Clear();
             lcDeltasSpan.Clear();
@@ -180,7 +157,7 @@ public class LandControl(PQSLandControl mod) : BatchPQSMod<PQSLandControl>(mod)
 
             double sphereRadius = data.sphere.radius;
 
-            for (int i = 0; i < vertexCount; ++i)
+            for (int i = 0; i < data.VertexCount; ++i)
             {
                 double totalDelta = 0.0;
                 double vHeight;
@@ -253,17 +230,16 @@ public class LandControl(PQSLandControl mod) : BatchPQSMod<PQSLandControl>(mod)
 
         public void BuildVertices(in BuildVerticesData data)
         {
-            var lcActiveBits = new BitSpan(
-                new MemorySpan<ulong>(lcActive, (vertexCount * landClassCount + 63) / 64)
-            );
+            int landClassCount = landClasses.Length;
+            var lcActiveBits = new BitSpan(new MemorySpan<ulong>(lcActive));
 
             // Initialize vertColor to black (moved from BuildHeights since BuildHeightsData lacks vertColor)
-            for (int i = 0; i < vertexCount; ++i)
+            for (int i = 0; i < data.VertexCount; ++i)
                 data.vertColor[i] = Color.black;
 
             if (createColors)
             {
-                for (int i = 0; i < vertexCount; ++i)
+                for (int i = 0; i < data.VertexCount; ++i)
                 {
                     var vHeightAltered = vHeights[i];
                     var baseIndex = i * landClassCount;
@@ -296,13 +272,8 @@ public class LandControl(PQSLandControl mod) : BatchPQSMod<PQSLandControl>(mod)
             // Copy allowScatter for use in OnMeshBuilt
             if (scatterActive)
             {
-                allowScatterCopy = (bool*)
-                    UnsafeUtility.Malloc(
-                        vertexCount * sizeof(bool),
-                        UnsafeUtility.AlignOf<bool>(),
-                        Allocator.Temp
-                    );
-                for (int i = 0; i < vertexCount; ++i)
+                allowScatterCopy = new(data.VertexCount, Allocator.Temp);
+                for (int i = 0; i < data.VertexCount; ++i)
                     allowScatterCopy[i] = data.allowScatter[i];
             }
         }
@@ -312,9 +283,9 @@ public class LandControl(PQSLandControl mod) : BatchPQSMod<PQSLandControl>(mod)
             if (!scatterActive)
                 return;
 
-            var lcActiveBits = new BitSpan(
-                new MemorySpan<ulong>(lcActive, (vertexCount * landClassCount + 63) / 64)
-            );
+            var vertexCount = vHeights.Length;
+            var landClassCount = landClasses.Length;
+            var lcActiveBits = new BitSpan(new MemorySpan<ulong>(lcActive));
 
             for (int i = 0; i < vertexCount; ++i)
             {
@@ -352,26 +323,11 @@ public class LandControl(PQSLandControl mod) : BatchPQSMod<PQSLandControl>(mod)
         {
             if (heightMap is BurstMapSO hMap)
                 hMap.Dispose();
-            if (lcActive != null)
-            {
-                UnsafeUtility.Free(lcActive, Allocator.Temp);
-                lcActive = null;
-            }
-            if (lcDeltas != null)
-            {
-                UnsafeUtility.Free(lcDeltas, Allocator.Temp);
-                lcDeltas = null;
-            }
-            if (vHeights != null)
-            {
-                UnsafeUtility.Free(vHeights, Allocator.Temp);
-                vHeights = null;
-            }
-            if (allowScatterCopy != null)
-            {
-                UnsafeUtility.Free(allowScatterCopy, Allocator.Temp);
-                allowScatterCopy = null;
-            }
+
+            lcActive.Dispose();
+            lcDeltas.Dispose();
+            vHeights.Dispose();
+            allowScatterCopy.Dispose();
         }
     }
 }
