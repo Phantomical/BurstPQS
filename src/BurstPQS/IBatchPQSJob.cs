@@ -1,0 +1,498 @@
+using System;
+using System.Collections.Generic;
+using System.Linq.Expressions;
+using System.Reflection;
+using System.Runtime.CompilerServices;
+using BurstPQS.Collections;
+using RUI.Algorithms;
+using Unity.Burst;
+using Unity.Burst.CompilerServices;
+using Unity.Collections;
+using Unity.Collections.LowLevel.Unsafe;
+using Unity.Jobs.LowLevel.Unsafe;
+using Unity.Profiling;
+using UnityEngine;
+
+#pragma warning disable IDE1006 // Naming Styles
+
+namespace BurstPQS;
+
+public struct SphereData
+{
+    public double radius;
+    public double radiusMin;
+    public double radiusMax;
+
+    public readonly double radiusDelta => radiusMax - radiusMin;
+}
+
+public unsafe struct BuildHeightsData
+{
+    public SphereData sphere { get; private set; }
+
+    public int VertexCount
+    {
+        [return: AssumeRange(0, int.MaxValue)]
+        get;
+        internal set;
+    }
+
+    [NoAlias]
+    internal Vector3d* _directionFromCenter;
+
+    [NoAlias]
+    readonly double* _u;
+
+    [NoAlias]
+    readonly double* _v;
+
+    [NoAlias]
+    readonly double* _sx;
+
+    [NoAlias]
+    readonly double* _sy;
+
+    [NoAlias]
+    readonly double* _longitude;
+
+    [NoAlias]
+    readonly double* _latitude;
+
+    [NoAlias]
+    readonly double* _height;
+
+    internal BuildHeightsData(SphereData sphere, int vertexCount)
+    {
+        this.sphere = sphere;
+        VertexCount = vertexCount;
+
+        _directionFromCenter = AllocVertexArray<Vector3d>();
+        _u = AllocVertexArray<double>();
+        _v = AllocVertexArray<double>();
+        _sx = AllocVertexArray<double>();
+        _sy = AllocVertexArray<double>();
+        _longitude = AllocVertexArray<double>();
+        _latitude = AllocVertexArray<double>();
+        _height = AllocVertexArray<double>();
+    }
+
+    internal readonly T* AllocVertexArray<T>()
+        where T : unmanaged
+    {
+        var ptr = (T*)
+            UnsafeUtility.Malloc(
+                VertexCount * sizeof(T),
+                UnsafeUtility.AlignOf<T>(),
+                Allocator.Temp
+            );
+        if (ptr is null)
+            throw new OutOfMemoryException("failed to allocate PQS temporary buffer data");
+        return ptr;
+    }
+
+    public readonly MemorySpan<Vector3d> directionFromCenter =>
+        CreateNativeArray(_directionFromCenter);
+
+    public readonly MemorySpan<double> vertHeight => CreateNativeArray(_height);
+
+    public readonly MemorySpan<double> u => CreateNativeArray(_u);
+    public readonly MemorySpan<double> v => CreateNativeArray(_v);
+
+    public readonly MemorySpan<double> sx => CreateNativeArray(_sx);
+    public readonly MemorySpan<double> sy => CreateNativeArray(_sy);
+
+    public readonly MemorySpan<double> longitude => CreateNativeArray(_longitude);
+    public readonly MemorySpan<double> latitude => CreateNativeArray(_latitude);
+
+    [MethodImpl(MethodImplOptions.AggressiveInlining)]
+    private readonly MemorySpan<T> CreateNativeArray<T>(T* data)
+        where T : unmanaged
+    {
+        return new MemorySpan<T>(data, VertexCount);
+    }
+}
+
+public unsafe struct BuildVerticesData
+{
+    internal BuildHeightsData data;
+
+    public readonly SphereData sphere => data.sphere;
+
+    public readonly int VertexCount => data.VertexCount;
+
+    #region BuildHeightData
+    public readonly MemorySpan<Vector3d> directionFromCenter => data.directionFromCenter;
+
+    public readonly MemorySpan<double> vertHeight => data.vertHeight;
+
+    public readonly MemorySpan<double> u => data.u;
+    public readonly MemorySpan<double> v => data.v;
+
+    public readonly MemorySpan<double> sx => data.sx;
+    public readonly MemorySpan<double> sy => data.sy;
+
+    public readonly MemorySpan<double> longitude => data.longitude;
+    public readonly MemorySpan<double> latitude => data.latitude;
+    #endregion
+
+    #region BuildVerticesData
+    [NoAlias]
+    internal Color* _vertColor;
+
+    [NoAlias]
+    internal double* _u2;
+
+    [NoAlias]
+    internal double* _v2;
+
+    [NoAlias]
+    internal double* _u3;
+
+    [NoAlias]
+    internal double* _v3;
+
+    [NoAlias]
+    internal double* _u4;
+
+    [NoAlias]
+    internal double* _v4;
+
+    [NoAlias]
+    internal bool* _allowScatter;
+
+    internal BuildVerticesData(BuildHeightsData data)
+    {
+        this.data = data;
+
+        _vertColor = AllocVertexArray<Color>();
+        _u2 = AllocVertexArray<double>();
+        _v2 = AllocVertexArray<double>();
+        _u3 = AllocVertexArray<double>();
+        _v3 = AllocVertexArray<double>();
+        _u4 = AllocVertexArray<double>();
+        _v4 = AllocVertexArray<double>();
+        _allowScatter = AllocVertexArray<bool>();
+    }
+
+    internal readonly T* AllocVertexArray<T>()
+        where T : unmanaged
+    {
+        return data.AllocVertexArray<T>();
+    }
+
+    public readonly MemorySpan<Color> vertColor => CreateNativeArray(_vertColor);
+    public readonly MemorySpan<double> u2 => CreateNativeArray(_u2);
+    public readonly MemorySpan<double> u3 => CreateNativeArray(_u3);
+    public readonly MemorySpan<double> u4 => CreateNativeArray(_u4);
+    public readonly MemorySpan<double> v2 => CreateNativeArray(_v2);
+    public readonly MemorySpan<double> v3 => CreateNativeArray(_v3);
+    public readonly MemorySpan<double> v4 => CreateNativeArray(_v4);
+    #endregion
+
+    [MethodImpl(MethodImplOptions.AggressiveInlining)]
+    private readonly MemorySpan<T> CreateNativeArray<T>(T* data)
+        where T : unmanaged
+    {
+        return new MemorySpan<T>(data, VertexCount);
+    }
+}
+
+public unsafe struct BuildMeshData
+{
+    internal BuildVerticesData data;
+
+    public readonly SphereData sphere => data.sphere;
+
+    public readonly int VertexCount => data.VertexCount;
+
+    public double VertMax { get; internal set; }
+    public double VertMin { get; internal set; }
+
+    #region BuildHeightData
+    public readonly MemorySpan<Vector3d> directionFromCenter => data.directionFromCenter;
+
+    public readonly MemorySpan<double> vertHeight => data.vertHeight;
+
+    public readonly MemorySpan<double> u => data.u;
+    public readonly MemorySpan<double> v => data.v;
+
+    public readonly MemorySpan<double> sx => data.sx;
+    public readonly MemorySpan<double> sy => data.sy;
+
+    public readonly MemorySpan<double> longitude => data.longitude;
+    public readonly MemorySpan<double> latitude => data.latitude;
+    #endregion
+
+    #region BuildVerticesData
+    public readonly MemorySpan<Color> vertColor => data.vertColor;
+    public readonly MemorySpan<double> u2 => data.u2;
+    public readonly MemorySpan<double> u3 => data.u3;
+    public readonly MemorySpan<double> u4 => data.u4;
+    public readonly MemorySpan<double> v2 => data.v2;
+    public readonly MemorySpan<double> v3 => data.v3;
+    public readonly MemorySpan<double> v4 => data.v4;
+    #endregion
+
+    readonly Vector3d* _vertsD;
+    readonly Vector3* _verts;
+    readonly Vector3* _normals;
+    readonly Vector2* _uvs;
+    readonly Vector2* _uv2s;
+    readonly Vector2* _uv3s;
+    readonly Vector2* _uv4s;
+    readonly Vector4* _tangents;
+
+    public readonly MemorySpan<Vector3d> vertsD => CreateNativeArray(_vertsD);
+    public readonly MemorySpan<Vector3> verts => CreateNativeArray(_verts);
+    public readonly MemorySpan<Vector3> normals => CreateNativeArray(_normals);
+    public readonly MemorySpan<Vector2> uvs => CreateNativeArray(_uvs);
+    public readonly MemorySpan<Vector2> uv2s => CreateNativeArray(_uv2s);
+    public readonly MemorySpan<Vector2> uv3s => CreateNativeArray(_uv3s);
+    public readonly MemorySpan<Vector2> uv4s => CreateNativeArray(_uv4s);
+    public readonly MemorySpan<Vector4> tangents => CreateNativeArray(_tangents);
+
+    internal BuildMeshData(BuildVerticesData data)
+    {
+        this.data = data;
+    }
+
+    internal readonly T* AllocVertexArray<T>()
+        where T : unmanaged
+    {
+        return data.AllocVertexArray<T>();
+    }
+
+    [MethodImpl(MethodImplOptions.AggressiveInlining)]
+    private readonly MemorySpan<T> CreateNativeArray<T>(T* data)
+        where T : unmanaged
+    {
+        return new MemorySpan<T>(data, VertexCount);
+    }
+}
+
+/// <summary>
+/// Called to build the vertex heights for a single quad.
+/// </summary>
+///
+/// <remarks>
+/// This fills much the same role as overriding <c>OnBuildHeight</c>
+/// in a regular <see cref="PQSMod"/>. The main differences are that
+/// it is called with the data for the entire quad at once.
+/// </remarks>
+[JobProducerType(typeof(IBatchPQSJobExtensions.HeightJobStruct<>))]
+public interface IBatchPQSHeightJob
+{
+    public void BuildHeights(in BuildHeightsData data);
+}
+
+/// <summary>
+/// Called to build the other vertex properties for a quad.
+/// </summary>
+///
+/// <remarks>
+/// This fills much the same role as overriding <c>OnBuildVertex</c>
+/// in a regular <see cref="PQSMod"/>. The main differences are that
+/// it is called with the data for the entire quad at once.
+/// </remarks>
+[JobProducerType(typeof(IBatchPQSJobExtensions.VertexJobStruct<>))]
+public interface IBatchPQSVertexJob
+{
+    public void BuildVertices(in BuildVerticesData data);
+}
+
+[JobProducerType(typeof(IBatchPQSJobExtensions.MeshJobStruct<>))]
+public interface IBatchPQSMeshJob
+{
+    public void BuildMesh(in BuildMeshData data);
+}
+
+internal abstract class JobData : IDisposable
+{
+    protected JobData() { }
+
+    public abstract void BuildHeights(in BuildHeightsData data);
+    public abstract void BuildVertices(in BuildVerticesData data);
+    public abstract void BuildMesh(in BuildMeshData data);
+    public abstract void Dispose();
+}
+
+internal sealed class JobData<T>(in T job) : JobData
+    where T : struct
+{
+    delegate void BuildHeightsDelegate(ref T self, in BuildHeightsData data);
+    delegate void BuildVerticesDelegate(ref T self, in BuildVerticesData data);
+    delegate void BuildMeshDelegate(ref T self, in BuildMeshData data);
+    delegate void DisposeDelegate(ref T self);
+
+    static readonly ProfilerMarker BuildHeightsMarker;
+    static readonly ProfilerMarker BuildVerticesMarker;
+    static readonly ProfilerMarker BuildMeshMarker;
+
+    static readonly BuildHeightsDelegate BuildHeightsFunc;
+    static readonly BuildVerticesDelegate BuildVerticesFunc;
+    static readonly BuildMeshDelegate BuildMeshFunc;
+    static readonly DisposeDelegate DisposeFunc;
+    static readonly Action<T> AutoDisposeFunc;
+
+    static JobData()
+    {
+        var type = typeof(T);
+
+        BuildHeightsMarker = new($"{type.Name}:{nameof(IBatchPQSHeightJob.BuildHeights)}");
+        BuildVerticesMarker = new($"{type.Name}:{nameof(IBatchPQSVertexJob.BuildVertices)}");
+        BuildMeshMarker = new($"{type.Name}:{nameof(IBatchPQSMeshJob.BuildMesh)}");
+
+        if (typeof(IBatchPQSHeightJob).IsAssignableFrom(type))
+        {
+            var executeFn = typeof(IBatchPQSJobExtensions.HeightJobStruct<>)
+                .MakeGenericType(type)
+                .GetMethod(nameof(IBatchPQSJobExtensions.HeightJobStruct<>.Execute));
+            var executeDel = (BuildHeightsDelegate)
+                Delegate.CreateDelegate(typeof(BuildHeightsDelegate), executeFn);
+
+            BuildHeightsFunc = BurstCompiler.CompileFunctionPointer(executeDel).Invoke;
+        }
+
+        if (typeof(IBatchPQSVertexJob).IsAssignableFrom(type))
+        {
+            var executeFn = typeof(IBatchPQSJobExtensions.VertexJobStruct<>)
+                .MakeGenericType(type)
+                .GetMethod(nameof(IBatchPQSJobExtensions.VertexJobStruct<>.Execute));
+            var executeDel = (BuildVerticesDelegate)
+                Delegate.CreateDelegate(typeof(BuildVerticesDelegate), executeFn);
+
+            BuildVerticesFunc = BurstCompiler.CompileFunctionPointer(executeDel).Invoke;
+        }
+
+        if (typeof(IBatchPQSMeshJob).IsAssignableFrom(type))
+        {
+            var executeFn = typeof(IBatchPQSJobExtensions.MeshJobStruct<>)
+                .MakeGenericType(type)
+                .GetMethod(nameof(IBatchPQSJobExtensions.MeshJobStruct<>.Execute));
+            var executeDel = (BuildMeshDelegate)
+                Delegate.CreateDelegate(typeof(BuildMeshDelegate), executeFn);
+
+            BuildMeshFunc = BurstCompiler.CompileFunctionPointer(executeDel).Invoke;
+        }
+
+        if (typeof(IDisposable).IsAssignableFrom(type))
+        {
+            DisposeFunc = (DisposeDelegate)
+                Delegate.CreateDelegate(typeof(DisposeDelegate), type.GetMethod("Dispose", []));
+        }
+
+        AutoDisposeFunc = BuildAutoDisposeDelegate();
+    }
+
+    static Action<T> BuildAutoDisposeDelegate()
+    {
+        const BindingFlags Flags =
+            BindingFlags.Instance | BindingFlags.Public | BindingFlags.NonPublic;
+
+        List<Expression> exprs = null;
+        var param = Expression.Parameter(typeof(T));
+
+        foreach (var field in typeof(T).GetFields(Flags))
+        {
+            if (field.GetCustomAttribute<DeallocateOnJobCompletionAttribute>() is null)
+                continue;
+
+            var fieldType = field.FieldType;
+            if (
+                fieldType.GetCustomAttribute<NativeContainerSupportsDeallocateOnJobCompletionAttribute>()
+                is null
+            )
+                continue;
+
+            var bufferField = fieldType.GetField("m_Buffer", Flags);
+            var allocatorField = fieldType.GetField("m_AllocatorLabel");
+
+            if (!bufferField.FieldType.IsPointer)
+                continue;
+            if (allocatorField.FieldType != typeof(Allocator))
+                continue;
+
+            var dispose = Expression.Call(
+                typeof(UnsafeUtility).GetMethod(nameof(UnsafeUtility.Free)),
+                Expression.Field(param, bufferField),
+                Expression.Field(param, allocatorField)
+            );
+
+            exprs ??= [];
+            exprs.Add(dispose);
+        }
+
+        if (exprs is null)
+            return null;
+
+        var block = Expression.Block(exprs);
+        var lambda = Expression.Lambda<Action<T>>(block, param);
+
+        return lambda.Compile();
+    }
+
+    T job = job;
+
+    public override void BuildHeights(in BuildHeightsData data)
+    {
+        if (BuildHeightsFunc is null)
+            return;
+
+        using var scope = BuildHeightsMarker.Auto();
+        BuildHeightsFunc(ref job, in data);
+    }
+
+    public override void BuildVertices(in BuildVerticesData data)
+    {
+        if (BuildVerticesFunc is null)
+            return;
+
+        using var scope = BuildVerticesMarker.Auto();
+        BuildVerticesFunc(ref job, in data);
+    }
+
+    public override void BuildMesh(in BuildMeshData data)
+    {
+        if (BuildVerticesFunc is null)
+            return;
+
+        using var scope = BuildMeshMarker.Auto();
+        BuildMeshFunc(ref job, in data);
+    }
+
+    public override void Dispose()
+    {
+        DisposeFunc?.Invoke(ref job);
+        AutoDisposeFunc?.Invoke(job);
+    }
+}
+
+internal static class IBatchPQSJobExtensions
+{
+    internal struct HeightJobStruct<T>
+        where T : struct, IBatchPQSHeightJob
+    {
+        public static void Execute(ref T self, in BuildHeightsData data)
+        {
+            self.BuildHeights(in data);
+        }
+    }
+
+    internal struct VertexJobStruct<T>
+        where T : struct, IBatchPQSVertexJob
+    {
+        public static void Execute(ref T self, in BuildVerticesData data)
+        {
+            self.BuildVertices(in data);
+        }
+    }
+
+    internal struct MeshJobStruct<T>
+        where T : struct, IBatchPQSMeshJob
+    {
+        public static void Execute(ref T self, in BuildMeshData data)
+        {
+            self.BuildMesh(in data);
+        }
+    }
+}
