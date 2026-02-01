@@ -4,6 +4,7 @@ using System.Runtime.CompilerServices;
 using System.Threading.Tasks;
 using BurstPQS.Async;
 using BurstPQS.Collections;
+using BurstPQS.Jobs;
 using BurstPQS.Patches;
 using BurstPQS.Util;
 using Unity.Burst;
@@ -13,6 +14,7 @@ using Unity.Jobs;
 using Unity.Mathematics;
 using Unity.Profiling;
 using UnityEngine;
+using UnityEngine.Rendering;
 using static PQS;
 
 namespace BurstPQS;
@@ -70,6 +72,10 @@ public class BatchPQS : MonoBehaviour
 
         pqs.buildQuad = quad;
         // pqs.Mod_OnQuadPreBuild(quad);
+
+        var jobSet = new BatchPQSJobSet();
+        foreach (var mod in mods)
+            mod.OnQuadPreBuild(quad, jobSet);
 
         using var data = new QuadBuildData(pqs, PQS.cacheVertCount);
         using CacheData cache = new(data.VertexCount);
@@ -255,83 +261,67 @@ public class BatchPQS : MonoBehaviour
         pqs.buildQuad = quad;
         // pqs.Mod_OnQuadPreBuild(quad);
 
-        using var data = new QuadBuildData(pqs, PQS.cacheVertCount);
-        using CacheData cache = new(data.VertexCount);
-        using var minmax = new NativeArray<double>(2, Allocator.TempJob);
-
-        var vbData = PQS.vbData;
-        vbData.buildQuad = quad;
-        vbData.allowScatter = true;
-        vbData.gnomonicPlane = quad.plane;
-        quad.meshVertMax = double.MaxValue;
-        quad.meshVertMin = double.MinValue;
-
-        var states = new List<IBatchPQSModState>(mods.Length);
-        using var sguard = new StateDisposer(states);
+        var meshData = new MeshData();
+        using var jobSet = new BatchPQSJobSet();
         foreach (var mod in mods)
-        {
-            var state = mod.OnQuadPreBuild(data);
-            if (state is not null)
-                states.Add(state);
-        }
+            mod.OnQuadPreBuild(quad, jobSet);
 
-        var initJob = new InitBuildDataJob
+        var job = new BuildQuadJob
         {
             quadMatrix = quad.quadMatrix,
-            data = data.burst,
-            reqVertexMapCoords = pqs.reqVertexMapCoods,
-            cacheSideVertCount = PQS.cacheSideVertCount,
-            cacheMeshSize = PQS.cacheMeshSize,
-        };
-
-        var handle = initJob.Schedule();
-        JobHandle.ScheduleBatchedJobs();
-
-        foreach (var state in states)
-            handle = state.ScheduleBuildHeights(data, handle);
-        foreach (var state in states)
-            handle = state.ScheduleBuildVertices(data, handle);
-        JobHandle.ScheduleBatchedJobs();
-
-        var buildJob = new BuildVerticesJob
-        {
-            data = data.burst,
-            cache = cache,
-            minmax = minmax,
-
             pqsTransform = transform.localToWorldMatrix,
-            inverseQuadTransform = data.buildQuad.transform.worldToLocalMatrix,
+            inverseQuadTransform = quad.transform.worldToLocalMatrix,
 
             surfaceRelativeQuads = pqs.surfaceRelativeQuads,
+            reqVertexMapCoords = pqs.reqVertexMapCoods,
             reqCustomNormals = pqs.reqCustomNormals,
             reqSphereUV = pqs.reqSphereUV,
             reqUVQuad = pqs.reqUVQuad,
             reqUV2 = pqs.reqUV2,
             reqUV3 = pqs.reqUV3,
             reqUV4 = pqs.reqUV4,
+            reqBuildTangents = pqs.reqBuildTangents,
+            reqAssignTangents = pqs.reqAssignTangents,
+            reqColorChannel = pqs.reqColorChannel,
 
             uvSW = quad.uvSW,
             uvDelta = quad.uvDelta,
+
+            cacheVertexCount = PQS.cacheVertCount,
             cacheSideVertCount = PQS.cacheSideVertCount,
+            cacheMeshSize = PQS.cacheMeshSize,
+            cacheRes = PQS.cacheRes,
+            cacheTriCount = PQS.cacheTriCount,
 
-            radius = pqs.radius,
-            meshVertMax = quad.meshVertMax,
-            meshVertMin = quad.meshVertMin,
+            sphere = new(pqs),
+
+            jobSet = new(jobSet),
+            meshData = new(meshData),
+            pq = new(quad),
         };
+        var handle = job.Schedule();
 
-        buildJob.Schedule(handle).Complete();
+        quad.mesh.Clear(false);
+        quad.mesh.SetIndexBufferParams(cacheTriIndexCount, IndexFormat.UInt32);
 
-        CopyGeneratedData(data, cache);
-        pqs.meshVertMin = minmax[0];
-        pqs.meshVertMax = minmax[1];
+        handle.Complete();
 
-        quad.mesh.vertices = quad.verts;
+        quad.mesh.SetVertexBufferParams(cacheVertCount, meshData.descriptors);
+        quad.mesh.SetVertexBufferData(meshData.vertexData, 0, 0, cacheVertCount);
+
+        if (meshData.normalData.IsCreated)
+            quad.mesh.SetVertexBufferData(meshData.normalData, 0, 0, cacheVertCount, stream: 1);
+        if (meshData.tangentData.IsCreated)
+            quad.mesh.SetVertexBufferData(meshData.tangentData, 0, 0, cacheVertCount, stream: 2);
+
         quad.mesh.triangles = PQS.cacheIndices[0];
         quad.mesh.RecalculateBounds();
         quad.edgeState = PQS.EdgeState.Reset;
-        pqs.Mod_OnMeshBuild();
-        foreach (var state in states)
-            state.OnQuadBuilt(data);
+
+        jobSet.OnMeshBuilt(quad);
+
+        foreach (var mod in mods)
+            mod.OnQuadBuilt(quad);
         pqs.buildQuad = null;
         return true;
     }

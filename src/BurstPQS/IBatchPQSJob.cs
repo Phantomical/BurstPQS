@@ -17,11 +17,11 @@ using UnityEngine;
 
 namespace BurstPQS;
 
-public struct SphereData
+public struct SphereData(PQS sphere)
 {
-    public double radius;
-    public double radiusMin;
-    public double radiusMax;
+    public double radius = sphere.radius;
+    public double radiusMin = sphere.radiusMin;
+    public double radiusMax = sphere.radiusMin;
 
     public readonly double radiusDelta => radiusMax - radiusMin;
 }
@@ -300,10 +300,27 @@ public interface IBatchPQSVertexJob
     public void BuildVertices(in BuildVerticesData data);
 }
 
+/// <summary>
+/// Called once the mesh has been built, but before it is assigned to the unity
+/// mesh object itself.
+/// </summary>
+///
+/// <remarks>
+/// This allows you to modify the final mesh data on the job thread before it
+/// gets sent back to the main thread.
+/// </remarks>
 [JobProducerType(typeof(IBatchPQSJobExtensions.MeshJobStruct<>))]
 public interface IBatchPQSMeshJob
 {
     public void BuildMesh(in BuildMeshData data);
+}
+
+/// <summary>
+/// Called back on the main thread once the job has completed.
+/// </summary>
+public interface IBatchPQSMeshBuiltJob
+{
+    public void OnMeshBuilt(PQ quad);
 }
 
 internal abstract class JobData : IDisposable
@@ -313,6 +330,7 @@ internal abstract class JobData : IDisposable
     public abstract void BuildHeights(in BuildHeightsData data);
     public abstract void BuildVertices(in BuildVerticesData data);
     public abstract void BuildMesh(in BuildMeshData data);
+    public abstract void OnMeshBuilt(PQ quad);
     public abstract void Dispose();
 }
 
@@ -322,6 +340,7 @@ internal sealed class JobData<T>(in T job) : JobData
     delegate void BuildHeightsDelegate(ref T self, in BuildHeightsData data);
     delegate void BuildVerticesDelegate(ref T self, in BuildVerticesData data);
     delegate void BuildMeshDelegate(ref T self, in BuildMeshData data);
+    delegate void OnMeshBuiltDelegate(ref T self, PQ quad);
     delegate void DisposeDelegate(ref T self);
 
     static readonly ProfilerMarker BuildHeightsMarker;
@@ -331,6 +350,7 @@ internal sealed class JobData<T>(in T job) : JobData
     static readonly BuildHeightsDelegate BuildHeightsFunc;
     static readonly BuildVerticesDelegate BuildVerticesFunc;
     static readonly BuildMeshDelegate BuildMeshFunc;
+    static readonly OnMeshBuiltDelegate OnMeshBuiltFunc;
     static readonly DisposeDelegate DisposeFunc;
     static readonly Action<T> AutoDisposeFunc;
 
@@ -373,6 +393,15 @@ internal sealed class JobData<T>(in T job) : JobData
                 Delegate.CreateDelegate(typeof(BuildMeshDelegate), executeFn);
 
             BuildMeshFunc = BurstCompiler.CompileFunctionPointer(executeDel).Invoke;
+        }
+
+        if (typeof(IBatchPQSMeshBuiltJob).IsAssignableFrom(type))
+        {
+            var executeFn = typeof(IBatchPQSJobExtensions.OnMeshBuiltStruct<>)
+                .MakeGenericType(type)
+                .GetMethod(nameof(IBatchPQSJobExtensions.MeshJobStruct<>.Execute));
+            OnMeshBuiltFunc = (OnMeshBuiltDelegate)
+                Delegate.CreateDelegate(typeof(OnMeshBuiltDelegate), executeFn);
         }
 
         if (typeof(IDisposable).IsAssignableFrom(type))
@@ -460,6 +489,11 @@ internal sealed class JobData<T>(in T job) : JobData
         BuildMeshFunc(ref job, in data);
     }
 
+    public override void OnMeshBuilt(PQ quad)
+    {
+        OnMeshBuiltFunc?.Invoke(ref job, quad);
+    }
+
     public override void Dispose()
     {
         DisposeFunc?.Invoke(ref job);
@@ -494,5 +528,11 @@ internal static class IBatchPQSJobExtensions
         {
             self.BuildMesh(in data);
         }
+    }
+
+    internal struct OnMeshBuiltStruct<T>
+        where T : struct, IBatchPQSMeshBuiltJob
+    {
+        public static void Execute(ref T self, PQ quad) => self.OnMeshBuilt(quad);
     }
 }

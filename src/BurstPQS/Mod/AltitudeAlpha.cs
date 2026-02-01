@@ -5,28 +5,22 @@ namespace BurstPQS.Mod;
 
 [BurstCompile]
 [BatchPQSMod(typeof(PQSMod_AltitudeAlpha))]
-public class AltitudeAlpha(PQSMod_AltitudeAlpha mod) : InlineBatchPQSMod<PQSMod_AltitudeAlpha>(mod)
+public class AltitudeAlpha(PQSMod_AltitudeAlpha mod) : BatchPQSMod<PQSMod_AltitudeAlpha>(mod)
 {
-    public override JobHandle ScheduleBuildVertices(QuadBuildData data, JobHandle handle)
+    public override void OnQuadPreBuild(PQ quad, BatchPQSJobSet jobSet)
     {
-        var job = new BuildVerticesJob
-        {
-            data = data.burst,
-            atmosphereDepth = mod.atmosphereDepth,
-            invert = mod.invert,
-        };
+        base.OnQuadPreBuild(quad, jobSet);
 
-        return job.Schedule(handle);
+        jobSet.Add(new BuildJob { atmosphereDepth = mod.atmosphereDepth, invert = mod.invert });
     }
 
     [BurstCompile]
-    struct BuildVerticesJob : IJob
+    struct BuildJob : IBatchPQSVertexJob
     {
-        public BurstQuadBuildData data;
         public double atmosphereDepth;
         public bool invert;
 
-        public void Execute()
+        public readonly void BuildVertices(in BuildVerticesData data)
         {
             if (invert)
             {

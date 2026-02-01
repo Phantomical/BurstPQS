@@ -31,6 +31,12 @@ public class BatchPQSJobSet : IDisposable
             job.BuildMesh(data);
     }
 
+    internal void OnMeshBuilt(PQ quad)
+    {
+        foreach (var job in jobs)
+            job.OnMeshBuilt(quad);
+    }
+
     public void Dispose()
     {
         List<Exception> exceptions = null;

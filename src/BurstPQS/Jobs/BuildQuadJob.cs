@@ -37,7 +37,7 @@ internal struct BuildQuadJob : IJob
 
     public int cacheVertexCount;
     public int cacheSideVertCount;
-    public int cacheMeshSize;
+    public float cacheMeshSize;
     public int cacheRes;
     public int cacheTriCount;
 

@@ -5,92 +5,6 @@ using UnityEngine;
 
 namespace BurstPQS;
 
-/// <summary>
-/// Interface for the stateful part of a BatchPQSMod.
-/// </summary>
-///
-/// <remarks>
-/// These will be created at the start of the quad build process, after
-/// <c>OnQuadPreBuild</c> is called. There may be multiple PQS quads being built
-/// at the same time, so you should return a new object that will store the
-/// relevant state.
-///
-/// If your PQSMod is stateless then you can can just directly implement this
-/// interface and avoid needing to create a new object. You can also key off the
-/// <see cref="QuadBuildData"/> instance, though this is not the recommended
-/// way to do this.
-/// </remarks>
-public interface IBatchPQSModState
-{
-    /// <summary>
-    /// Schedule a job to be completed as part of building vertex heights.
-    /// </summary>
-    /// <param name="data"></param>
-    /// <param name="handle"></param>
-    /// <returns>A new job handle that will be used to continue the chain.</returns>
-    ///
-    /// <remarks>
-    /// The returned job handle should include all jobs created by this step
-    /// that refer to any data stored in <paramref name="data"/>.
-    /// </remarks>
-    JobHandle ScheduleBuildHeights(QuadBuildData data, JobHandle handle);
-
-    /// <summary>
-    /// Schedule a job to be run as part of building the vertices themselves.
-    /// </summary>
-    /// <param name="data"></param>
-    /// <param name="handle"></param>
-    /// <returns>A new job handle that will be used to continue the chain.</returns>
-    ///
-    /// <remarks>
-    /// The returned job handle should include all jobs created by this step
-    /// that refer to any data stored in <paramref name="data"/>.
-    /// </remarks>
-    JobHandle ScheduleBuildVertices(QuadBuildData data, JobHandle handle);
-
-    /// <summary>
-    /// Schedule work to be completed after all the vertex data has been built.
-    /// </summary>
-    /// <param name="data"></param>
-    /// <param name="handle"></param>
-    /// <returns>A new job handle that will continue the chain, or default otherwise.</returns>
-    JobHandle ScheduleBuildComplete(QuadBuildData data, JobHandle handle);
-
-    /// <summary>
-    /// Called on the main thread when the all the vertices have been built for
-    /// this patch. Use this method to perform any writeback to the actual PQSMod
-    /// and to dispose of any native resources that weren't disposed of after the
-    /// job completed.
-    /// </summary>
-    JobHandle OnQuadBuilt(QuadBuildData data);
-}
-
-public abstract class BatchPQSModState : IDisposable, IBatchPQSModState
-{
-    public virtual JobHandle ScheduleBuildHeights(QuadBuildData data, JobHandle handle) => handle;
-
-    public virtual JobHandle ScheduleBuildVertices(QuadBuildData data, JobHandle handle) => handle;
-
-    public virtual JobHandle ScheduleBuildComplete(QuadBuildData data, JobHandle handle) => default;
-
-    public virtual JobHandle OnQuadBuilt(QuadBuildData data) => default;
-
-    public virtual void Dispose() { }
-}
-
-public abstract class BatchPQSModState<T>(T mod) : BatchPQSModState
-    where T : PQSMod
-{
-    protected T mod = mod;
-    public T Mod => mod;
-
-    public override JobHandle OnQuadBuilt(QuadBuildData data)
-    {
-        mod.OnQuadBuilt(data.buildQuad);
-        return default;
-    }
-}
-
 public abstract class BatchPQSMod : IDisposable
 {
     /// <summary>
@@ -106,18 +20,17 @@ public abstract class BatchPQSMod : IDisposable
     public virtual void OnSetup() { }
 
     /// <summary>
-    /// Called just after starting to build the quad. Can return a
-    /// <see cref="IBatchPQSModState"/> that will be used for future callbacks
-    /// relating to this quad.
+    /// Called just before the job to build the quad is launched. Anything that
+    /// will modify the quad needs to be added to <paramref name="jobSet"/>.
     /// </summary>
-    /// <param name="data"></param>
-    /// <returns></returns>
-    public virtual IBatchPQSModState OnQuadPreBuild(QuadBuildData data) => null;
+    /// <param name="quad"></param>
+    /// <param name="jobSet"></param>
+    public virtual void OnQuadPreBuild(PQ quad, BatchPQSJobSet jobSet) { }
+
+    public virtual void OnQuadBuilt(PQ quad) { }
 
     /// <summary>
-    /// Called during PQS teardown. All scheduled jobs will be completed at
-    /// this point as long as they were included in the dependencies of the
-    /// <see cref="JobHandle"/>s returned from <see cref="IBatchPQSModState"/>.
+    /// Called during PQS teardown.
     /// </summary>
     public virtual void Dispose() { }
 
@@ -213,6 +126,10 @@ public abstract class BatchPQSMod<T>(T mod) : BatchPQSMod
 
     public T Mod => mod;
 
+    public override void OnQuadPreBuild(PQ quad, BatchPQSJobSet jobSet) => mod.OnQuadPreBuild(quad);
+
+    public override void OnQuadBuilt(PQ quad) => mod.OnQuadBuilt(quad);
+
     public override string ToString()
     {
         if (mod is null)
@@ -221,26 +138,7 @@ public abstract class BatchPQSMod<T>(T mod) : BatchPQSMod
     }
 }
 
-public abstract class InlineBatchPQSMod<T>(T mod) : BatchPQSMod<T>(mod), IBatchPQSModState
-    where T : PQSMod
-{
-    public override IBatchPQSModState OnQuadPreBuild(QuadBuildData data)
-    {
-        mod.OnQuadPreBuild(data.buildQuad);
-        return this;
-    }
-
-    public virtual JobHandle ScheduleBuildHeights(QuadBuildData data, JobHandle handle) => handle;
-
-    public virtual JobHandle ScheduleBuildVertices(QuadBuildData data, JobHandle handle) => handle;
-
-    public virtual JobHandle ScheduleBuildComplete(QuadBuildData data, JobHandle handle) => default;
-
-    public virtual JobHandle OnQuadBuilt(QuadBuildData data)
-    {
-        mod.OnQuadBuilt(data.buildQuad);
-        return default;
-    }
-}
+public abstract class InlineBatchPQSMod<T>(T mod) : BatchPQSMod<T>(mod)
+    where T : PQSMod { }
 
 public class UnsupportedPQSModException(string message) : Exception(message) { }
