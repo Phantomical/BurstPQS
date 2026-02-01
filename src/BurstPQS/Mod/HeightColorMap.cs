@@ -1,7 +1,6 @@
 using System;
 using Unity.Burst;
 using Unity.Collections;
-using Unity.Jobs;
 using UnityEngine;
 
 namespace BurstPQS.Mod;
@@ -9,7 +8,7 @@ namespace BurstPQS.Mod;
 [BurstCompile]
 [BatchPQSMod(typeof(PQSMod_HeightColorMap))]
 public class HeightColorMap(PQSMod_HeightColorMap mod)
-    : InlineBatchPQSMod<PQSMod_HeightColorMap>(mod)
+    : BatchPQSMod<PQSMod_HeightColorMap>(mod)
 {
     public struct BurstLandClass(PQSMod_HeightColorMap.LandClass landClass)
     {
@@ -38,26 +37,24 @@ public class HeightColorMap(PQSMod_HeightColorMap mod)
         burstLandClasses.Dispose();
     }
 
-    public override JobHandle ScheduleBuildVertices(QuadBuildData data, JobHandle handle)
+    public override void OnQuadPreBuild(PQ quad, BatchPQSJobSet jobSet)
     {
-        var job = new BuildVerticesJob
+        base.OnQuadPreBuild(quad, jobSet);
+
+        jobSet.Add(new BuildVerticesJob
         {
-            data = data.burst,
             classes = burstLandClasses,
             blend = mod.blend,
-        };
-
-        return job.Schedule(handle);
+        });
     }
 
     [BurstCompile]
-    struct BuildVerticesJob : IJob
+    struct BuildVerticesJob : IBatchPQSVertexJob
     {
-        public BurstQuadBuildData data;
         public NativeArray<BurstLandClass> classes;
         public float blend;
 
-        public void Execute()
+        public readonly void BuildVertices(in BuildVerticesData data)
         {
             for (int i = 0; i < data.VertexCount; ++i)
             {

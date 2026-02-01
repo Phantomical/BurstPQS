@@ -1,40 +1,40 @@
+using System;
 using BurstPQS.Util;
 using Unity.Burst;
-using Unity.Jobs;
 
 namespace BurstPQS.Mod;
 
 [BurstCompile]
 [BatchPQSMod(typeof(PQSMod_VertexColorMap))]
 public class VertexColorMap(PQSMod_VertexColorMap mod)
-    : InlineBatchPQSMod<PQSMod_VertexColorMap>(mod)
+    : BatchPQSMod<PQSMod_VertexColorMap>(mod)
 {
-    public override JobHandle ScheduleBuildVertices(QuadBuildData data, JobHandle handle)
+    public override void OnQuadPreBuild(PQ quad, BatchPQSJobSet jobSet)
     {
-        var job = new BuildVerticesJob
+        base.OnQuadPreBuild(quad, jobSet);
+
+        jobSet.Add(new BuildVerticesJob
         {
-            data = data.burst,
             vertexColorMap = new(mod.vertexColorMap),
-        };
-
-        handle = job.Schedule(handle);
-        job.vertexColorMap.Dispose(handle);
-
-        return handle;
+        });
     }
 
     [BurstCompile]
-    struct BuildVerticesJob : IJob
+    struct BuildVerticesJob : IBatchPQSVertexJob, IDisposable
     {
-        public BurstQuadBuildData data;
         public BurstMapSO vertexColorMap;
 
-        public void Execute()
+        public readonly void BuildVertices(in BuildVerticesData data)
         {
             for (int i = 0; i < data.VertexCount; ++i)
             {
                 data.vertColor[i] = vertexColorMap.GetPixelColor(data.u[i], data.v[i]);
             }
+        }
+
+        public void Dispose()
+        {
+            vertexColorMap.Dispose();
         }
     }
 }

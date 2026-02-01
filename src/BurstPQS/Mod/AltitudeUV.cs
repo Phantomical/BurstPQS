@@ -1,37 +1,34 @@
 using BurstPQS.Util;
 using Unity.Burst;
-using Unity.Jobs;
 
 namespace BurstPQS.Mod;
 
 [BurstCompile]
 [BatchPQSMod(typeof(PQSMod_AltitudeUV))]
-public class AltitudeUV(PQSMod_AltitudeUV mod) : InlineBatchPQSMod<PQSMod_AltitudeUV>(mod)
+public class AltitudeUV(PQSMod_AltitudeUV mod) : BatchPQSMod<PQSMod_AltitudeUV>(mod)
 {
-    public override JobHandle ScheduleBuildHeights(QuadBuildData data, JobHandle handle)
+    public override void OnQuadPreBuild(PQ quad, BatchPQSJobSet jobSet)
     {
-        var job = new BuildVerticesJob
+        base.OnQuadPreBuild(quad, jobSet);
+
+        jobSet.Add(new BuildJob
         {
-            data = data.burst,
             radius = mod.sphere.radius,
             atmosphereHeight = mod.atmosphereHeight,
             oceanDepth = mod.oceanDepth,
             invert = mod.invert,
-        };
-
-        return job.Schedule(handle);
+        });
     }
 
     [BurstCompile]
-    struct BuildVerticesJob : IJob
+    struct BuildJob : IBatchPQSVertexJob
     {
-        public BurstQuadBuildData data;
         public double radius;
         public double atmosphereHeight;
         public double oceanDepth;
         public bool invert;
 
-        public readonly void Execute()
+        public readonly void BuildVertices(in BuildVerticesData data)
         {
             for (int i = 0; i < data.VertexCount; ++i)
             {

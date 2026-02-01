@@ -1,6 +1,6 @@
+using System;
 using BurstPQS.Noise;
 using Unity.Burst;
-using Unity.Jobs;
 using UnityEngine;
 
 namespace BurstPQS.Mod;
@@ -8,39 +8,30 @@ namespace BurstPQS.Mod;
 [BurstCompile]
 [BatchPQSMod(typeof(PQSMod_VertexSimplexNoiseColor))]
 public class VertexSimplexNoiseColor(PQSMod_VertexSimplexNoiseColor mod)
-    : InlineBatchPQSMod<PQSMod_VertexSimplexNoiseColor>(mod)
+    : BatchPQSMod<PQSMod_VertexSimplexNoiseColor>(mod)
 {
-    BurstSimplex simplex = new(mod.simplex);
-
-    public override JobHandle ScheduleBuildVertices(QuadBuildData data, JobHandle handle)
+    public override void OnQuadPreBuild(PQ quad, BatchPQSJobSet jobSet)
     {
-        var job = new BuildVerticesJob
+        base.OnQuadPreBuild(quad, jobSet);
+
+        jobSet.Add(new BuildVerticesJob
         {
-            data = data.burst,
             simplex = new(mod.simplex),
             colorStart = mod.colorStart,
             colorEnd = mod.colorEnd,
             blend = mod.blend,
-        };
-
-        return job.Schedule(handle);
-    }
-
-    public override void Dispose()
-    {
-        simplex.Dispose();
+        });
     }
 
     [BurstCompile]
-    struct BuildVerticesJob : IJob
+    struct BuildVerticesJob : IBatchPQSVertexJob, IDisposable
     {
-        public BurstQuadBuildData data;
         public BurstSimplex simplex;
         public Color colorStart;
         public Color colorEnd;
         public float blend;
 
-        public void Execute()
+        public readonly void BuildVertices(in BuildVerticesData data)
         {
             for (int i = 0; i < data.VertexCount; ++i)
             {
@@ -50,6 +41,11 @@ public class VertexSimplexNoiseColor(PQSMod_VertexSimplexNoiseColor mod)
 
                 data.vertColor[i] = Color.Lerp(data.vertColor[i], c, blend);
             }
+        }
+
+        public void Dispose()
+        {
+            simplex.Dispose();
         }
     }
 }

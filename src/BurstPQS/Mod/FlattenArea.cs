@@ -1,23 +1,23 @@
 using System;
 using BurstPQS.Util;
 using Unity.Burst;
-using Unity.Jobs;
 using UnityEngine;
 
 namespace BurstPQS.Mod;
 
 [BurstCompile]
 [BatchPQSMod(typeof(PQSMod_FlattenArea))]
-public class FlattenArea(PQSMod_FlattenArea mod) : InlineBatchPQSMod<PQSMod_FlattenArea>(mod)
+public class FlattenArea(PQSMod_FlattenArea mod) : BatchPQSMod<PQSMod_FlattenArea>(mod)
 {
-    public override JobHandle ScheduleBuildHeights(QuadBuildData data, JobHandle handle)
+    public override void OnQuadPreBuild(PQ quad, BatchPQSJobSet jobSet)
     {
-        if (!mod.overrideQuadBuildCheck && !mod.quadActive)
-            return handle;
+        base.OnQuadPreBuild(quad, jobSet);
 
-        var job = new BuildHeightsJob
+        if (!mod.overrideQuadBuildCheck && !mod.quadActive)
+            return;
+
+        jobSet.Add(new BuildJob
         {
-            data = data.burst,
             DEBUG_showColors = mod.DEBUG_showColors,
             removeScatter = mod.removeScatter,
             posNorm = mod.posNorm,
@@ -28,15 +28,12 @@ public class FlattenArea(PQSMod_FlattenArea mod) : InlineBatchPQSMod<PQSMod_Flat
             flattenToRadius = mod.flattenToRadius,
             smoothStart = mod.smoothStart,
             smoothEnd = mod.smoothEnd,
-        };
-
-        return job.Schedule(handle);
+        });
     }
 
     [BurstCompile]
-    struct BuildHeightsJob : IJob
+    struct BuildJob : IBatchPQSVertexJob
     {
-        public BurstQuadBuildData data;
         public bool DEBUG_showColors;
 
         public bool removeScatter;
@@ -49,7 +46,7 @@ public class FlattenArea(PQSMod_FlattenArea mod) : InlineBatchPQSMod<PQSMod_Flat
         public double smoothStart;
         public double smoothEnd;
 
-        public readonly void Execute()
+        public readonly void BuildVertices(in BuildVerticesData data)
         {
             for (int i = 0; i < data.VertexCount; ++i)
             {

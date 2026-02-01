@@ -1,7 +1,7 @@
+using System;
 using BurstPQS.Util;
 using Unity.Burst;
-using Unity.Collections;
-using Unity.Jobs;
+using UnityEngine;
 
 namespace BurstPQS.Mod;
 
@@ -9,68 +9,51 @@ namespace BurstPQS.Mod;
 [BatchPQSMod(typeof(PQSMod_RemoveQuadMap))]
 public class RemoveQuadMap(PQSMod_RemoveQuadMap mod) : BatchPQSMod<PQSMod_RemoveQuadMap>(mod)
 {
-    public override IBatchPQSModState OnQuadPreBuild(QuadBuildData data)
+    public override void OnQuadPreBuild(PQ quad, BatchPQSJobSet jobSet)
     {
-        mod.OnQuadBuilt(data.buildQuad);
-        return new State(mod);
+        base.OnQuadPreBuild(quad, jobSet);
+        mod.OnQuadBuilt(quad);
+
+        jobSet.Add(new BuildJob
+        {
+            mod = mod,
+            map = new(mod.map),
+            minHeight = mod.minHeight,
+            maxHeight = mod.maxHeight,
+        });
     }
 
-    class State(PQSMod_RemoveQuadMap mod) : BatchPQSModState<PQSMod_RemoveQuadMap>(mod)
+    struct BuildJob : IBatchPQSVertexJob, IBatchPQSMeshBuiltJob, IDisposable
     {
-        NativeArray<bool> quadVisible = new(1, Allocator.TempJob);
-
-        public override JobHandle ScheduleBuildVertices(QuadBuildData data, JobHandle handle)
-        {
-            var job = new BuildVerticesJob
-            {
-                data = data.burst,
-                map = new(mod.map),
-                minHeight = mod.minHeight,
-                maxHeight = mod.maxHeight,
-                quadVisible = quadVisible,
-            };
-            handle = job.Schedule(handle);
-            job.map.Dispose(handle);
-
-            return handle;
-        }
-
-        public override JobHandle OnQuadBuilt(QuadBuildData data)
-        {
-            mod.quadVisible = quadVisible[0];
-            return base.OnQuadBuilt(data);
-        }
-
-        public override void Dispose()
-        {
-            quadVisible.Dispose();
-        }
-    }
-
-    [BurstCompile]
-    struct BuildVerticesJob : IJob
-    {
-        public BurstQuadBuildData data;
+        public PQSMod_RemoveQuadMap mod;
         public BurstMapSO map;
         public float minHeight;
         public float maxHeight;
-        public NativeArray<bool> quadVisible;
+        bool quadVisible;
 
-        public void Execute()
+        public void BuildVertices(in BuildVerticesData data)
         {
-            bool visible = false;
+            quadVisible = false;
 
             for (int i = 0; i < data.VertexCount; ++i)
             {
                 var height = map.GetPixelFloat((float)data.u[i], (float)data.v[i]);
                 if (height >= minHeight && height <= maxHeight)
                 {
-                    visible = true;
+                    quadVisible = true;
                     break;
                 }
             }
+        }
 
-            quadVisible[0] = visible;
+        public void OnMeshBuilt(PQ quad)
+        {
+            mod.quadVisible = quadVisible;
+        }
+
+        public void Dispose()
+        {
+            map.Dispose();
         }
     }
 }

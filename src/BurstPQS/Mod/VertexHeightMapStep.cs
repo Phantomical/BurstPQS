@@ -1,24 +1,40 @@
+using UnityEngine;
+
 namespace BurstPQS.Mod;
 
-public class VertexHeightMapStep : BatchPQSModV1<PQSMod_VertexHeightMapStep>
+[BatchPQSMod(typeof(PQSMod_VertexHeightMapStep))]
+public class VertexHeightMapStep(PQSMod_VertexHeightMapStep mod) : BatchPQSMod<PQSMod_VertexHeightMapStep>(mod)
 {
-    public VertexHeightMapStep(PQSMod_VertexHeightMapStep mod)
-        : base(mod) { }
-
-    public override void OnBatchVertexBuildHeight(in QuadBuildDataV1 data)
+    public override void OnQuadPreBuild(PQ quad, BatchPQSJobSet jobSet)
     {
-        // TODO: Accessing textures in burst is hard for now. Need to build
-        //       something that allows working with the raw texture data.
-        var vc = data.VertexCount;
-        for (int i = 0; i < vc; ++i)
+        base.OnQuadPreBuild(quad, jobSet);
+
+        jobSet.Add(new BuildJob
         {
-            double h = mod
-                .heightMap.GetPixelBilinear((float)data.sx[i], (float)data.sy[i])
-                .grayscale;
-            if (h >= mod.coastHeight)
-                data.vertHeight[i] += mod.heightMapOffset + h * mod.heightDeformity;
-            else
-                data.vertHeight[i] += mod.heightMapOffset;
+            heightMap = mod.heightMap,
+            coastHeight = mod.coastHeight,
+            heightMapOffset = mod.heightMapOffset,
+            heightDeformity = mod.heightDeformity,
+        });
+    }
+
+    struct BuildJob : IBatchPQSHeightJob
+    {
+        public Texture2D heightMap;
+        public double coastHeight;
+        public double heightMapOffset;
+        public double heightDeformity;
+
+        public readonly void BuildHeights(in BuildHeightsData data)
+        {
+            for (int i = 0; i < data.VertexCount; ++i)
+            {
+                double h = heightMap.GetPixelBilinear((float)data.sx[i], (float)data.sy[i]).grayscale;
+                if (h >= coastHeight)
+                    data.vertHeight[i] += heightMapOffset + h * heightDeformity;
+                else
+                    data.vertHeight[i] += heightMapOffset;
+            }
         }
     }
 }

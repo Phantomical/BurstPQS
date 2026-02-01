@@ -1,63 +1,57 @@
+using System;
 using BurstPQS.Noise;
 using BurstPQS.Util;
 using Unity.Burst;
+using Unity.Jobs;
 using Unity.Mathematics;
 using UnityEngine;
 
 namespace BurstPQS.Mod;
 
 [BurstCompile]
-public class VertexSimplexColorRGB : BatchPQSModV1<PQSMod_VertexSimplexColorRGB>
+[BatchPQSMod(typeof(PQSMod_VertexSimplexColorRGB))]
+public class VertexSimplexColorRGB(PQSMod_VertexSimplexColorRGB mod) : BatchPQSMod<PQSMod_VertexSimplexColorRGB>(mod)
 {
-    public VertexSimplexColorRGB(PQSMod_VertexSimplexColorRGB mod)
-        : base(mod) { }
-
-    public override void OnBatchVertexBuild(in QuadBuildDataV1 data)
+    public override void OnQuadPreBuild(PQ quad, BatchPQSJobSet jobSet)
     {
-        using var bsimplex = new BurstSimplex(mod.simplex);
+        base.OnQuadPreBuild(quad, jobSet);
 
-        BuildVertices(
-            in data.burstData,
-            in bsimplex,
-            mod.rBlend,
-            mod.gBlend,
-            mod.bBlend,
-            mod.blend
-        );
-    }
+        using var simplex = new BurstSimplex(mod.simplex);
 
-    public override void OnBatchVertexBuildHeight(in QuadBuildDataV1 data)
-    {
-        using var bsimplex = new BurstSimplex(mod.simplex);
-
-        BuildVertices(
-            in data.burstData,
-            in bsimplex,
-            mod.rBlend,
-            mod.gBlend,
-            mod.bBlend,
-            mod.blend
-        );
-    }
-
-    [BurstCompile(FloatMode = FloatMode.Fast)]
-    [BurstPQSAutoPatch]
-    public void BuildVertices(
-        [NoAlias] in BurstQuadBuildDataV1 data,
-        [NoAlias] in BurstSimplex simplex,
-        float rBlend,
-        float gBlend,
-        float bBlend,
-        float blend
-    )
-    {
-        float3 cblend = new(rBlend, gBlend, bBlend);
-        for (int i = 0; i < data.VertexCount; ++i)
+        jobSet.Add(new BuildJob
         {
-            float n = (float)simplex.noise(data.directionFromCenter[i]);
-            float4 c = new(n * cblend, Color.white.a);
+            simplex = simplex,
+            rBlend = mod.rBlend,
+            gBlend = mod.gBlend,
+            bBlend = mod.bBlend,
+            blend = mod.blend
+        });
+    }
 
-            data.vertColor[i] = Color.Lerp(data.vertColor[i], BurstUtil.ConvertColor(c), blend);
+    [BurstCompile]
+    struct BuildJob : IBatchPQSVertexJob, IDisposable
+    {
+        public BurstSimplex simplex;
+        public float rBlend;
+        public float gBlend;
+        public float bBlend;
+        public float blend;
+
+        public readonly void BuildVertices(in BuildVerticesData data)
+        {
+            float3 cblend = new(rBlend, gBlend, bBlend);
+            for (int i = 0; i < data.VertexCount; ++i)
+            {
+                float n = (float)simplex.noise(data.directionFromCenter[i]);
+                float4 c = new(n * cblend, Color.white.a);
+
+                data.vertColor[i] = Color.Lerp(data.vertColor[i], BurstUtil.ConvertColor(c), blend);
+            }
+        }
+
+        public void Dispose()
+        {
+            simplex.Dispose();
         }
     }
 }

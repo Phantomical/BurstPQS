@@ -1,31 +1,31 @@
-using BurstPQS.Util;
 using Unity.Burst;
 
 namespace BurstPQS.Mod;
 
 [BurstCompile]
-public class VertexDefineCoastLine : BatchPQSModV1<PQSMod_VertexDefineCoastLine>
+[BatchPQSMod(typeof(PQSMod_VertexDefineCoastLine))]
+public class VertexDefineCoastLine(PQSMod_VertexDefineCoastLine mod) : BatchPQSMod<PQSMod_VertexDefineCoastLine>(mod)
 {
-    public VertexDefineCoastLine(PQSMod_VertexDefineCoastLine mod)
-        : base(mod) { }
-
-    public override void OnBatchVertexBuildHeight(in QuadBuildDataV1 data)
+    public override void OnQuadPreBuild(PQ quad, BatchPQSJobSet jobSet)
     {
-        BuildHeight(in data.burstData, mod.oceanRadius, mod.depthOffset);
+        base.OnQuadPreBuild(quad, jobSet);
+
+        jobSet.Add(new BuildJob { oceanRadius = mod.oceanRadius, depthOffset = mod.depthOffset });
     }
 
-    [BurstCompile(FloatMode = FloatMode.Fast)]
-    [BurstPQSAutoPatch]
-    static void BuildHeight(
-        [NoAlias] in BurstQuadBuildDataV1 data,
-        double oceanRadius,
-        double depthOffset
-    )
+    [BurstCompile]
+    struct BuildJob : IBatchPQSHeightJob
     {
-        for (int i = 0; i < data.VertexCount; ++i)
+        public double oceanRadius;
+        public double depthOffset;
+
+        public readonly void BuildHeights(in BuildHeightsData data)
         {
-            if (data.vertHeight[i] < oceanRadius)
-                data.vertHeight[i] -= depthOffset;
+            for (int i = 0; i < data.VertexCount; ++i)
+            {
+                if (data.vertHeight[i] < oceanRadius)
+                    data.vertHeight[i] -= depthOffset;
+            }
         }
     }
 }

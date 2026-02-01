@@ -2,14 +2,12 @@ using System;
 using BurstPQS.Collections;
 using BurstPQS.Noise;
 using BurstPQS.Util;
-using Unity.Burst;
 using Unity.Collections;
-using Unity.Jobs;
+using Unity.Collections.LowLevel.Unsafe;
 using UnityEngine;
 
 namespace BurstPQS.Mod;
 
-[BurstCompile]
 [BatchPQSMod(typeof(PQSLandControl))]
 public class LandControl(PQSLandControl mod) : BatchPQSMod<PQSLandControl>(mod)
 {
@@ -80,11 +78,27 @@ public class LandControl(PQSLandControl mod) : BatchPQSMod<PQSLandControl>(mod)
         longitudeSimplex = new(mod.longitudeSimplex);
     }
 
-    public override IBatchPQSModState OnQuadPreBuild(QuadBuildData data)
+    public override void OnQuadPreBuild(PQ quad, BatchPQSJobSet jobSet)
     {
-        mod.OnQuadPreBuild(data.buildQuad);
+        base.OnQuadPreBuild(quad, jobSet);
 
-        return new State(this, data);
+        jobSet.Add(new BuildJob
+        {
+            landClasses = burstLandClasses,
+            altitudeSimplex = altitudeSimplex,
+            latitudeSimplex = latitudeSimplex,
+            longitudeSimplex = longitudeSimplex,
+
+            heightMap = mod.useHeightMap ? new(mod.heightMap) : null,
+            altitudeBlend = mod.altitudeBlend,
+            latitudeBlend = mod.latitudeBlend,
+            longitudeBlend = mod.longitudeBlend,
+            vHeightMax = mod.vHeightMax,
+
+            createColors = mod.createColors,
+            scatterActive = mod.scatterActive,
+            mod = mod,
+        });
     }
 
     public override void Dispose()
@@ -98,182 +112,72 @@ public class LandControl(PQSLandControl mod) : BatchPQSMod<PQSLandControl>(mod)
             blc.Dispose();
     }
 
-    class State : BatchPQSModState<PQSLandControl>
+    unsafe struct BuildJob : IBatchPQSHeightJob, IBatchPQSVertexJob, IBatchPQSMeshBuiltJob, IDisposable
     {
-        NativeArray<ulong> lcActive;
-        NativeArray<double> lcDeltas;
-        NativeArray<double> vHeights;
-
-        NativeArray<BurstLandClass> landClasses;
-        BurstSimplex altitudeSimplex;
-        BurstSimplex latitudeSimplex;
-        BurstSimplex longitudeSimplex;
-
-        public State(LandControl batchMod, QuadBuildData data)
-            : base(batchMod.mod)
-        {
-            mod = batchMod.Mod;
-            landClasses = batchMod.burstLandClasses;
-            altitudeSimplex = batchMod.altitudeSimplex;
-            latitudeSimplex = batchMod.latitudeSimplex;
-            longitudeSimplex = batchMod.longitudeSimplex;
-
-            int lcActiveCount = data.VertexCount * landClasses.Length;
-
-            // These will all be initialized by the BuildHeights job
-            lcActive = new NativeArray<ulong>(
-                (lcActiveCount + 63) / 63,
-                Allocator.TempJob,
-                NativeArrayOptions.UninitializedMemory
-            );
-            lcDeltas = new NativeArray<double>(
-                lcActiveCount,
-                Allocator.TempJob,
-                NativeArrayOptions.UninitializedMemory
-            );
-            vHeights = new NativeArray<double>(
-                data.VertexCount,
-                Allocator.TempJob,
-                NativeArrayOptions.UninitializedMemory
-            );
-        }
-
-        public override JobHandle ScheduleBuildHeights(QuadBuildData data, JobHandle handle)
-        {
-            var job = new BuildHeightsJob
-            {
-                data = data.burst,
-                landClasses = landClasses,
-                lcActive = lcActive,
-                lcDeltas = lcDeltas,
-                vHeights = vHeights,
-
-                heightMap = mod.useHeightMap ? new(mod.heightMap) : null,
-                altitudeSimplex = altitudeSimplex,
-                latitudeSimplex = latitudeSimplex,
-                longitudeSimplex = longitudeSimplex,
-
-                altitudeBlend = mod.altitudeBlend,
-                latitudeBlend = mod.latitudeBlend,
-                longitudeBlend = mod.longitudeBlend,
-                vHeightMax = mod.vHeightMax,
-            };
-
-            handle = job.Schedule(handle);
-            job.heightMap?.Dispose(handle);
-
-            return handle;
-        }
-
-        public override JobHandle ScheduleBuildVertices(QuadBuildData data, JobHandle handle)
-        {
-            if (!mod.createColors)
-                return handle;
-
-            var job = new BuildVerticesJob
-            {
-                data = data.burst,
-                landClasses = landClasses,
-                lcActive = lcActive,
-                lcDeltas = lcDeltas,
-                vHeights = vHeights,
-            };
-
-            handle = job.Schedule(handle);
-            vHeights.Dispose(handle);
-
-            return handle;
-        }
-
-        public override JobHandle OnQuadBuilt(QuadBuildData data)
-        {
-            if (!mod.scatterActive)
-                return default;
-
-            var lcActive = new BitSpan(new MemorySpan<ulong>(this.lcActive));
-
-            for (int i = 0; i < data.VertexCount; ++i)
-            {
-                var baseIndex = i * landClasses.Length;
-
-                for (int itr = 0; itr < landClasses.Length; ++itr)
-                {
-                    if (!lcActive[baseIndex + itr])
-                        continue;
-                    double delta = lcDeltas[baseIndex + itr];
-                    if (delta <= 0.0)
-                        continue;
-
-                    var lc = mod.landClasses[itr];
-                    if (!data.allowScatter[i] || delta <= 0.05)
-                        continue;
-
-                    foreach (var landClassScatterAmount in lc.scatter)
-                    {
-                        if (data.buildQuad.subdivision >= mod.scatterMinSubdiv)
-                        {
-                            mod.lcScatterList[landClassScatterAmount.scatterIndex] +=
-                                landClassScatterAmount.density
-                                * delta
-                                * PQS.cacheVertCountReciprocal
-                                * PQS.Global_ScatterFactor;
-                            mod.scatterInstCount++;
-                        }
-                    }
-                }
-            }
-
-            return default;
-        }
-
-        public override void Dispose()
-        {
-            lcActive.Dispose(default);
-            lcDeltas.Dispose(default);
-            vHeights.Dispose(default);
-        }
-    }
-
-    [BurstCompile]
-    struct BuildHeightsJob : IJob
-    {
-        public BurstQuadBuildData data;
-
-        [ReadOnly]
         public NativeArray<BurstLandClass> landClasses;
-
-        public NativeArray<ulong> lcActive;
-        public NativeArray<double> lcDeltas;
-        public NativeArray<double> vHeights;
-
-        [ReadOnly]
-        public BurstMapSO? heightMap;
         public BurstSimplex altitudeSimplex;
         public BurstSimplex latitudeSimplex;
         public BurstSimplex longitudeSimplex;
+
+        public BurstMapSO? heightMap;
         public double altitudeBlend;
         public double latitudeBlend;
         public double longitudeBlend;
         public double vHeightMax;
 
-        public void Execute()
-        {
-            var lcActive = new BitSpan(new MemorySpan<ulong>(this.lcActive));
+        public bool createColors;
+        public bool scatterActive;
+        public PQSLandControl mod;
 
-            lcActive.Clear();
-            lcDeltas.Clear();
-            vHeights.Clear();
+        // Cross-phase state allocated in BuildHeights, used through OnMeshBuilt
+        ulong* lcActive;
+        double* lcDeltas;
+        double* vHeights;
+        bool* allowScatterCopy;
+        int vertexCount;
+        int landClassCount;
+
+        public void BuildHeights(in BuildHeightsData data)
+        {
+            vertexCount = data.VertexCount;
+            landClassCount = landClasses.Length;
+
+            int lcActiveCount = vertexCount * landClassCount;
+            int lcActiveUlongCount = (lcActiveCount + 63) / 64;
+
+            lcActive = (ulong*)UnsafeUtility.Malloc(
+                lcActiveUlongCount * sizeof(ulong),
+                UnsafeUtility.AlignOf<ulong>(),
+                Allocator.Temp
+            );
+            lcDeltas = (double*)UnsafeUtility.Malloc(
+                lcActiveCount * sizeof(double),
+                UnsafeUtility.AlignOf<double>(),
+                Allocator.Temp
+            );
+            vHeights = (double*)UnsafeUtility.Malloc(
+                vertexCount * sizeof(double),
+                UnsafeUtility.AlignOf<double>(),
+                Allocator.Temp
+            );
+
+            var lcActiveBits = new BitSpan(new MemorySpan<ulong>(lcActive, lcActiveUlongCount));
+            var lcDeltasSpan = new MemorySpan<double>(lcDeltas, lcActiveCount);
+            var vHeightsSpan = new MemorySpan<double>(vHeights, vertexCount);
+
+            lcActiveBits.Clear();
+            lcDeltasSpan.Clear();
+            vHeightsSpan.Clear();
 
             double sphereRadius = data.sphere.radius;
 
-            for (int i = 0; i < data.VertexCount; ++i)
+            for (int i = 0; i < vertexCount; ++i)
             {
                 double totalDelta = 0.0;
                 double vHeight;
 
-                data.vertColor[i] = Color.black;
-                if (this.heightMap is BurstMapSO heightMap)
-                    vHeight = heightMap.GetPixelFloat(data.u[i], data.v[i]);
+                if (this.heightMap is BurstMapSO hMap)
+                    vHeight = hMap.GetPixelFloat(data.u[i], data.v[i]);
                 else
                     vHeight = (data.vertHeight[i] - sphereRadius) / vHeightMax;
                 vHeight += altitudeBlend * altitudeSimplex.noise(data.directionFromCenter[i]);
@@ -289,8 +193,8 @@ public class LandControl(PQSLandControl mod) : BatchPQSMod<PQSLandControl>(mod)
                 vLon = MathUtil.Clamp01(vLon);
                 vHeights[i] = vHeight;
 
-                int baseIndex = landClasses.Length * i;
-                for (int itr = 0; itr < landClasses.Length; ++itr)
+                int baseIndex = landClassCount * i;
+                for (int itr = 0; itr < landClassCount; ++itr)
                 {
                     var lc = landClasses[itr];
                     double altDelta = lc.altitudeRange.Lerp(vHeight);
@@ -310,12 +214,12 @@ public class LandControl(PQSLandControl mod) : BatchPQSMod<PQSLandControl>(mod)
                     if (delta != 0.0)
                     {
                         lcDeltas[baseIndex + itr] = delta;
-                        lcActive[baseIndex + itr] = true;
+                        lcActiveBits[baseIndex + itr] = true;
                         totalDelta += delta;
                     }
                 }
 
-                for (int itr = 0; itr < landClasses.Length; ++itr)
+                for (int itr = 0; itr < landClassCount; ++itr)
                 {
                     var lc = landClasses[itr];
                     lcDeltas[baseIndex + itr] /= totalDelta;
@@ -333,57 +237,126 @@ public class LandControl(PQSLandControl mod) : BatchPQSMod<PQSLandControl>(mod)
                     }
                 }
             }
+
+            heightMap?.Dispose();
+            heightMap = null;
         }
-    }
 
-    [BurstCompile]
-    struct BuildVerticesJob : IJob
-    {
-        public BurstQuadBuildData data;
-
-        [ReadOnly]
-        public NativeArray<BurstLandClass> landClasses;
-
-        [ReadOnly]
-        public NativeArray<ulong> lcActive;
-
-        [ReadOnly]
-        public NativeArray<double> lcDeltas;
-
-        [ReadOnly]
-        public NativeArray<double> vHeights;
-
-        public void Execute()
+        public void BuildVertices(in BuildVerticesData data)
         {
-            var lcActive = new BitSpan(new MemorySpan<ulong>(this.lcActive));
+            var lcActiveBits = new BitSpan(new MemorySpan<ulong>(lcActive, (vertexCount * landClassCount + 63) / 64));
 
-            for (int i = 0; i < data.VertexCount; ++i)
+            // Initialize vertColor to black (moved from BuildHeights since BuildHeightsData lacks vertColor)
+            for (int i = 0; i < vertexCount; ++i)
+                data.vertColor[i] = Color.black;
+
+            if (createColors)
             {
-                var vHeightAltered = vHeights[i];
-                var baseIndex = i * landClasses.Length;
-
-                for (int itr = 0; itr < landClasses.Length; ++itr)
+                for (int i = 0; i < vertexCount; ++i)
                 {
-                    if (!lcActive[baseIndex + itr])
+                    var vHeightAltered = vHeights[i];
+                    var baseIndex = i * landClassCount;
+
+                    for (int itr = 0; itr < landClassCount; ++itr)
+                    {
+                        if (!lcActiveBits[baseIndex + itr])
+                            continue;
+                        double delta = lcDeltas[baseIndex + itr];
+                        if (delta <= 0.0)
+                            continue;
+                        var lc = landClasses[itr];
+
+                        data.vertColor[i] +=
+                            Color.Lerp(
+                                lc.color,
+                                lc.noiseColor,
+                                (float)(
+                                    (double)lc.noiseBlend
+                                    * lc.noiseSimplex.noiseNormalized(data.directionFromCenter[i])
+                                )
+                            ) * (float)delta;
+                        vHeightAltered += delta * lc.alterApparentHeight;
+                    }
+
+                    data.vertColor[i].a = (float)MathUtil.Clamp01(vHeightAltered);
+                }
+            }
+
+            // Copy allowScatter for use in OnMeshBuilt
+            if (scatterActive)
+            {
+                allowScatterCopy = (bool*)UnsafeUtility.Malloc(
+                    vertexCount * sizeof(bool),
+                    UnsafeUtility.AlignOf<bool>(),
+                    Allocator.Temp
+                );
+                for (int i = 0; i < vertexCount; ++i)
+                    allowScatterCopy[i] = data.allowScatter[i];
+            }
+        }
+
+        public void OnMeshBuilt(PQ quad)
+        {
+            if (!scatterActive)
+                return;
+
+            var lcActiveBits = new BitSpan(new MemorySpan<ulong>(lcActive, (vertexCount * landClassCount + 63) / 64));
+
+            for (int i = 0; i < vertexCount; ++i)
+            {
+                var baseIndex = i * landClassCount;
+
+                for (int itr = 0; itr < landClassCount; ++itr)
+                {
+                    if (!lcActiveBits[baseIndex + itr])
                         continue;
                     double delta = lcDeltas[baseIndex + itr];
                     if (delta <= 0.0)
                         continue;
-                    var lc = landClasses[itr];
 
-                    data.vertColor[i] +=
-                        Color.Lerp(
-                            lc.color,
-                            lc.noiseColor,
-                            (float)(
-                                (double)lc.noiseBlend
-                                * lc.noiseSimplex.noiseNormalized(data.directionFromCenter[i])
-                            )
-                        ) * (float)delta;
-                    vHeightAltered += delta * lc.alterApparentHeight;
+                    var lc = mod.landClasses[itr];
+                    if (!allowScatterCopy[i] || delta <= 0.05)
+                        continue;
+
+                    foreach (var landClassScatterAmount in lc.scatter)
+                    {
+                        if (quad.subdivision >= mod.scatterMinSubdiv)
+                        {
+                            mod.lcScatterList[landClassScatterAmount.scatterIndex] +=
+                                landClassScatterAmount.density
+                                * delta
+                                * PQS.cacheVertCountReciprocal
+                                * PQS.Global_ScatterFactor;
+                            mod.scatterInstCount++;
+                        }
+                    }
                 }
+            }
+        }
 
-                data.vertColor[i].a = (float)MathUtil.Clamp01(vHeightAltered);
+        public void Dispose()
+        {
+            if (heightMap is BurstMapSO hMap)
+                hMap.Dispose();
+            if (lcActive != null)
+            {
+                UnsafeUtility.Free(lcActive, Allocator.Temp);
+                lcActive = null;
+            }
+            if (lcDeltas != null)
+            {
+                UnsafeUtility.Free(lcDeltas, Allocator.Temp);
+                lcDeltas = null;
+            }
+            if (vHeights != null)
+            {
+                UnsafeUtility.Free(vHeights, Allocator.Temp);
+                vHeights = null;
+            }
+            if (allowScatterCopy != null)
+            {
+                UnsafeUtility.Free(allowScatterCopy, Allocator.Temp);
+                allowScatterCopy = null;
             }
         }
     }

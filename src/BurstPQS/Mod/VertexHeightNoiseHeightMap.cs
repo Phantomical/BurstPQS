@@ -1,83 +1,74 @@
 using BurstPQS.Collections;
 using BurstPQS.Noise;
 using BurstPQS.Util;
-using Unity.Burst;
 using IModule = LibNoise.IModule;
 
 namespace BurstPQS.Mod;
 
-[BurstCompile]
-public class VertexHeightNoiseHeightMap : BatchPQSModV1<PQSMod_VertexHeightNoiseHeightMap>
+[BatchPQSMod(typeof(PQSMod_VertexHeightNoiseHeightMap))]
+public class VertexHeightNoiseHeightMap(PQSMod_VertexHeightNoiseHeightMap mod)
+    : BatchPQSMod<PQSMod_VertexHeightNoiseHeightMap>(mod)
 {
-    static float[] HeightMapData;
-
-    public VertexHeightNoiseHeightMap(PQSMod_VertexHeightNoiseHeightMap mod)
-        : base(mod) { }
-
-    public override unsafe void OnBatchVertexBuildHeight(in QuadBuildDataV1 data)
+    public override void OnQuadPreBuild(PQ quad, BatchPQSJobSet jobSet)
     {
-        int vc = data.VertexCount;
-        if (HeightMapData is null || HeightMapData.Length != vc)
-            HeightMapData = new float[vc];
+        base.OnQuadPreBuild(quad, jobSet);
 
-        fixed (float* heightMapData = HeightMapData)
+        switch (mod.noiseMap)
         {
-            for (int i = 0; i < vc; ++i)
-            {
-                heightMapData[i] = mod
-                    .heightMap.GetPixelBilinear((float)data.sx[i], (float)data.sy[i])
-                    .grayscale;
-            }
+            case LibNoise.Perlin perlin:
+                jobSet.Add(new BuildJobPerlin
+                {
+                    heightMap = mod.heightMap,
+                    noise = new(perlin),
+                    heightStart = mod.heightStart,
+                    heightEnd = mod.heightEnd,
+                    hDeltaR = mod.hDeltaR,
+                    deformity = mod.deformity,
+                });
+                break;
 
-            var hmap = new MemorySpan<float>(heightMapData, data.VertexCount);
+            case LibNoise.RidgedMultifractal multi:
+                jobSet.Add(new BuildJobRidgedMultifractal
+                {
+                    heightMap = mod.heightMap,
+                    noise = new(multi),
+                    heightStart = mod.heightStart,
+                    heightEnd = mod.heightEnd,
+                    hDeltaR = mod.hDeltaR,
+                    deformity = mod.deformity,
+                });
+                break;
 
-            if (mod.noiseMap is LibNoise.Perlin perlin)
-                BuildVertexPerlin(
-                    in data.burstData,
-                    new(perlin),
-                    hmap,
-                    mod.heightStart,
-                    mod.heightEnd,
-                    mod.hDeltaR,
-                    mod.deformity
-                );
-            else if (mod.noiseMap is LibNoise.RidgedMultifractal multi)
-                BuildVertexRidgedMultifractal(
-                    in data.burstData,
-                    new(multi),
-                    hmap,
-                    mod.heightStart,
-                    mod.heightEnd,
-                    mod.hDeltaR,
-                    mod.deformity
-                );
-            else if (mod.noiseMap is LibNoise.Billow billow)
-                BuildVertexBillow(
-                    in data.burstData,
-                    new(billow),
-                    hmap,
-                    mod.heightStart,
-                    mod.heightEnd,
-                    mod.hDeltaR,
-                    mod.deformity
-                );
-            else
-                BuildVertex(
-                    in data.burstData,
-                    mod.noiseMap,
-                    hmap,
-                    mod.heightStart,
-                    mod.heightEnd,
-                    mod.hDeltaR,
-                    mod.deformity
-                );
+            case LibNoise.Billow billow:
+                jobSet.Add(new BuildJobBillow
+                {
+                    heightMap = mod.heightMap,
+                    noise = new(billow),
+                    heightStart = mod.heightStart,
+                    heightEnd = mod.heightEnd,
+                    hDeltaR = mod.hDeltaR,
+                    deformity = mod.deformity,
+                });
+                break;
+
+            default:
+                jobSet.Add(new BuildJobFallback
+                {
+                    heightMap = mod.heightMap,
+                    noiseMap = mod.noiseMap,
+                    heightStart = mod.heightStart,
+                    heightEnd = mod.heightEnd,
+                    hDeltaR = mod.hDeltaR,
+                    deformity = mod.deformity,
+                });
+                break;
         }
     }
 
-    static void BuildVertex<N>(
-        in BurstQuadBuildDataV1 data,
+    static void BuildHeightsImpl<N>(
+        in BuildHeightsData data,
+        MapSO heightMap,
         in N noise,
-        in MemorySpan<float> heightMapData,
         float heightStart,
         float heightEnd,
         double hDeltaR,
@@ -87,7 +78,7 @@ public class VertexHeightNoiseHeightMap : BatchPQSModV1<PQSMod_VertexHeightNoise
     {
         for (int i = 0; i < data.VertexCount; ++i)
         {
-            double h = heightMapData[i];
+            double h = heightMap.GetPixelBilinear((float)data.sx[i], (float)data.sy[i]).grayscale;
             if (h < heightStart || h > heightEnd)
                 continue;
 
@@ -98,66 +89,55 @@ public class VertexHeightNoiseHeightMap : BatchPQSModV1<PQSMod_VertexHeightNoise
         }
     }
 
-    [BurstCompile(FloatMode = FloatMode.Fast)]
-    [BurstPQSAutoPatch]
-    static void BuildVertexPerlin(
-        in BurstQuadBuildDataV1 data,
-        in BurstPerlin noise,
-        in MemorySpan<float> heightMapData,
-        float heightStart,
-        float heightEnd,
-        double hDeltaR,
-        float deformity
-    ) =>
-        BuildVertex(
-            in data,
-            in noise,
-            in heightMapData,
-            heightStart,
-            heightEnd,
-            hDeltaR,
-            deformity
-        );
+    struct BuildJobPerlin : IBatchPQSHeightJob
+    {
+        public MapSO heightMap;
+        public BurstPerlin noise;
+        public float heightStart;
+        public float heightEnd;
+        public double hDeltaR;
+        public float deformity;
 
-    [BurstCompile(FloatMode = FloatMode.Fast)]
-    [BurstPQSAutoPatch]
-    static void BuildVertexRidgedMultifractal(
-        in BurstQuadBuildDataV1 data,
-        in BurstRidgedMultifractal noise,
-        in MemorySpan<float> heightMapData,
-        float heightStart,
-        float heightEnd,
-        double hDeltaR,
-        float deformity
-    ) =>
-        BuildVertex(
-            in data,
-            in noise,
-            in heightMapData,
-            heightStart,
-            heightEnd,
-            hDeltaR,
-            deformity
-        );
+        public readonly void BuildHeights(in BuildHeightsData data) =>
+            BuildHeightsImpl(in data, heightMap, in noise, heightStart, heightEnd, hDeltaR, deformity);
+    }
 
-    [BurstCompile(FloatMode = FloatMode.Fast)]
-    [BurstPQSAutoPatch]
-    static void BuildVertexBillow(
-        in BurstQuadBuildDataV1 data,
-        in BurstBillow noise,
-        in MemorySpan<float> heightMapData,
-        float heightStart,
-        float heightEnd,
-        double hDeltaR,
-        float deformity
-    ) =>
-        BuildVertex(
-            in data,
-            in noise,
-            in heightMapData,
-            heightStart,
-            heightEnd,
-            hDeltaR,
-            deformity
-        );
+    struct BuildJobRidgedMultifractal : IBatchPQSHeightJob
+    {
+        public MapSO heightMap;
+        public BurstRidgedMultifractal noise;
+        public float heightStart;
+        public float heightEnd;
+        public double hDeltaR;
+        public float deformity;
+
+        public readonly void BuildHeights(in BuildHeightsData data) =>
+            BuildHeightsImpl(in data, heightMap, in noise, heightStart, heightEnd, hDeltaR, deformity);
+    }
+
+    struct BuildJobBillow : IBatchPQSHeightJob
+    {
+        public MapSO heightMap;
+        public BurstBillow noise;
+        public float heightStart;
+        public float heightEnd;
+        public double hDeltaR;
+        public float deformity;
+
+        public readonly void BuildHeights(in BuildHeightsData data) =>
+            BuildHeightsImpl(in data, heightMap, in noise, heightStart, heightEnd, hDeltaR, deformity);
+    }
+
+    struct BuildJobFallback : IBatchPQSHeightJob
+    {
+        public MapSO heightMap;
+        public IModule noiseMap;
+        public float heightStart;
+        public float heightEnd;
+        public double hDeltaR;
+        public float deformity;
+
+        public readonly void BuildHeights(in BuildHeightsData data) =>
+            BuildHeightsImpl(in data, heightMap, noiseMap, heightStart, heightEnd, hDeltaR, deformity);
+    }
 }

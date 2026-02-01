@@ -114,7 +114,7 @@ public abstract class BatchPQSMod : IDisposable
         throw new UnsupportedPQSModException($"PQSMod {type.Name} is not compatible with BatchPQS");
     }
 
-    class BatchPQSModShim(PQSMod mod) : InlineBatchPQSMod<PQSMod>(mod) { }
+    class BatchPQSModShim(PQSMod mod) : BatchPQSMod<PQSMod>(mod) { }
 
     #endregion
 }
@@ -138,6 +138,7 @@ public abstract class BatchPQSMod<T>(T mod) : BatchPQSMod
     }
 }
 
+[Obsolete("Just derive from BatchPQSMod directly")]
 public abstract class InlineBatchPQSMod<T>(T mod) : BatchPQSMod<T>(mod)
     where T : PQSMod { }
 

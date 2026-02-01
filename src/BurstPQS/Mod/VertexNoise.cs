@@ -1,18 +1,17 @@
 using BurstPQS.Noise;
-using BurstPQS.Util;
 using LibNoise.Modifiers;
 using Unity.Burst;
 
 namespace BurstPQS.Mod;
 
 [BurstCompile]
-public class VertexNoise : BatchPQSModV1<PQSMod_VertexNoise>
+[BatchPQSMod(typeof(PQSMod_VertexNoise))]
+public class VertexNoise(PQSMod_VertexNoise mod) : BatchPQSMod<PQSMod_VertexNoise>(mod)
 {
-    public VertexNoise(PQSMod_VertexNoise mod)
-        : base(mod) { }
-
-    public override void OnBatchVertexBuildHeight(in QuadBuildDataV1 data)
+    public override void OnQuadPreBuild(PQ quad, BatchPQSJobSet jobSet)
     {
+        base.OnQuadPreBuild(quad, jobSet);
+
         var control = (LibNoise.Perlin)mod.terrainHeightMap.ControlModule;
         var input = (ScaleBiasOutput)mod.terrainHeightMap.SourceModule1;
         var billow = (LibNoise.Billow)input.SourceModule;
@@ -25,26 +24,27 @@ public class VertexNoise : BatchPQSModV1<PQSMod_VertexNoise>
             new(ridged)
         );
 
-        BuildHeight(in data.burstData, in noise, mod.sphere.radius, mod.noiseDeformity);
+        jobSet.Add(new BuildJob
+        {
+            terrainHeightMap = noise,
+            sphereRadius = mod.sphere.radius,
+            noiseDeformity = mod.noiseDeformity
+        });
     }
 
-    [BurstCompile(FloatMode = FloatMode.Fast)]
-    [BurstPQSAutoPatch]
-    static void BuildHeight(
-        [NoAlias] in BurstQuadBuildDataV1 data,
-        [NoAlias]
-            in Select<
-            BurstPerlin,
-            ScaleBiasOutput<BurstBillow>,
-            BurstRidgedMultifractal
-        > terrainHeightMap,
-        double sphereRadius,
-        double noiseDeformity
-    )
+    [BurstCompile]
+    struct BuildJob : IBatchPQSHeightJob
     {
-        for (int i = 0; i < data.VertexCount; ++i)
-            data.vertHeight[i] +=
-                terrainHeightMap.GetValue(data.directionFromCenter[i] * sphereRadius)
-                * noiseDeformity;
+        public Select<BurstPerlin, ScaleBiasOutput<BurstBillow>, BurstRidgedMultifractal> terrainHeightMap;
+        public double sphereRadius;
+        public double noiseDeformity;
+
+        public readonly void BuildHeights(in BuildHeightsData data)
+        {
+            for (int i = 0; i < data.VertexCount; ++i)
+                data.vertHeight[i] +=
+                    terrainHeightMap.GetValue(data.directionFromCenter[i] * sphereRadius)
+                    * noiseDeformity;
+        }
     }
 }

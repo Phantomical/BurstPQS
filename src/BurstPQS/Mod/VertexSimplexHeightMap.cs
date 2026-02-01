@@ -1,33 +1,29 @@
+using System;
 using BurstPQS.Noise;
 using BurstPQS.Util;
 using Unity.Burst;
-using Unity.Jobs;
 
 namespace BurstPQS.Mod;
 
 [BurstCompile]
 [BatchPQSMod(typeof(PQSMod_VertexSimplexHeightMap))]
 public class VertexSimplexHeightMap(PQSMod_VertexSimplexHeightMap mod)
-    : InlineBatchPQSMod<PQSMod_VertexSimplexHeightMap>(mod)
+    : BatchPQSMod<PQSMod_VertexSimplexHeightMap>(mod)
 {
     BurstSimplex simplex = new(mod.simplex);
 
-    public override JobHandle ScheduleBuildHeights(QuadBuildData data, JobHandle handle)
+    public override void OnQuadPreBuild(PQ quad, BatchPQSJobSet jobSet)
     {
-        var job = new BuildHeightsJob
+        base.OnQuadPreBuild(quad, jobSet);
+
+        jobSet.Add(new BuildJob
         {
-            data = data.burst,
             simplex = simplex,
             heightMap = new(mod.heightMap),
             heightStart = mod.heightStart,
             heightEnd = mod.heightEnd,
             deformity = mod.deformity,
-        };
-
-        handle = job.Schedule(handle);
-        job.heightMap.Dispose(handle);
-
-        return handle;
+        });
     }
 
     public override void Dispose()
@@ -36,16 +32,15 @@ public class VertexSimplexHeightMap(PQSMod_VertexSimplexHeightMap mod)
     }
 
     [BurstCompile]
-    struct BuildHeightsJob : IJob
+    struct BuildJob : IBatchPQSHeightJob, IDisposable
     {
-        public BurstQuadBuildData data;
         public BurstSimplex simplex;
         public BurstMapSO heightMap;
         public double heightStart;
         public double heightEnd;
         public double deformity;
 
-        public void Execute()
+        public void BuildHeights(in BuildHeightsData data)
         {
             double hDeltaR = 1.0 / (heightEnd - heightStart);
 
@@ -59,6 +54,11 @@ public class VertexSimplexHeightMap(PQSMod_VertexSimplexHeightMap mod)
                 data.vertHeight[i] +=
                     (simplex.noise(data.directionFromCenter[i]) + 1.0) * 0.5 * deformity * h;
             }
+        }
+
+        public void Dispose()
+        {
+            heightMap.Dispose();
         }
     }
 }

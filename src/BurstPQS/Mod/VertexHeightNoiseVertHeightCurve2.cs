@@ -1,14 +1,13 @@
 using BurstPQS.Noise;
 using BurstPQS.Util;
 using Unity.Burst;
-using Unity.Jobs;
 
 namespace BurstPQS.Mod;
 
 [BurstCompile]
 [BatchPQSMod(typeof(PQSMod_VertexHeightNoiseVertHeightCurve2))]
 public class VertexHeightNoiseVertHeightCurve2(PQSMod_VertexHeightNoiseVertHeightCurve2 mod)
-    : InlineBatchPQSMod<PQSMod_VertexHeightNoiseVertHeightCurve2>(mod)
+    : BatchPQSMod<PQSMod_VertexHeightNoiseVertHeightCurve2>(mod)
 {
     BurstAnimationCurve simplexCurve = new(mod.simplexCurve);
     BurstSimplex simplex = new(mod.simplex);
@@ -19,11 +18,12 @@ public class VertexHeightNoiseVertHeightCurve2(PQSMod_VertexHeightNoiseVertHeigh
         simplex.Dispose();
     }
 
-    public override JobHandle ScheduleBuildHeights(QuadBuildData data, JobHandle handle)
+    public override void OnQuadPreBuild(PQ quad, BatchPQSJobSet jobSet)
     {
-        var job = new BuildHeightsJob
+        base.OnQuadPreBuild(quad, jobSet);
+
+        jobSet.Add(new BuildHeightsJob
         {
-            data = data.burst,
             ridgedAdd = new(mod.ridgedAdd),
             ridgedSub = new(mod.ridgedSub),
             simplex = simplex,
@@ -32,15 +32,12 @@ public class VertexHeightNoiseVertHeightCurve2(PQSMod_VertexHeightNoiseVertHeigh
             simplexHeightEnd = mod.simplexHeightEnd,
             deformity = mod.deformity,
             hDeltaR = mod.hDeltaR,
-        };
-
-        return job.Schedule(handle);
+        });
     }
 
     [BurstCompile]
-    struct BuildHeightsJob : IJob
+    struct BuildHeightsJob : IBatchPQSHeightJob
     {
-        public BurstQuadBuildData data;
         public BurstRidgedMultifractal ridgedAdd;
         public BurstRidgedMultifractal ridgedSub;
         public BurstSimplex simplex;
@@ -50,7 +47,7 @@ public class VertexHeightNoiseVertHeightCurve2(PQSMod_VertexHeightNoiseVertHeigh
         public double hDeltaR;
         public float deformity;
 
-        public void Execute()
+        public readonly void BuildHeights(in BuildHeightsData data)
         {
             double h;
             double s;

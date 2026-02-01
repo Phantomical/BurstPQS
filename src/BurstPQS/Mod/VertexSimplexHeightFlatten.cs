@@ -1,36 +1,45 @@
+using System;
 using BurstPQS.Noise;
-using BurstPQS.Util;
 using Unity.Burst;
 
 namespace BurstPQS.Mod;
 
 [BurstCompile]
-public class VertexSimplexHeightFlatten : BatchPQSModV1<PQSMod_VertexSimplexHeightFlatten>
+[BatchPQSMod(typeof(PQSMod_VertexSimplexHeightFlatten))]
+public class VertexSimplexHeightFlatten(PQSMod_VertexSimplexHeightFlatten mod) : BatchPQSMod<PQSMod_VertexSimplexHeightFlatten>(mod)
 {
-    public VertexSimplexHeightFlatten(PQSMod_VertexSimplexHeightFlatten mod)
-        : base(mod) { }
-
-    public override void OnBatchVertexBuildHeight(in QuadBuildDataV1 data)
+    public override void OnQuadPreBuild(PQ quad, BatchPQSJobSet jobSet)
     {
-        using var bsimplex = new BurstSimplex(mod.simplex);
+        base.OnQuadPreBuild(quad, jobSet);
 
-        BuildHeights(in data.burstData, in bsimplex, mod.deformity, mod.cutoff);
+        jobSet.Add(new BuildJob
+        {
+            simplex = new BurstSimplex(mod.simplex),
+            deformity = mod.deformity,
+            cutoff = mod.cutoff
+        });
     }
 
-    [BurstCompile(FloatMode = FloatMode.Fast)]
-    [BurstPQSAutoPatch]
-    static void BuildHeights(
-        [NoAlias] in BurstQuadBuildDataV1 data,
-        [NoAlias] in BurstSimplex simplex,
-        double deformity,
-        double cutoff
-    )
+    [BurstCompile]
+    struct BuildJob : IBatchPQSHeightJob, IDisposable
     {
-        for (int i = 0; i < data.VertexCount; ++i)
+        public BurstSimplex simplex;
+        public double deformity;
+        public double cutoff;
+
+        public void BuildHeights(in BuildHeightsData data)
         {
-            double v = simplex.noiseNormalized(data.directionFromCenter[i]);
-            if (v > cutoff)
-                data.vertHeight[i] += deformity * ((v - cutoff) / cutoff);
+            for (int i = 0; i < data.VertexCount; ++i)
+            {
+                double v = simplex.noiseNormalized(data.directionFromCenter[i]);
+                if (v > cutoff)
+                    data.vertHeight[i] += deformity * ((v - cutoff) / cutoff);
+            }
+        }
+
+        public void Dispose()
+        {
+            simplex.Dispose();
         }
     }
 }

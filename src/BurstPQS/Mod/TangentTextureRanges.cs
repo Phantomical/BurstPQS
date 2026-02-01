@@ -1,65 +1,58 @@
 using System;
-using BurstPQS.Collections;
 using BurstPQS.Util;
 using Unity.Burst;
 
 namespace BurstPQS.Mod;
 
 [BurstCompile]
-public class TangentTextureRanges : BatchPQSModV1<PQSMod_TangentTextureRanges>
+[BatchPQSMod(typeof(PQSMod_TangentTextureRanges))]
+public class TangentTextureRanges(PQSMod_TangentTextureRanges mod) : BatchPQSMod<PQSMod_TangentTextureRanges>(mod)
 {
-    public TangentTextureRanges(PQSMod_TangentTextureRanges mod)
-        : base(mod) { }
-
-    public override unsafe void OnBatchVertexBuild(in QuadBuildDataV1 data)
+    public override void OnQuadPreBuild(PQ quad, BatchPQSJobSet jobSet)
     {
-        fixed (float* pTangentX = PQSMod_TangentTextureRanges.tangentX)
+        base.OnQuadPreBuild(quad, jobSet);
+
+        jobSet.Add(new BuildJob
         {
-            BuildTangents(
-                in data.burstData,
-                new(pTangentX, PQSMod_TangentTextureRanges.tangentX.Length),
-                mod.modulo,
-                mod.lowStart,
-                mod.lowEnd,
-                mod.highStart,
-                mod.highEnd
-            );
-        }
+            tangentX = PQSMod_TangentTextureRanges.tangentX,
+            modulo = mod.modulo,
+            lowStart = mod.lowStart,
+            lowEnd = mod.lowEnd,
+            highStart = mod.highStart,
+            highEnd = mod.highEnd,
+        });
     }
 
-    [BurstCompile(FloatMode = FloatMode.Fast)]
-    [BurstPQSAutoPatch]
-    static void BuildTangents(
-        [NoAlias] in BurstQuadBuildDataV1 data,
-        [NoAlias] in MemorySpan<float> tangentX,
-        double modulo,
-        double lowStart,
-        double lowEnd,
-        double highStart,
-        double highEnd
-    )
+    struct BuildJob : IBatchPQSVertexJob
     {
-        if (tangentX.Length < data.VertexCount)
-            BurstException.ThrowIndexOutOfRange();
+        public float[] tangentX;
+        public double modulo;
+        public double lowStart;
+        public double lowEnd;
+        public double highStart;
+        public double highEnd;
 
-        for (int i = 0; i < data.VertexCount; ++i)
+        public readonly void BuildVertices(in BuildVerticesData data)
         {
-            var height = data.vertHeight[i];
-            var low = 1.0 - SmoothStep(lowStart, lowEnd, height);
-            var high = SmoothStep(highStart, highEnd, height);
-            var med = 1.0 - low - high;
+            for (int i = 0; i < data.VertexCount; ++i)
+            {
+                var height = data.vertHeight[i];
+                var low = 1.0 - SmoothStep(lowStart, lowEnd, height);
+                var high = SmoothStep(highStart, highEnd, height);
+                var med = 1.0 - low - high;
 
-            low = Math.Round(low * modulo);
-            med = Math.Round(med * modulo) * 2.0;
-            high = Math.Round(high * modulo) * 3.0;
+                low = Math.Round(low * modulo);
+                med = Math.Round(med * modulo) * 2.0;
+                high = Math.Round(high * modulo) * 3.0;
 
-            tangentX[i] = (float)(high + med + low);
+                tangentX[i] = (float)(high + med + low);
+            }
         }
-    }
 
-    static double SmoothStep(double a, double b, double x)
-    {
-        var t = MathUtil.Clamp01((x - a) / (b - a));
-        return t * t * (3.0 - 2.0 * t);
+        static double SmoothStep(double a, double b, double x)
+        {
+            var t = MathUtil.Clamp01((x - a) / (b - a));
+            return t * t * (3.0 - 2.0 * t);
+        }
     }
 }

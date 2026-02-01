@@ -1,20 +1,20 @@
+using System;
 using BurstPQS.Noise;
 using BurstPQS.Util;
 using Unity.Burst;
-using UnityEngine;
 using IModule = LibNoise.IModule;
 
 namespace BurstPQS.Mod;
 
 [BurstCompile]
-public class VertexHeightNoiseVertHeightCurve
-    : BatchPQSModV1<PQSMod_VertexHeightNoiseVertHeightCurve>
+[BatchPQSMod(typeof(PQSMod_VertexHeightNoiseVertHeightCurve))]
+public class VertexHeightNoiseVertHeightCurve(PQSMod_VertexHeightNoiseVertHeightCurve mod)
+    : BatchPQSMod<PQSMod_VertexHeightNoiseVertHeightCurve>(mod)
 {
-    public VertexHeightNoiseVertHeightCurve(PQSMod_VertexHeightNoiseVertHeightCurve mod)
-        : base(mod) { }
-
-    public override void OnBatchVertexBuildHeight(in QuadBuildDataV1 data)
+    public override void OnQuadPreBuild(PQ quad, BatchPQSJobSet jobSet)
     {
+        base.OnQuadPreBuild(quad, jobSet);
+
         var p = new Params
         {
             sphereRadiusMin = mod.sphere.radiusMin,
@@ -23,16 +23,16 @@ public class VertexHeightNoiseVertHeightCurve
             deformity = mod.deformity,
         };
 
-        using var bcurve = new BurstAnimationCurve(mod.curve);
+        var curve = new BurstAnimationCurve(mod.curve);
 
         if (mod.noiseMap is LibNoise.Perlin perlin)
-            BuildVertexPerlin(in data.burstData, new(perlin), in bcurve, in p);
+            jobSet.Add(new BuildHeightsPerlinJob { noise = new(perlin), curve = curve, p = p });
         else if (mod.noiseMap is LibNoise.RidgedMultifractal multi)
-            BuildVertexRidgedMultifractal(in data.burstData, new(multi), in bcurve, in p);
+            jobSet.Add(new BuildHeightsRidgedMultifractalJob { noise = new(multi), curve = curve, p = p });
         else if (mod.noiseMap is LibNoise.Billow billow)
-            BuildVertexBillow(in data.burstData, new(billow), in bcurve, in p);
+            jobSet.Add(new BuildHeightsBillowJob { noise = new(billow), curve = curve, p = p });
         else
-            BuildVertex(in data.burstData, mod.noiseMap, in bcurve, in p);
+            jobSet.Add(new BuildHeightsFallbackJob { noiseMap = mod.noiseMap, curve = curve, p = p });
     }
 
     struct Params
@@ -43,12 +43,7 @@ public class VertexHeightNoiseVertHeightCurve
         public float deformity;
     }
 
-    static void BuildVertex<N>(
-        [NoAlias] in BurstQuadBuildDataV1 data,
-        [NoAlias] in N noise,
-        [NoAlias] in BurstAnimationCurve curve,
-        [NoAlias] in Params p
-    )
+    static void BuildVertex<N>(in BuildHeightsData data, in N noise, in BurstAnimationCurve curve, in Params p)
         where N : IModule
     {
         double h;
@@ -70,30 +65,50 @@ public class VertexHeightNoiseVertHeightCurve
         }
     }
 
-    [BurstCompile(FloatMode = FloatMode.Fast)]
-    [BurstPQSAutoPatch]
-    static void BuildVertexPerlin(
-        in BurstQuadBuildDataV1 data,
-        in BurstPerlin noise,
-        in BurstAnimationCurve curve,
-        in Params p
-    ) => BuildVertex(in data, in noise, in curve, in p);
+    [BurstCompile]
+    struct BuildHeightsPerlinJob : IBatchPQSHeightJob, IDisposable
+    {
+        public BurstPerlin noise;
+        public BurstAnimationCurve curve;
+        public Params p;
 
-    [BurstCompile(FloatMode = FloatMode.Fast)]
-    [BurstPQSAutoPatch]
-    static void BuildVertexRidgedMultifractal(
-        in BurstQuadBuildDataV1 data,
-        in BurstRidgedMultifractal noise,
-        in BurstAnimationCurve curve,
-        in Params p
-    ) => BuildVertex(in data, in noise, in curve, in p);
+        public void BuildHeights(in BuildHeightsData data) => BuildVertex(in data, in noise, in curve, in p);
 
-    [BurstCompile(FloatMode = FloatMode.Fast)]
-    [BurstPQSAutoPatch]
-    static void BuildVertexBillow(
-        in BurstQuadBuildDataV1 data,
-        in BurstBillow noise,
-        in BurstAnimationCurve curve,
-        in Params p
-    ) => BuildVertex(in data, in noise, in curve, in p);
+        public void Dispose() => curve.Dispose();
+    }
+
+    [BurstCompile]
+    struct BuildHeightsRidgedMultifractalJob : IBatchPQSHeightJob, IDisposable
+    {
+        public BurstRidgedMultifractal noise;
+        public BurstAnimationCurve curve;
+        public Params p;
+
+        public void BuildHeights(in BuildHeightsData data) => BuildVertex(in data, in noise, in curve, in p);
+
+        public void Dispose() => curve.Dispose();
+    }
+
+    [BurstCompile]
+    struct BuildHeightsBillowJob : IBatchPQSHeightJob, IDisposable
+    {
+        public BurstBillow noise;
+        public BurstAnimationCurve curve;
+        public Params p;
+
+        public void BuildHeights(in BuildHeightsData data) => BuildVertex(in data, in noise, in curve, in p);
+
+        public void Dispose() => curve.Dispose();
+    }
+
+    struct BuildHeightsFallbackJob : IBatchPQSHeightJob, IDisposable
+    {
+        public IModule noiseMap;
+        public BurstAnimationCurve curve;
+        public Params p;
+
+        public void BuildHeights(in BuildHeightsData data) => BuildVertex(in data, in noiseMap, in curve, in p);
+
+        public void Dispose() => curve.Dispose();
+    }
 }

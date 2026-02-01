@@ -1,39 +1,34 @@
+using System;
 using BurstPQS.Util;
 using Unity.Burst;
-using Unity.Jobs;
 
 namespace BurstPQS.Mod;
 
 [BurstCompile]
 [BatchPQSMod(typeof(PQSMod_VertexHeightMap))]
 public class VertexHeightMap(PQSMod_VertexHeightMap mod)
-    : InlineBatchPQSMod<PQSMod_VertexHeightMap>(mod)
+    : BatchPQSMod<PQSMod_VertexHeightMap>(mod)
 {
-    public override JobHandle ScheduleBuildHeights(QuadBuildData data, JobHandle handle)
+    public override void OnQuadPreBuild(PQ quad, BatchPQSJobSet jobSet)
     {
-        var heightMap = new BurstMapSO(mod.heightMap);
-        var job = new BuildHeightsJob
+        base.OnQuadPreBuild(quad, jobSet);
+
+        jobSet.Add(new BuildHeightsJob
         {
-            data = data.burst,
-            heightMap = heightMap,
+            heightMap = new BurstMapSO(mod.heightMap),
             heightMapOffset = mod.heightMapOffset,
             heightMapDeformity = mod.heightMapDeformity,
-        };
-
-        handle = job.Schedule(handle);
-        heightMap.Dispose(handle);
-        return handle;
+        });
     }
 
     [BurstCompile]
-    struct BuildHeightsJob : IJob
+    struct BuildHeightsJob : IBatchPQSHeightJob, IDisposable
     {
-        public BurstQuadBuildData data;
         public BurstMapSO heightMap;
         public double heightMapOffset;
         public double heightMapDeformity;
 
-        public readonly void Execute()
+        public readonly void BuildHeights(in BuildHeightsData data)
         {
             for (int i = 0; i < data.VertexCount; ++i)
             {
@@ -41,6 +36,11 @@ public class VertexHeightMap(PQSMod_VertexHeightMap mod)
                     heightMapOffset
                     + heightMapDeformity * heightMap.GetPixelFloat(data.u[i], data.v[i]);
             }
+        }
+
+        public void Dispose()
+        {
+            heightMap.Dispose();
         }
     }
 }

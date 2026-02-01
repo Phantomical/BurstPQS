@@ -2,19 +2,16 @@ using System;
 using BurstPQS.Noise;
 using BurstPQS.Util;
 using Unity.Burst;
-using Unity.Jobs;
 
 namespace BurstPQS.Mod;
 
 [BurstCompile]
 [BatchPQSMod(typeof(PQSMod_VertexRidgedAltitudeCurve))]
 public class VertexRidgedAltitudeCurve(PQSMod_VertexRidgedAltitudeCurve mod)
-    : InlineBatchPQSMod<PQSMod_VertexRidgedAltitudeCurve>(mod)
+    : BatchPQSMod<PQSMod_VertexRidgedAltitudeCurve>(mod)
 {
     BurstAnimationCurve simplexCurve = new(mod.simplexCurve);
     BurstSimplex simplex = new(mod.simplex);
-
-    public override IBatchPQSModState OnQuadPreBuild(QuadBuildData data) => this;
 
     public override void Dispose()
     {
@@ -22,11 +19,12 @@ public class VertexRidgedAltitudeCurve(PQSMod_VertexRidgedAltitudeCurve mod)
         simplex.Dispose();
     }
 
-    public override JobHandle ScheduleBuildHeights(QuadBuildData data, JobHandle handle)
+    public override void OnQuadPreBuild(PQ quad, BatchPQSJobSet jobSet)
     {
-        var job = new BuildHeightsJob
+        base.OnQuadPreBuild(quad, jobSet);
+
+        jobSet.Add(new BuildHeightsJob
         {
-            data = data.burst,
             simplex = simplex,
             ridgedAdd = new(mod.ridgedAdd),
             simplexCurve = simplexCurve,
@@ -35,15 +33,12 @@ public class VertexRidgedAltitudeCurve(PQSMod_VertexRidgedAltitudeCurve mod)
             hDeltaR = mod.hDeltaR,
             ridgedMinimum = mod.ridgedMinimum,
             deformity = mod.deformity,
-        };
-
-        return job.Schedule(handle);
+        });
     }
 
     [BurstCompile]
-    struct BuildHeightsJob : IJob
+    struct BuildHeightsJob : IBatchPQSHeightJob
     {
-        public BurstQuadBuildData data;
         public BurstSimplex simplex;
         public BurstRidgedMultifractal ridgedAdd;
         public BurstAnimationCurve simplexCurve;
@@ -53,7 +48,7 @@ public class VertexRidgedAltitudeCurve(PQSMod_VertexRidgedAltitudeCurve mod)
         public double ridgedMinimum;
         public double deformity;
 
-        public void Execute()
+        public readonly void BuildHeights(in BuildHeightsData data)
         {
             for (int i = 0; i < data.VertexCount; ++i)
             {

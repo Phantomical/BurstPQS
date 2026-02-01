@@ -1,46 +1,33 @@
 using System;
-using System.Windows.Markup;
-using BurstPQS.Collections;
-using BurstPQS.Util;
 using Unity.Burst;
-using Unity.Mathematics;
 
 namespace BurstPQS.Mod;
 
 [BurstCompile]
-public class VertexHeightOblate : BatchPQSModV1<PQSMod_VertexHeightOblate>
+[BatchPQSMod(typeof(PQSMod_VertexHeightOblate))]
+public class VertexHeightOblate(PQSMod_VertexHeightOblate mod) : BatchPQSMod<PQSMod_VertexHeightOblate>(mod)
 {
-    public VertexHeightOblate(PQSMod_VertexHeightOblate mod)
-        : base(mod) { }
-
-    public override void OnBatchVertexBuildHeight(in QuadBuildDataV1 data)
+    public override void OnQuadPreBuild(PQ quad, BatchPQSJobSet jobSet)
     {
-        BuildHeight(in data.burstData, mod.height, mod.pow);
+        base.OnQuadPreBuild(quad, jobSet);
+
+        jobSet.Add(new BuildJob { height = mod.height, pow = mod.pow });
     }
 
     [BurstCompile]
-    [BurstPQSAutoPatch]
-    static void BuildHeight(in BurstQuadBuildDataV1 data, double height, double pow)
+    struct BuildJob : IBatchPQSHeightJob
     {
-        int i = 0;
-        for (; i + 4 <= data.VertexCount; i += 4)
+        public double height;
+        public double pow;
+
+        public readonly void BuildHeights(in BuildHeightsData data)
         {
-            double4 a = data.v.GetVec4(i);
-            double4 h = data.vertHeight.GetVec4(i);
-
-            a = math.sin(Math.PI * a);
-            a = math.pow(a, pow);
-            h += a * height;
-
-            data.vertHeight.SetVec4(i, h);
-        }
-
-        for (; i < data.VertexCount; ++i)
-        {
-            double a;
-            a = Math.Sin(Math.PI * data.v[i]);
-            a = Math.Pow(a, pow);
-            data.vertHeight[i] += a * height;
+            for (int i = 0; i < data.VertexCount; ++i)
+            {
+                double a = Math.Sin(Math.PI * data.v[i]);
+                a = Math.Pow(a, pow);
+                data.vertHeight[i] += a * height;
+            }
         }
     }
 }

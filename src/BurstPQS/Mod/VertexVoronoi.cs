@@ -1,35 +1,31 @@
 using BurstPQS.Noise;
 using Unity.Burst;
-using Unity.Jobs;
 
 namespace BurstPQS.Mod;
 
 [BurstCompile]
 [BatchPQSMod(typeof(PQSMod_VertexVoronoi))]
 public class VertexVoronoi(PQSMod_VertexVoronoi mod)
-    : InlineBatchPQSMod<PQSMod_VertexVoronoi>(mod),
-        IBatchPQSModState
+    : BatchPQSMod<PQSMod_VertexVoronoi>(mod)
 {
-    public override JobHandle ScheduleBuildHeights(QuadBuildData data, JobHandle handle)
+    public override void OnQuadPreBuild(PQ quad, BatchPQSJobSet jobSet)
     {
-        var job = new BuildHeightsJob
+        base.OnQuadPreBuild(quad, jobSet);
+
+        jobSet.Add(new BuildHeightsJob
         {
-            data = data.burst,
             voronoi = new(mod.voronoi),
             deformation = mod.deformation,
-        };
-
-        return job.Schedule(handle);
+        });
     }
 
     [BurstCompile]
-    struct BuildHeightsJob : IJob
+    struct BuildHeightsJob : IBatchPQSHeightJob
     {
-        public BurstQuadBuildData data;
         public BurstVoronoi voronoi;
         public double deformation;
 
-        public void Execute()
+        public readonly void BuildHeights(in BuildHeightsData data)
         {
             for (int i = 0; i < data.VertexCount; ++i)
                 data.vertHeight[i] += voronoi.GetValue(data.directionFromCenter[i]) * deformation;

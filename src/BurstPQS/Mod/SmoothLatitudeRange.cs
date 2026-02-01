@@ -1,43 +1,43 @@
-using System;
 using BurstPQS.Util;
 using Unity.Burst;
 
 namespace BurstPQS.Mod;
 
 [BurstCompile]
-public class SmoothLatitudeRange : BatchPQSModV1<PQSMod_SmoothLatitudeRange>
+[BatchPQSMod(typeof(PQSMod_SmoothLatitudeRange))]
+public class SmoothLatitudeRange(PQSMod_SmoothLatitudeRange mod) : BatchPQSMod<PQSMod_SmoothLatitudeRange>(mod)
 {
-    public SmoothLatitudeRange(PQSMod_SmoothLatitudeRange mod)
-        : base(mod) { }
-
-    public override void OnBatchVertexBuildHeight(in QuadBuildDataV1 data)
+    public override void OnQuadPreBuild(PQ quad, BatchPQSJobSet jobSet)
     {
-        BuildVertexHeight(
-            in data.burstData,
-            new(mod.latitudeRange),
-            mod.smoothToAltitude,
-            mod.sphere.radius
-        );
+        base.OnQuadPreBuild(quad, jobSet);
+
+        jobSet.Add(new BuildJob
+        {
+            latitudeRange = new(mod.latitudeRange),
+            smoothToAltitude = mod.smoothToAltitude,
+            sphereRadius = mod.sphere.radius
+        });
     }
 
-    [BurstCompile(FloatMode = FloatMode.Fast)]
-    [BurstPQSAutoPatch]
-    static void BuildVertexHeight(
-        [NoAlias] in BurstQuadBuildDataV1 data,
-        [NoAlias] in BurstLerpRange latitudeRange,
-        double smoothToAltitude,
-        double sphereRadius
-    )
+    [BurstCompile]
+    struct BuildJob : IBatchPQSHeightJob
     {
-        for (int i = 0; i < data.VertexCount; ++i)
-        {
-            var smooth = latitudeRange.Lerp(data.sy[i]);
-            if (smooth == 0.0)
-                return;
+        public BurstLerpRange latitudeRange;
+        public double smoothToAltitude;
+        public double sphereRadius;
 
-            var alt = data.vertHeight[i] - sphereRadius;
-            var result = alt * (1.0 - smooth) + smoothToAltitude * smooth;
-            data.vertHeight[i] = sphereRadius + result;
+        public readonly void BuildHeights(in BuildHeightsData data)
+        {
+            for (int i = 0; i < data.VertexCount; ++i)
+            {
+                var smooth = latitudeRange.Lerp(data.sy[i]);
+                if (smooth == 0.0)
+                    return;
+
+                var alt = data.vertHeight[i] - sphereRadius;
+                var result = alt * (1.0 - smooth) + smoothToAltitude * smooth;
+                data.vertHeight[i] = sphereRadius + result;
+            }
         }
     }
 }

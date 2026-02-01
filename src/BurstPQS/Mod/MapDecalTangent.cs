@@ -2,8 +2,7 @@ using System;
 using System.Runtime.CompilerServices;
 using BurstPQS.Util;
 using Unity.Burst;
-using Unity.Collections;
-using Unity.Jobs;
+using Unity.Collections.LowLevel.Unsafe;
 using UnityEngine;
 
 namespace BurstPQS.Mod;
@@ -12,99 +11,72 @@ namespace BurstPQS.Mod;
 [BatchPQSMod(typeof(PQSMod_MapDecalTangent))]
 public class MapDecalTangent(PQSMod_MapDecalTangent mod) : BatchPQSMod<PQSMod_MapDecalTangent>(mod)
 {
-    class State(PQSMod_MapDecalTangent mod) : BatchPQSModState<PQSMod_MapDecalTangent>(mod)
+    public override void OnQuadPreBuild(PQ quad, BatchPQSJobSet jobSet)
     {
-        BurstInfo info = new(mod);
-        NativeArray<bool> vertActive;
+        base.OnQuadPreBuild(quad, jobSet);
 
-        public override JobHandle ScheduleBuildHeights(QuadBuildData data, JobHandle handle)
+        BurstMapSO? heightMap = null;
+        if (mod.heightMap is not null)
+            heightMap = new BurstMapSO(mod.heightMap);
+
+        BurstMapSO? colorMap = null;
+        if (mod.colorMap is not null)
+            colorMap = new BurstMapSO(mod.colorMap);
+
+        jobSet.Add(new BuildJob
         {
-            vertActive = new(
-                data.VertexCount,
-                Allocator.TempJob,
-                NativeArrayOptions.UninitializedMemory
-            );
-
-            BurstMapSO? heightMap = null;
-            if (mod.heightMap is not null)
-                heightMap = new BurstMapSO(mod.heightMap);
-
-            var job = new BuildHeightsJob
-            {
-                data = data.burst,
-                info = info,
-                heightMap = heightMap,
-                sphereIsBuildingMaps = mod.sphere.isBuildingMaps,
-                sphereRadius = mod.sphere.radius,
-                vertActive = vertActive,
-            };
-            handle = job.Schedule(handle);
-            heightMap?.Dispose(handle);
-
-            return handle;
-        }
-
-        public override JobHandle ScheduleBuildVertices(QuadBuildData data, JobHandle handle)
-        {
-            BurstMapSO? colorMap = null;
-            if (mod.colorMap is not null)
-                colorMap = new BurstMapSO(mod.colorMap);
-
-            var job = new BuildVerticesJob
-            {
-                data = data.burst,
-                info = info,
-                colorMap = colorMap,
-                sphereRadius = mod.sphere.radius,
-                vertActive = vertActive,
-            };
-            handle = job.Schedule(handle);
-            colorMap?.Dispose(handle);
-            vertActive.Dispose(handle);
-
-            return base.ScheduleBuildHeights(data, handle);
-        }
-
-        public override void Dispose()
-        {
-            vertActive.Dispose();
-        }
-    }
-
-    public override IBatchPQSModState OnQuadPreBuild(QuadBuildData data)
-    {
-        mod.OnQuadPreBuild(data.buildQuad);
-        return new State(mod);
+            info = new BurstInfo(mod),
+            heightMap = heightMap,
+            colorMap = colorMap,
+            sphereIsBuildingMaps = mod.sphere.isBuildingMaps,
+            sphereRadius = mod.sphere.radius,
+        });
     }
 
     [BurstCompile]
-    struct BuildHeightsJob : IJob
+    struct BuildJob : IBatchPQSHeightJob, IBatchPQSVertexJob, IDisposable
     {
-        public BurstQuadBuildData data;
         public BurstInfo info;
         public BurstMapSO? heightMap;
+        public BurstMapSO? colorMap;
         public bool sphereIsBuildingMaps;
         public double sphereRadius;
-        public NativeArray<bool> vertActive;
 
-        public void Execute()
+        unsafe bool* vertActive;
+        unsafe bool* removeScatterFlags;
+
+        public void BuildHeights(in BuildHeightsData data)
         {
-            info.BuildHeights(data, heightMap, sphereIsBuildingMaps, sphereRadius, vertActive);
+            info.BuildHeights(in data, heightMap, sphereIsBuildingMaps, sphereRadius, out vertActive, out removeScatterFlags);
         }
-    }
 
-    [BurstCompile]
-    struct BuildVerticesJob : IJob
-    {
-        public BurstQuadBuildData data;
-        public BurstInfo info;
-        public BurstMapSO? colorMap;
-        public NativeArray<bool> vertActive;
-        public double sphereRadius;
-
-        public void Execute()
+        public void BuildVertices(in BuildVerticesData data)
         {
-            info.BuildVerts(data, colorMap, vertActive, sphereRadius);
+            unsafe
+            {
+                info.BuildVerts(in data, colorMap, vertActive, removeScatterFlags, sphereRadius);
+            }
+        }
+
+        public void Dispose()
+        {
+            unsafe
+            {
+                if (vertActive != null)
+                {
+                    UnsafeUtility.Free(vertActive, Unity.Collections.Allocator.Temp);
+                    vertActive = null;
+                }
+
+                if (removeScatterFlags != null)
+                {
+                    UnsafeUtility.Free(removeScatterFlags, Unity.Collections.Allocator.Temp);
+                    removeScatterFlags = null;
+                }
+            }
+
+            heightMap?.Dispose();
+            colorMap?.Dispose();
         }
     }
 
@@ -147,17 +119,32 @@ public class MapDecalTangent(PQSMod_MapDecalTangent mod) : BatchPQSMod<PQSMod_Ma
         public float smoothH1M = mod.smoothH1M;
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        public readonly void BuildHeights(
-            in BurstQuadBuildData data,
+        public readonly unsafe void BuildHeights(
+            in BuildHeightsData data,
             BurstMapSO? nHeightMap,
             bool sphereIsBuildingMaps,
             double sphereRadius,
-            NativeArray<bool> vertActive
+            out bool* vertActive,
+            out bool* removeScatterFlags
         )
         {
-            vertActive.Clear();
+            int vertexCount = data.VertexCount;
 
-            for (int i = 0; i < data.VertexCount; ++i)
+            vertActive = (bool*)UnsafeUtility.Malloc(
+                vertexCount * sizeof(bool),
+                UnsafeUtility.AlignOf<bool>(),
+                Unity.Collections.Allocator.Temp
+            );
+            UnsafeUtility.MemClear(vertActive, vertexCount * sizeof(bool));
+
+            removeScatterFlags = (bool*)UnsafeUtility.Malloc(
+                vertexCount * sizeof(bool),
+                UnsafeUtility.AlignOf<bool>(),
+                Unity.Collections.Allocator.Temp
+            );
+            UnsafeUtility.MemClear(removeScatterFlags, vertexCount * sizeof(bool));
+
+            for (int i = 0; i < vertexCount; ++i)
             {
                 if (sphereIsBuildingMaps)
                 {
@@ -185,7 +172,7 @@ public class MapDecalTangent(PQSMod_MapDecalTangent mod) : BatchPQSMod<PQSMod_Ma
                 if (!(smoothFactor > 0f))
                     continue;
                 if (removeScatter)
-                    data.allowScatter[i] = false;
+                    removeScatterFlags[i] = true;
 
                 var height =
                     heightMapDeformity
@@ -207,15 +194,19 @@ public class MapDecalTangent(PQSMod_MapDecalTangent mod) : BatchPQSMod<PQSMod_Ma
         }
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        public readonly void BuildVerts(
-            in BurstQuadBuildData data,
+        public readonly unsafe void BuildVerts(
+            in BuildVerticesData data,
             BurstMapSO? nColorMap,
-            NativeArray<bool> vertActive,
+            bool* vertActive,
+            bool* removeScatterFlags,
             double sphereRadius
         )
         {
             for (int i = 0; i < data.VertexCount; ++i)
             {
+                if (removeScatterFlags[i])
+                    data.allowScatter[i] = false;
+
                 if (!vertActive[i])
                 {
                     if (DEBUG_HighlightInclusion && quadActive)

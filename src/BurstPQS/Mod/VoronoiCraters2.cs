@@ -3,117 +3,95 @@ using BurstPQS.Collections;
 using BurstPQS.Noise;
 using BurstPQS.Util;
 using Unity.Burst;
+using Unity.Collections.LowLevel.Unsafe;
 using UnityEngine;
 
 namespace BurstPQS.Mod;
 
 [BurstCompile]
-public class VoronoiCraters2 : BatchPQSModV1<PQSMod_VoronoiCraters2>
+[BatchPQSMod(typeof(PQSMod_VoronoiCraters2))]
+public class VoronoiCraters2(PQSMod_VoronoiCraters2 mod) : BatchPQSMod<PQSMod_VoronoiCraters2>(mod)
 {
-    float[] rs;
-
-    public VoronoiCraters2(PQSMod_VoronoiCraters2 mod)
-        : base(mod) { }
-
-    public override unsafe void OnBatchVertexBuildHeight(in QuadBuildDataV1 data)
+    public override void OnQuadPreBuild(PQ quad, BatchPQSJobSet jobSet)
     {
-        if (rs is null || rs.Length != data.VertexCount)
-            rs = new float[data.VertexCount];
+        base.OnQuadPreBuild(quad, jobSet);
 
-        using var bjitterSimplex = new BurstSimplex(mod.jitterSimplex);
-        using var bcraterCurve = new BurstAnimationCurve(mod.craterCurve);
-        using var bdeformationSimplex = new BurstSimplex(mod.deformationSimplex);
-
-        fixed (float* prs = rs)
+        jobSet.Add(new BuildJob
         {
-            BuildHeights(
-                in data.burstData,
-                new(mod.voronoi),
-                in bjitterSimplex,
-                in bcraterCurve,
-                in bdeformationSimplex,
-                new(prs, rs.Length),
-                mod.jitter,
-                mod.deformation
-            );
-        }
-    }
-
-    public override unsafe void OnBatchVertexBuild(in QuadBuildDataV1 data)
-    {
-        if (rs is null || rs.Length != data.VertexCount)
-            throw new InvalidOperationException(
-                "OnQuadBuildVertex called but rs is null or the wrong size"
-            );
-
-        using var bcolorRamp = new BurstGradient(mod.craterColourRamp);
-
-        fixed (float* prs = rs)
-        {
-            BuildVertices(
-                in data.burstData,
-                in bcolorRamp,
-                new(prs, rs.Length),
-                mod.DebugColorMapping
-            );
-        }
+            voronoi = new(mod.voronoi),
+            jitterSimplex = new BurstSimplex(mod.jitterSimplex),
+            craterCurve = new BurstAnimationCurve(mod.craterCurve),
+            deformationSimplex = new BurstSimplex(mod.deformationSimplex),
+            craterColorRamp = new BurstGradient(mod.craterColourRamp),
+            jitter = mod.jitter,
+            deformation = mod.deformation,
+            debugColorMapping = mod.DebugColorMapping,
+        });
     }
 
     [BurstCompile(FloatMode = FloatMode.Fast)]
-    [BurstPQSAutoPatch]
-    static void BuildHeights(
-        [NoAlias] in BurstQuadBuildDataV1 data,
-        [NoAlias] in BurstVoronoi voronoi,
-        [NoAlias] in BurstSimplex jitterSimplex,
-        [NoAlias] in BurstAnimationCurve craterCurve,
-        [NoAlias] in BurstSimplex deformationSimplex,
-        [NoAlias] in MemorySpan<float> rs,
-        double jitter,
-        double deformation
-    )
+    unsafe struct BuildJob : IBatchPQSHeightJob, IBatchPQSVertexJob, IDisposable
     {
-        if (rs.Length != data.VertexCount)
-            BurstException.ThrowIndexOutOfRange();
+        public BurstVoronoi voronoi;
+        public BurstSimplex jitterSimplex;
+        public BurstAnimationCurve craterCurve;
+        public BurstSimplex deformationSimplex;
+        public BurstGradient craterColorRamp;
+        public double jitter;
+        public double deformation;
+        public bool debugColorMapping;
 
-        for (int i = 0; i < data.VertexCount; ++i)
+        float* rs;
+
+        public void BuildHeights(in BuildHeightsData data)
         {
-            var nearest = voronoi.GetNearest(data.directionFromCenter[i]);
-            var vd = nearest - data.directionFromCenter[i];
-            var h = MathUtil.Clamp01(vd.magnitude * 1.7320508075688772);
-            var s = jitterSimplex.noise(data.directionFromCenter[i]) * jitter;
-            var r = craterCurve.Evaluate((float)(h + s));
-            var d = deformationSimplex.noiseNormalized(nearest) * deformation;
+            rs = (float*)UnsafeUtility.Malloc(data.VertexCount * sizeof(float), 4, Unity.Collections.Allocator.Temp);
 
-            rs[i] = r;
-            data.vertHeight[i] += d * r;
+            for (int i = 0; i < data.VertexCount; ++i)
+            {
+                var nearest = voronoi.GetNearest(data.directionFromCenter[i]);
+                var vd = nearest - data.directionFromCenter[i];
+                var h = MathUtil.Clamp01(vd.magnitude * 1.7320508075688772);
+                var s = jitterSimplex.noise(data.directionFromCenter[i]) * jitter;
+                var r = craterCurve.Evaluate((float)(h + s));
+                var d = deformationSimplex.noiseNormalized(nearest) * deformation;
+
+                rs[i] = r;
+                data.vertHeight[i] += d * r;
+            }
         }
-    }
 
-    [BurstCompile(FloatMode = FloatMode.Fast)]
-    [BurstPQSAutoPatch]
-    static void BuildVertices(
-        [NoAlias] in BurstQuadBuildDataV1 data,
-        [NoAlias] in BurstGradient craterColorRamp,
-        [NoAlias] in MemorySpan<float> rs,
-        bool debugColorMapping
-    )
-    {
-        if (rs.Length != data.VertexCount)
-            BurstException.ThrowIndexOutOfRange();
-
-        for (int i = 0; i < data.VertexCount; ++i)
+        public void BuildVertices(in BuildVerticesData data)
         {
-            float rf = rs[i];
-            float rfN = (rf + 1f) * 0.5f;
+            for (int i = 0; i < data.VertexCount; ++i)
+            {
+                float rf = rs[i];
+                float rfN = (rf + 1f) * 0.5f;
 
-            if (debugColorMapping)
-                data.vertColor[i] = Color.Lerp(Color.magenta, data.vertColor[i], rfN);
-            else
-                data.vertColor[i] = Color.Lerp(
-                    craterColorRamp.Evaluate(rf),
-                    data.vertColor[i],
-                    rfN
-                );
+                if (debugColorMapping)
+                    data.vertColor[i] = Color.Lerp(Color.magenta, data.vertColor[i], rfN);
+                else
+                    data.vertColor[i] = Color.Lerp(
+                        craterColorRamp.Evaluate(rf),
+                        data.vertColor[i],
+                        rfN
+                    );
+            }
+        }
+
+        public void Dispose()
+        {
+            if (rs != null)
+            {
+                UnsafeUtility.Free(rs, Unity.Collections.Allocator.Temp);
+                rs = null;
+            }
+
+            voronoi.Dispose();
+            jitterSimplex.Dispose();
+            craterCurve.Dispose();
+            deformationSimplex.Dispose();
+            craterColorRamp.Dispose();
         }
     }
 }

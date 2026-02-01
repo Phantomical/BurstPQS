@@ -1,6 +1,5 @@
 using BurstPQS.Noise;
 using Unity.Burst;
-using Unity.Jobs;
 using IModule = LibNoise.IModule;
 
 namespace BurstPQS.Mod;
@@ -8,75 +7,91 @@ namespace BurstPQS.Mod;
 [BurstCompile]
 [BatchPQSMod(typeof(PQSMod_VertexHeightNoise))]
 public class VertexHeightNoise(PQSMod_VertexHeightNoise mod)
-    : InlineBatchPQSMod<PQSMod_VertexHeightNoise>(mod)
+    : BatchPQSMod<PQSMod_VertexHeightNoise>(mod)
 {
-    public override JobHandle ScheduleBuildHeights(QuadBuildData data, JobHandle handle)
+    public override void OnQuadPreBuild(PQ quad, BatchPQSJobSet jobSet)
     {
-        var p = new BuildHeightsData { data = data.burst, deformity = mod.deformity };
+        base.OnQuadPreBuild(quad, jobSet);
 
         switch (mod.noiseMap)
         {
             case LibNoise.Perlin perlin:
-                var pjob = new BuildHeightsPerlin { data = p, noise = new(perlin) };
-                handle = pjob.Schedule(handle);
+                jobSet.Add(new BuildHeightsPerlin
+                {
+                    deformity = mod.deformity,
+                    noise = new(perlin),
+                });
                 break;
 
             case LibNoise.RidgedMultifractal multi:
-                var mjob = new BuildHeightsRidgedMultifractal { data = p, noise = new(multi) };
-                handle = mjob.Schedule(handle);
+                jobSet.Add(new BuildHeightsRidgedMultifractal
+                {
+                    deformity = mod.deformity,
+                    noise = new(multi),
+                });
                 break;
 
             case LibNoise.Billow billow:
-                var bjob = new BuildHeightsBillow { data = p, noise = new(billow) };
-                handle = bjob.Schedule(handle);
+                jobSet.Add(new BuildHeightsBillow
+                {
+                    deformity = mod.deformity,
+                    noise = new(billow),
+                });
                 break;
 
             default:
-                handle.Complete();
-                p.Execute(mod.noiseMap);
+                jobSet.Add(new BuildHeightsFallback
+                {
+                    deformity = mod.deformity,
+                    noiseMap = mod.noiseMap,
+                });
                 break;
         }
-
-        return handle;
     }
 
-    struct BuildHeightsData
+    static void Execute<N>(in N noise, double deformity, in BuildHeightsData data)
+        where N : IModule
     {
-        public BurstQuadBuildData data;
-        public double deformity;
-
-        public void Execute<N>(in N noise)
-            where N : IModule
-        {
-            for (int i = 0; i < data.VertexCount; ++i)
-                data.vertHeight[i] += noise.GetValue(data.directionFromCenter[i]) * deformity;
-        }
+        for (int i = 0; i < data.VertexCount; ++i)
+            data.vertHeight[i] += noise.GetValue(data.directionFromCenter[i]) * deformity;
     }
 
     [BurstCompile]
-    struct BuildHeightsPerlin : IJob
+    struct BuildHeightsPerlin : IBatchPQSHeightJob
     {
-        public BuildHeightsData data;
+        public double deformity;
         public BurstPerlin noise;
 
-        public void Execute() => data.Execute(in noise);
+        public readonly void BuildHeights(in BuildHeightsData data) =>
+            Execute(in noise, deformity, in data);
     }
 
     [BurstCompile]
-    struct BuildHeightsRidgedMultifractal : IJob
+    struct BuildHeightsRidgedMultifractal : IBatchPQSHeightJob
     {
-        public BuildHeightsData data;
+        public double deformity;
         public BurstRidgedMultifractal noise;
 
-        public void Execute() => data.Execute(in noise);
+        public readonly void BuildHeights(in BuildHeightsData data) =>
+            Execute(in noise, deformity, in data);
     }
 
     [BurstCompile]
-    struct BuildHeightsBillow : IJob
+    struct BuildHeightsBillow : IBatchPQSHeightJob
     {
-        public BuildHeightsData data;
+        public double deformity;
         public BurstBillow noise;
 
-        public void Execute() => data.Execute(in noise);
+        public readonly void BuildHeights(in BuildHeightsData data) =>
+            Execute(in noise, deformity, in data);
+    }
+
+    struct BuildHeightsFallback : IBatchPQSHeightJob
+    {
+        public double deformity;
+        public IModule noiseMap;
+
+        public readonly void BuildHeights(in BuildHeightsData data) =>
+            Execute(in noiseMap, deformity, in data);
     }
 }

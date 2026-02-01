@@ -193,6 +193,7 @@ public unsafe struct BuildVerticesData
     public readonly MemorySpan<double> v2 => CreateNativeArray(_v2);
     public readonly MemorySpan<double> v3 => CreateNativeArray(_v3);
     public readonly MemorySpan<double> v4 => CreateNativeArray(_v4);
+    public readonly MemorySpan<bool> allowScatter => CreateNativeArray(_allowScatter);
     #endregion
 
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
@@ -237,6 +238,7 @@ public unsafe struct BuildMeshData
     public readonly MemorySpan<double> v2 => data.v2;
     public readonly MemorySpan<double> v3 => data.v3;
     public readonly MemorySpan<double> v4 => data.v4;
+    public readonly MemorySpan<bool> allowScatter => data.allowScatter;
     #endregion
 
     readonly Vector3d* _vertsD;

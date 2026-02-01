@@ -1,61 +1,91 @@
 using BurstPQS.Noise;
-using BurstPQS.Util;
 using Unity.Burst;
 using UnityEngine;
 using IModule = LibNoise.IModule;
 
 namespace BurstPQS.Mod;
 
-[BurstCompile]
-public class VertexColorNoise : BatchPQSModV1<PQSMod_VertexColorNoise>
+[BatchPQSMod(typeof(PQSMod_VertexColorNoise))]
+public class VertexColorNoise(PQSMod_VertexColorNoise mod) : BatchPQSMod<PQSMod_VertexColorNoise>(mod)
 {
-    public VertexColorNoise(PQSMod_VertexColorNoise mod)
-        : base(mod) { }
-
-    public override void OnBatchVertexBuild(in QuadBuildDataV1 data)
+    public override void OnQuadPreBuild(PQ quad, BatchPQSJobSet jobSet)
     {
+        base.OnQuadPreBuild(quad, jobSet);
+
         if (mod.noiseMap is LibNoise.Perlin perlin)
-            BuildVertexPerlin(in data.burstData, new(perlin), mod.blend);
+            jobSet.Add(new PerlinJob { noise = new(perlin), blend = mod.blend });
         else if (mod.noiseMap is LibNoise.RidgedMultifractal multi)
-            BuildVertexRidgedMultifractal(in data.burstData, new(multi), mod.blend);
+            jobSet.Add(new RidgedMultifractalJob { noise = new(multi), blend = mod.blend });
         else if (mod.noiseMap is LibNoise.Billow billow)
-            BuildVertexBillow(in data.burstData, new(billow), mod.blend);
+            jobSet.Add(new BillowJob { noise = new(billow), blend = mod.blend });
         else
-            BuildVertex(in data.burstData, mod.noiseMap, mod.blend);
+            jobSet.Add(new FallbackJob { noise = mod.noiseMap, blend = mod.blend });
     }
 
-    [BurstCompile(FloatMode = FloatMode.Fast)]
-    [BurstPQSAutoPatch]
-    static void BuildVertexPerlin(
-        [NoAlias] in BurstQuadBuildDataV1 data,
-        [NoAlias] in BurstPerlin noise,
-        float blend
-    ) => BuildVertex(in data, in noise, blend);
-
-    [BurstCompile(FloatMode = FloatMode.Fast)]
-    [BurstPQSAutoPatch]
-    static void BuildVertexRidgedMultifractal(
-        [NoAlias] in BurstQuadBuildDataV1 data,
-        [NoAlias] in BurstRidgedMultifractal noise,
-        float blend
-    ) => BuildVertex(in data, in noise, blend);
-
-    [BurstCompile(FloatMode = FloatMode.Fast)]
-    [BurstPQSAutoPatch]
-    static void BuildVertexBillow(
-        [NoAlias] in BurstQuadBuildDataV1 data,
-        [NoAlias] in BurstBillow noise,
-        float blend
-    ) => BuildVertex(in data, in noise, blend);
-
-    static void BuildVertex<N>(in BurstQuadBuildDataV1 data, in N noise, float blend)
-        where N : IModule
+    [BurstCompile]
+    struct PerlinJob : IBatchPQSVertexJob
     {
-        for (int i = 0; i < data.VertexCount; ++i)
+        public BurstPerlin noise;
+        public float blend;
+
+        public readonly void BuildVertices(in BuildVerticesData data)
         {
-            var h = (float)((noise.GetValue(data.directionFromCenter[i]) + 1.0) * 0.5);
-            var c = new Color(h, h, h, 1f);
-            data.vertColor[i] = Color.Lerp(data.vertColor[i], c, blend);
+            for (int i = 0; i < data.VertexCount; ++i)
+            {
+                var h = (float)((noise.GetValue(data.directionFromCenter[i]) + 1.0) * 0.5);
+                var c = new Color(h, h, h, 1f);
+                data.vertColor[i] = Color.Lerp(data.vertColor[i], c, blend);
+            }
+        }
+    }
+
+    [BurstCompile]
+    struct RidgedMultifractalJob : IBatchPQSVertexJob
+    {
+        public BurstRidgedMultifractal noise;
+        public float blend;
+
+        public readonly void BuildVertices(in BuildVerticesData data)
+        {
+            for (int i = 0; i < data.VertexCount; ++i)
+            {
+                var h = (float)((noise.GetValue(data.directionFromCenter[i]) + 1.0) * 0.5);
+                var c = new Color(h, h, h, 1f);
+                data.vertColor[i] = Color.Lerp(data.vertColor[i], c, blend);
+            }
+        }
+    }
+
+    [BurstCompile]
+    struct BillowJob : IBatchPQSVertexJob
+    {
+        public BurstBillow noise;
+        public float blend;
+
+        public readonly void BuildVertices(in BuildVerticesData data)
+        {
+            for (int i = 0; i < data.VertexCount; ++i)
+            {
+                var h = (float)((noise.GetValue(data.directionFromCenter[i]) + 1.0) * 0.5);
+                var c = new Color(h, h, h, 1f);
+                data.vertColor[i] = Color.Lerp(data.vertColor[i], c, blend);
+            }
+        }
+    }
+
+    struct FallbackJob : IBatchPQSVertexJob
+    {
+        public IModule noise;
+        public float blend;
+
+        public readonly void BuildVertices(in BuildVerticesData data)
+        {
+            for (int i = 0; i < data.VertexCount; ++i)
+            {
+                var h = (float)((noise.GetValue(data.directionFromCenter[i]) + 1.0) * 0.5);
+                var c = new Color(h, h, h, 1f);
+                data.vertColor[i] = Color.Lerp(data.vertColor[i], c, blend);
+            }
         }
     }
 }

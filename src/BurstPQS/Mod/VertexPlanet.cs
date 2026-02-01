@@ -2,10 +2,9 @@ using System;
 using BurstPQS.Collections;
 using BurstPQS.Noise;
 using BurstPQS.Util;
-using FinePrint.Utilities;
 using Unity.Burst;
 using Unity.Collections;
-using Unity.Jobs;
+using Unity.Collections.LowLevel.Unsafe;
 using UnityEngine;
 
 namespace BurstPQS.Mod;
@@ -39,8 +38,6 @@ public class VertexPlanet(PQSMod_VertexPlanet mod) : BatchPQSMod<PQSMod_VertexPl
         public BurstSimplex simplex = new(wrapper.simplex);
 
         public void Dispose() => simplex.Dispose();
-
-        public void Dispose(JobHandle handle) => simplex.Dispose(handle);
     }
 
     struct BurstNoiseModWrapper<N>(PQSMod_VertexPlanet.NoiseModWrapper wrapper, N noise)
@@ -87,83 +84,50 @@ public class VertexPlanet(PQSMod_VertexPlanet mod) : BatchPQSMod<PQSMod_VertexPl
         terrainType.Dispose();
     }
 
-    public override IBatchPQSModState OnQuadPreBuild(QuadBuildData data)
+    public override void OnQuadPreBuild(PQ quad, BatchPQSJobSet jobSet)
     {
-        return new State(data, this);
-    }
+        base.OnQuadPreBuild(quad, jobSet);
 
-    class State(QuadBuildData data, VertexPlanet batchMod)
-        : BatchPQSModState<PQSMod_VertexPlanet>(batchMod.mod)
-    {
-        readonly VertexPlanet batchMod = batchMod;
-        NativeArray<double> preSmoothHeights = new(data.VertexCount, Allocator.TempJob);
-        NativeArray<BurstLandClass> landClasses = batchMod.landClasses;
-
-        public override JobHandle ScheduleBuildHeights(QuadBuildData data, JobHandle handle)
+        jobSet.Add(new BuildJob
         {
-            var job = new BuildHeightsJob
-            {
-                data = data.burst,
-                preSmoothHeights = preSmoothHeights,
-                continental = batchMod.continental,
-                continentalSmoothing = batchMod.continentalSmoothing,
-                continentalSharpness = new(
-                    mod.continentalSharpness,
-                    new((LibNoise.RidgedMultifractal)mod.continentalSharpness.noise)
-                ),
-                continentalSharpnessMap = batchMod.continentalSharpnessMap,
-                continentalRuggedness = batchMod.continentalRuggedness,
-                terrainRidgeBalance = mod.terrainRidgeBalance,
-                terrainRidgesMax = mod.terrainRidgesMax,
-                terrainRidgesMin = mod.terrainRidgesMin,
-                terrainShapeStart = mod.terrainShapeStart,
-                terrainShapeEnd = mod.terrainShapeEnd,
-                oceanLevel = mod.oceanLevel,
-                oceanDepth = mod.oceanDepth,
-                oceanStep = mod.oceanStep,
-                oceanSnap = mod.oceanSnap,
-                deformity = mod.deformity,
-            };
-
-            return job.Schedule(handle);
-        }
-
-        public override JobHandle ScheduleBuildVertices(QuadBuildData data, JobHandle handle)
-        {
-            var job = new BuildVerticesJob
-            {
-                data = data.burst,
-                landClasses = landClasses,
-                continentalHeightPreSmooth = preSmoothHeights,
-                terrainType = batchMod.terrainType,
-                terrainTypeDeformity = mod.terrainType.deformity,
-                buildHeightColors = mod.buildHeightColors,
-                colorDeformity = mod.colorDeformity,
-            };
-            preSmoothHeights = default;
-
-            return job.Schedule(handle);
-        }
-
-        public override void Dispose()
-        {
-            preSmoothHeights.Dispose();
-        }
+            landClasses = landClasses,
+            continental = continental,
+            continentalSmoothing = continentalSmoothing,
+            continentalSharpness = new(
+                mod.continentalSharpness,
+                new BurstRidgedMultifractal((LibNoise.RidgedMultifractal)mod.continentalSharpness.noise)
+            ),
+            continentalSharpnessMap = continentalSharpnessMap,
+            continentalRuggedness = continentalRuggedness,
+            terrainType = terrainType,
+            terrainRidgeBalance = mod.terrainRidgeBalance,
+            terrainRidgesMax = mod.terrainRidgesMax,
+            terrainRidgesMin = mod.terrainRidgesMin,
+            terrainShapeStart = mod.terrainShapeStart,
+            terrainShapeEnd = mod.terrainShapeEnd,
+            oceanLevel = mod.oceanLevel,
+            oceanDepth = mod.oceanDepth,
+            oceanStep = mod.oceanStep,
+            oceanSnap = mod.oceanSnap,
+            deformity = mod.deformity,
+            terrainTypeDeformity = mod.terrainType.deformity,
+            buildHeightColors = mod.buildHeightColors,
+            colorDeformity = mod.colorDeformity,
+        });
     }
 
     // Running this through burst seems to have different results?
-    // [BurstCompile]
-    struct BuildHeightsJob : IJob
+    // The struct does NOT have [BurstCompile] because the heights computation
+    // produces different results when burst compiled.
+    unsafe struct BuildJob : IBatchPQSHeightJob, IBatchPQSVertexJob, IDisposable
     {
-        public BurstQuadBuildData data;
-
-        [DeallocateOnJobCompletion]
-        public NativeArray<double> preSmoothHeights;
+        public NativeArray<BurstLandClass> landClasses;
         public BurstSimplexWrapper continental;
         public BurstSimplexWrapper continentalSmoothing;
         public BurstNoiseModWrapper<BurstRidgedMultifractal> continentalSharpness;
         public BurstSimplexWrapper continentalSharpnessMap;
         public BurstSimplexWrapper continentalRuggedness;
+        public BurstSimplex terrainType;
         public double terrainRidgeBalance;
         public double terrainRidgesMax;
         public double terrainRidgesMin;
@@ -174,10 +138,22 @@ public class VertexPlanet(PQSMod_VertexPlanet mod) : BatchPQSMod<PQSMod_VertexPl
         public double oceanStep;
         public bool oceanSnap;
         public double deformity;
+        public double terrainTypeDeformity;
+        public bool buildHeightColors;
+        public double colorDeformity;
+
+        double* preSmoothHeights;
 
         // csharpier-ignore
-        public void Execute()
+        public void BuildHeights(in BuildHeightsData data)
         {
+            int vertexCount = data.VertexCount;
+            preSmoothHeights = (double*)UnsafeUtility.Malloc(
+                vertexCount * sizeof(double),
+                UnsafeUtility.AlignOf<double>(),
+                Allocator.Temp
+            );
+
             double continentalDeformity;
             double continental2Height;
             double continentialHeight;
@@ -188,7 +164,7 @@ public class VertexPlanet(PQSMod_VertexPlanet mod) : BatchPQSMod<PQSMod_VertexPl
             double vHeight;
             double continentialHeightPreSmooth;
 
-            for (int i = 0; i < data.VertexCount; ++i)
+            for (int i = 0; i < vertexCount; ++i)
             {
                 var directionFromCenter = data.directionFromCenter[i];
 
@@ -233,20 +209,8 @@ public class VertexPlanet(PQSMod_VertexPlanet mod) : BatchPQSMod<PQSMod_VertexPl
                 preSmoothHeights[i] = continentialHeightPreSmooth;
             }
         }
-    }
 
-    [BurstCompile]
-    struct BuildVerticesJob : IJob
-    {
-        public BurstQuadBuildData data;
-        public NativeArray<BurstLandClass> landClasses;
-        public NativeArray<double> continentalHeightPreSmooth;
-        public BurstSimplex terrainType;
-        public double terrainTypeDeformity;
-        public bool buildHeightColors;
-        public double colorDeformity;
-
-        public void Execute()
+        public void BuildVertices(in BuildVerticesData data)
         {
             if (buildHeightColors)
             {
@@ -265,7 +229,7 @@ public class VertexPlanet(PQSMod_VertexPlanet mod) : BatchPQSMod<PQSMod_VertexPl
                 double h = (data.vertHeight[i] - data.sphere.radius) / colorDeformity;
                 double d1 = terrainType.noiseNormalized(dir);
                 double tHeight = MathUtil.Clamp01(
-                    (continentalHeightPreSmooth[i] + d1 * terrainTypeDeformity) * h
+                    (preSmoothHeights[i] + d1 * terrainTypeDeformity) * h
                 );
 
                 int lcSelectedIndex = SelectLandClassByHeight(new(landClasses), tHeight);
@@ -298,7 +262,16 @@ public class VertexPlanet(PQSMod_VertexPlanet mod) : BatchPQSMod<PQSMod_VertexPl
                 }
 
                 data.vertColor[i] = c1;
-                data.vertColor[i].a = (float)continentalHeightPreSmooth[i];
+                data.vertColor[i].a = (float)preSmoothHeights[i];
+            }
+        }
+
+        public void Dispose()
+        {
+            if (preSmoothHeights != null)
+            {
+                UnsafeUtility.Free(preSmoothHeights, Allocator.Temp);
+                preSmoothHeights = null;
             }
         }
     }
