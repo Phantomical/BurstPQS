@@ -7,10 +7,7 @@ public class ROCControl(PQSROCControl mod) : BatchPQSMod<PQSROCControl>(mod)
     {
         base.OnQuadPreBuild(quad, jobSet);
 
-        jobSet.Add(new BuildJob
-        {
-            mod = mod,
-        });
+        jobSet.Add(new BuildJob { mod = mod });
     }
 
     struct BuildJob : IBatchPQSVertexJob, IBatchPQSMeshBuiltJob

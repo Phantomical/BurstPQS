@@ -6,18 +6,21 @@ namespace BurstPQS.Mod;
 
 [BurstCompile]
 [BatchPQSMod(typeof(PQSMod_VertexSimplexHeightFlatten))]
-public class VertexSimplexHeightFlatten(PQSMod_VertexSimplexHeightFlatten mod) : BatchPQSMod<PQSMod_VertexSimplexHeightFlatten>(mod)
+public class VertexSimplexHeightFlatten(PQSMod_VertexSimplexHeightFlatten mod)
+    : BatchPQSMod<PQSMod_VertexSimplexHeightFlatten>(mod)
 {
     public override void OnQuadPreBuild(PQ quad, BatchPQSJobSet jobSet)
     {
         base.OnQuadPreBuild(quad, jobSet);
 
-        jobSet.Add(new BuildJob
-        {
-            simplex = new BurstSimplex(mod.simplex),
-            deformity = mod.deformity,
-            cutoff = mod.cutoff
-        });
+        jobSet.Add(
+            new BuildJob
+            {
+                simplex = new BurstSimplex(mod.simplex),
+                deformity = mod.deformity,
+                cutoff = mod.cutoff,
+            }
+        );
     }
 
     [BurstCompile]

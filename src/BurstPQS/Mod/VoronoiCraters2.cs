@@ -16,17 +16,19 @@ public class VoronoiCraters2(PQSMod_VoronoiCraters2 mod) : BatchPQSMod<PQSMod_Vo
     {
         base.OnQuadPreBuild(quad, jobSet);
 
-        jobSet.Add(new BuildJob
-        {
-            voronoi = new(mod.voronoi),
-            jitterSimplex = new BurstSimplex(mod.jitterSimplex),
-            craterCurve = new BurstAnimationCurve(mod.craterCurve),
-            deformationSimplex = new BurstSimplex(mod.deformationSimplex),
-            craterColorRamp = new BurstGradient(mod.craterColourRamp),
-            jitter = mod.jitter,
-            deformation = mod.deformation,
-            debugColorMapping = mod.DebugColorMapping,
-        });
+        jobSet.Add(
+            new BuildJob
+            {
+                voronoi = new(mod.voronoi),
+                jitterSimplex = new BurstSimplex(mod.jitterSimplex),
+                craterCurve = new BurstAnimationCurve(mod.craterCurve),
+                deformationSimplex = new BurstSimplex(mod.deformationSimplex),
+                craterColorRamp = new BurstGradient(mod.craterColourRamp),
+                jitter = mod.jitter,
+                deformation = mod.deformation,
+                debugColorMapping = mod.DebugColorMapping,
+            }
+        );
     }
 
     [BurstCompile(FloatMode = FloatMode.Fast)]
@@ -45,7 +47,12 @@ public class VoronoiCraters2(PQSMod_VoronoiCraters2 mod) : BatchPQSMod<PQSMod_Vo
 
         public void BuildHeights(in BuildHeightsData data)
         {
-            rs = (float*)UnsafeUtility.Malloc(data.VertexCount * sizeof(float), 4, Unity.Collections.Allocator.Temp);
+            rs = (float*)
+                UnsafeUtility.Malloc(
+                    data.VertexCount * sizeof(float),
+                    4,
+                    Unity.Collections.Allocator.Temp
+                );
 
             for (int i = 0; i < data.VertexCount; ++i)
             {

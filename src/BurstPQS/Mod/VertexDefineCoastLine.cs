@@ -4,7 +4,8 @@ namespace BurstPQS.Mod;
 
 [BurstCompile]
 [BatchPQSMod(typeof(PQSMod_VertexDefineCoastLine))]
-public class VertexDefineCoastLine(PQSMod_VertexDefineCoastLine mod) : BatchPQSMod<PQSMod_VertexDefineCoastLine>(mod)
+public class VertexDefineCoastLine(PQSMod_VertexDefineCoastLine mod)
+    : BatchPQSMod<PQSMod_VertexDefineCoastLine>(mod)
 {
     public override void OnQuadPreBuild(PQ quad, BatchPQSJobSet jobSet)
     {

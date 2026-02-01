@@ -5,18 +5,21 @@ namespace BurstPQS.Mod;
 
 [BurstCompile]
 [BatchPQSMod(typeof(PQSMod_SmoothLatitudeRange))]
-public class SmoothLatitudeRange(PQSMod_SmoothLatitudeRange mod) : BatchPQSMod<PQSMod_SmoothLatitudeRange>(mod)
+public class SmoothLatitudeRange(PQSMod_SmoothLatitudeRange mod)
+    : BatchPQSMod<PQSMod_SmoothLatitudeRange>(mod)
 {
     public override void OnQuadPreBuild(PQ quad, BatchPQSJobSet jobSet)
     {
         base.OnQuadPreBuild(quad, jobSet);
 
-        jobSet.Add(new BuildJob
-        {
-            latitudeRange = new(mod.latitudeRange),
-            smoothToAltitude = mod.smoothToAltitude,
-            sphereRadius = mod.sphere.radius
-        });
+        jobSet.Add(
+            new BuildJob
+            {
+                latitudeRange = new(mod.latitudeRange),
+                smoothToAltitude = mod.smoothToAltitude,
+                sphereRadius = mod.sphere.radius,
+            }
+        );
     }
 
     [BurstCompile]

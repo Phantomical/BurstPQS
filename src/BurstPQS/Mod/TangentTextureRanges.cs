@@ -6,21 +6,24 @@ namespace BurstPQS.Mod;
 
 [BurstCompile]
 [BatchPQSMod(typeof(PQSMod_TangentTextureRanges))]
-public class TangentTextureRanges(PQSMod_TangentTextureRanges mod) : BatchPQSMod<PQSMod_TangentTextureRanges>(mod)
+public class TangentTextureRanges(PQSMod_TangentTextureRanges mod)
+    : BatchPQSMod<PQSMod_TangentTextureRanges>(mod)
 {
     public override void OnQuadPreBuild(PQ quad, BatchPQSJobSet jobSet)
     {
         base.OnQuadPreBuild(quad, jobSet);
 
-        jobSet.Add(new BuildJob
-        {
-            tangentX = PQSMod_TangentTextureRanges.tangentX,
-            modulo = mod.modulo,
-            lowStart = mod.lowStart,
-            lowEnd = mod.lowEnd,
-            highStart = mod.highStart,
-            highEnd = mod.highEnd,
-        });
+        jobSet.Add(
+            new BuildJob
+            {
+                tangentX = PQSMod_TangentTextureRanges.tangentX,
+                modulo = mod.modulo,
+                lowStart = mod.lowStart,
+                lowEnd = mod.lowEnd,
+                highStart = mod.highStart,
+                highEnd = mod.highEnd,
+            }
+        );
     }
 
     struct BuildJob : IBatchPQSVertexJob

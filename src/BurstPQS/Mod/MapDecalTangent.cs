@@ -23,14 +23,16 @@ public class MapDecalTangent(PQSMod_MapDecalTangent mod) : BatchPQSMod<PQSMod_Ma
         if (mod.colorMap is not null)
             colorMap = new BurstMapSO(mod.colorMap);
 
-        jobSet.Add(new BuildJob
-        {
-            info = new BurstInfo(mod),
-            heightMap = heightMap,
-            colorMap = colorMap,
-            sphereIsBuildingMaps = mod.sphere.isBuildingMaps,
-            sphereRadius = mod.sphere.radius,
-        });
+        jobSet.Add(
+            new BuildJob
+            {
+                info = new BurstInfo(mod),
+                heightMap = heightMap,
+                colorMap = colorMap,
+                sphereIsBuildingMaps = mod.sphere.isBuildingMaps,
+                sphereRadius = mod.sphere.radius,
+            }
+        );
     }
 
     [BurstCompile]
@@ -47,7 +49,14 @@ public class MapDecalTangent(PQSMod_MapDecalTangent mod) : BatchPQSMod<PQSMod_Ma
 
         public void BuildHeights(in BuildHeightsData data)
         {
-            info.BuildHeights(in data, heightMap, sphereIsBuildingMaps, sphereRadius, out vertActive, out removeScatterFlags);
+            info.BuildHeights(
+                in data,
+                heightMap,
+                sphereIsBuildingMaps,
+                sphereRadius,
+                out vertActive,
+                out removeScatterFlags
+            );
         }
 
         public void BuildVertices(in BuildVerticesData data)
@@ -130,18 +139,20 @@ public class MapDecalTangent(PQSMod_MapDecalTangent mod) : BatchPQSMod<PQSMod_Ma
         {
             int vertexCount = data.VertexCount;
 
-            vertActive = (bool*)UnsafeUtility.Malloc(
-                vertexCount * sizeof(bool),
-                UnsafeUtility.AlignOf<bool>(),
-                Unity.Collections.Allocator.Temp
-            );
+            vertActive = (bool*)
+                UnsafeUtility.Malloc(
+                    vertexCount * sizeof(bool),
+                    UnsafeUtility.AlignOf<bool>(),
+                    Unity.Collections.Allocator.Temp
+                );
             UnsafeUtility.MemClear(vertActive, vertexCount * sizeof(bool));
 
-            removeScatterFlags = (bool*)UnsafeUtility.Malloc(
-                vertexCount * sizeof(bool),
-                UnsafeUtility.AlignOf<bool>(),
-                Unity.Collections.Allocator.Temp
-            );
+            removeScatterFlags = (bool*)
+                UnsafeUtility.Malloc(
+                    vertexCount * sizeof(bool),
+                    UnsafeUtility.AlignOf<bool>(),
+                    Unity.Collections.Allocator.Temp
+                );
             UnsafeUtility.MemClear(removeScatterFlags, vertexCount * sizeof(bool));
 
             for (int i = 0; i < vertexCount; ++i)

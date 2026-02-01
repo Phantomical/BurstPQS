@@ -14,23 +14,25 @@ public class VertexHeightNoiseVertHeightCurve3(PQSMod_VertexHeightNoiseVertHeigh
     {
         base.OnQuadPreBuild(quad, jobSet);
 
-        jobSet.Add(new BuildJob
-        {
-            ridgedAdd = new(mod.ridgedAdd.fractal),
-            ridgedSub = new(mod.ridgedSub.fractal),
-            curveMultiplier = new BurstSimplex(mod.curveMultiplier.fractal),
-            deformity = new BurstSimplex(mod.deformity.fractal),
-            inputHeightCurve = new BurstAnimationCurve(mod.inputHeightCurve),
-            p = new Params
+        jobSet.Add(
+            new BuildJob
             {
-                sphereRadiusMin = mod.sphere.radiusMin,
-                inputHeightStart = mod.inputHeightStart,
-                inputHeightEnd = mod.inputHeightEnd,
-                deformityMax = mod.deformityMax,
-                deformityMin = mod.deformityMin,
-                hDeltaR = mod.hDeltaR,
-            },
-        });
+                ridgedAdd = new(mod.ridgedAdd.fractal),
+                ridgedSub = new(mod.ridgedSub.fractal),
+                curveMultiplier = new BurstSimplex(mod.curveMultiplier.fractal),
+                deformity = new BurstSimplex(mod.deformity.fractal),
+                inputHeightCurve = new BurstAnimationCurve(mod.inputHeightCurve),
+                p = new Params
+                {
+                    sphereRadiusMin = mod.sphere.radiusMin,
+                    inputHeightStart = mod.inputHeightStart,
+                    inputHeightEnd = mod.inputHeightEnd,
+                    deformityMax = mod.deformityMax,
+                    deformityMin = mod.deformityMin,
+                    hDeltaR = mod.hDeltaR,
+                },
+            }
+        );
     }
 
     struct Params
@@ -74,7 +76,11 @@ public class VertexHeightNoiseVertHeightCurve3(PQSMod_VertexHeightNoiseVertHeigh
                 if (s != 0.0)
                 {
                     r = ridgedAdd.GetValue(dir) - ridgedSub.GetValue(dir);
-                    d = MathUtil.Lerp(p.deformityMin, p.deformityMax, deformity.noiseNormalized(dir));
+                    d = MathUtil.Lerp(
+                        p.deformityMin,
+                        p.deformityMax,
+                        deformity.noiseNormalized(dir)
+                    );
                     r = MathUtil.Clamp(r, -1.0, 1.0);
                     r = (r + 1.0) * 0.5;
 

@@ -6,7 +6,8 @@ using IModule = LibNoise.IModule;
 namespace BurstPQS.Mod;
 
 [BatchPQSMod(typeof(PQSMod_VertexColorNoise))]
-public class VertexColorNoise(PQSMod_VertexColorNoise mod) : BatchPQSMod<PQSMod_VertexColorNoise>(mod)
+public class VertexColorNoise(PQSMod_VertexColorNoise mod)
+    : BatchPQSMod<PQSMod_VertexColorNoise>(mod)
 {
     public override void OnQuadPreBuild(PQ quad, BatchPQSJobSet jobSet)
     {

@@ -37,13 +37,15 @@ public class HeightColorMap2(PQSMod_HeightColorMap2 mod) : BatchPQSMod<PQSMod_He
 
         fixed (BurstLandClass* pClasses = burstLandClasses)
         {
-            jobSet.Add(new BuildJob
-            {
-                classes = new(pClasses, burstLandClasses.Length),
-                heightMin = mod.heightMin,
-                heightDelta = mod.heightDelta,
-                blend = mod.blend
-            });
+            jobSet.Add(
+                new BuildJob
+                {
+                    classes = new(pClasses, burstLandClasses.Length),
+                    heightMin = mod.heightMin,
+                    heightDelta = mod.heightDelta,
+                    blend = mod.blend,
+                }
+            );
         }
     }
 

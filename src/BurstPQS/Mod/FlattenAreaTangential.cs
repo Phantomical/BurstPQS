@@ -7,7 +7,8 @@ namespace BurstPQS.Mod;
 
 [BurstCompile]
 [BatchPQSMod(typeof(PQSMod_FlattenAreaTangential))]
-public class FlattenAreaTangential(PQSMod_FlattenAreaTangential mod) : BatchPQSMod<PQSMod_FlattenAreaTangential>(mod)
+public class FlattenAreaTangential(PQSMod_FlattenAreaTangential mod)
+    : BatchPQSMod<PQSMod_FlattenAreaTangential>(mod)
 {
     public override void OnQuadPreBuild(PQ quad, BatchPQSJobSet jobSet)
     {
@@ -16,16 +17,18 @@ public class FlattenAreaTangential(PQSMod_FlattenAreaTangential mod) : BatchPQSM
         if (!mod.quadActive)
             return;
 
-        jobSet.Add(new BuildJob
-        {
-            flattenToRadius = mod.flattenToRadius,
-            smoothStart = mod.smoothStart,
-            smoothEnd = mod.smoothEnd,
-            angleInner = mod.angleInner,
-            angleOuter = mod.angleOuter,
-            angleDelta = mod.angleDelta,
-            posNorm = mod.posNorm,
-        });
+        jobSet.Add(
+            new BuildJob
+            {
+                flattenToRadius = mod.flattenToRadius,
+                smoothStart = mod.smoothStart,
+                smoothEnd = mod.smoothEnd,
+                angleInner = mod.angleInner,
+                angleOuter = mod.angleOuter,
+                angleDelta = mod.angleDelta,
+                posNorm = mod.posNorm,
+            }
+        );
     }
 
     [BurstCompile(FloatMode = FloatMode.Fast)]

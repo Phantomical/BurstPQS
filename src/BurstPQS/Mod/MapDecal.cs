@@ -23,34 +23,36 @@ public class MapDecal(PQSMod_MapDecal mod) : BatchPQSMod<PQSMod_MapDecal>(mod)
         if (mod.colorMap is not null)
             colorMap = new BurstMapSO(mod.colorMap);
 
-        jobSet.Add(new BuildJob
-        {
-            radius = mod.radius,
-            heightMapDeformity = mod.heightMapDeformity,
-            cullBlack = mod.cullBlack,
-            useAlphaHeightSmoothing = mod.useAlphaHeightSmoothing,
-            absolute = mod.absolute,
-            absoluteOffset = mod.absoluteOffset,
-            smoothHeight = mod.smoothHeight,
-            smoothColor = mod.smoothColor,
-            removeScatter = mod.removeScatter,
-            DEBUG_HighlightInclusion = mod.DEBUG_HighlightInclusion,
-            inclusionAngle = mod.inclusionAngle,
-            quadActive = mod.quadActive,
-            posNorm = mod.posNorm,
-            rot = mod.rot,
-            buildHeight = mod.buildHeight,
-            smoothCR = mod.smoothCR,
-            smoothC1M = mod.smoothC1M,
-            smoothHR = mod.smoothHR,
-            smoothH1M = mod.smoothH1M,
-            heightMap = heightMap,
-            colorMap = colorMap,
-            sphereIsBuildingMaps = mod.sphere.isBuildingMaps,
-            sphereRadius = mod.sphere.radius,
-            vertActive = null,
-            removeScatterFlags = null,
-        });
+        jobSet.Add(
+            new BuildJob
+            {
+                radius = mod.radius,
+                heightMapDeformity = mod.heightMapDeformity,
+                cullBlack = mod.cullBlack,
+                useAlphaHeightSmoothing = mod.useAlphaHeightSmoothing,
+                absolute = mod.absolute,
+                absoluteOffset = mod.absoluteOffset,
+                smoothHeight = mod.smoothHeight,
+                smoothColor = mod.smoothColor,
+                removeScatter = mod.removeScatter,
+                DEBUG_HighlightInclusion = mod.DEBUG_HighlightInclusion,
+                inclusionAngle = mod.inclusionAngle,
+                quadActive = mod.quadActive,
+                posNorm = mod.posNorm,
+                rot = mod.rot,
+                buildHeight = mod.buildHeight,
+                smoothCR = mod.smoothCR,
+                smoothC1M = mod.smoothC1M,
+                smoothHR = mod.smoothHR,
+                smoothH1M = mod.smoothH1M,
+                heightMap = heightMap,
+                colorMap = colorMap,
+                sphereIsBuildingMaps = mod.sphere.isBuildingMaps,
+                sphereRadius = mod.sphere.radius,
+                vertActive = null,
+                removeScatterFlags = null,
+            }
+        );
     }
 
     [BurstCompile]
@@ -88,18 +90,20 @@ public class MapDecal(PQSMod_MapDecal mod) : BatchPQSMod<PQSMod_MapDecal>(mod)
         {
             int vertexCount = data.VertexCount;
 
-            vertActive = (bool*)UnsafeUtility.Malloc(
-                vertexCount * sizeof(bool),
-                UnsafeUtility.AlignOf<bool>(),
-                Unity.Collections.Allocator.Temp
-            );
+            vertActive = (bool*)
+                UnsafeUtility.Malloc(
+                    vertexCount * sizeof(bool),
+                    UnsafeUtility.AlignOf<bool>(),
+                    Unity.Collections.Allocator.Temp
+                );
             UnsafeUtility.MemClear(vertActive, vertexCount * sizeof(bool));
 
-            removeScatterFlags = (bool*)UnsafeUtility.Malloc(
-                vertexCount * sizeof(bool),
-                UnsafeUtility.AlignOf<bool>(),
-                Unity.Collections.Allocator.Temp
-            );
+            removeScatterFlags = (bool*)
+                UnsafeUtility.Malloc(
+                    vertexCount * sizeof(bool),
+                    UnsafeUtility.AlignOf<bool>(),
+                    Unity.Collections.Allocator.Temp
+                );
             UnsafeUtility.MemClear(removeScatterFlags, vertexCount * sizeof(bool));
 
             for (int i = 0; i < vertexCount; ++i)

@@ -16,19 +16,21 @@ public class FlattenArea(PQSMod_FlattenArea mod) : BatchPQSMod<PQSMod_FlattenAre
         if (!mod.overrideQuadBuildCheck && !mod.quadActive)
             return;
 
-        jobSet.Add(new BuildJob
-        {
-            DEBUG_showColors = mod.DEBUG_showColors,
-            removeScatter = mod.removeScatter,
-            posNorm = mod.posNorm,
-            angleOuter = mod.angleOuter,
-            angleInner = mod.angleInner,
-            angleDelta = mod.angleDelta,
-            angleQuadInclusion = mod.angleQuadInclusion,
-            flattenToRadius = mod.flattenToRadius,
-            smoothStart = mod.smoothStart,
-            smoothEnd = mod.smoothEnd,
-        });
+        jobSet.Add(
+            new BuildJob
+            {
+                DEBUG_showColors = mod.DEBUG_showColors,
+                removeScatter = mod.removeScatter,
+                posNorm = mod.posNorm,
+                angleOuter = mod.angleOuter,
+                angleInner = mod.angleInner,
+                angleDelta = mod.angleDelta,
+                angleQuadInclusion = mod.angleQuadInclusion,
+                flattenToRadius = mod.flattenToRadius,
+                smoothStart = mod.smoothStart,
+                smoothEnd = mod.smoothEnd,
+            }
+        );
     }
 
     [BurstCompile]

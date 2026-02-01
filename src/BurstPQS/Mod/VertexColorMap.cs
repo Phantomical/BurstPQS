@@ -6,17 +6,13 @@ namespace BurstPQS.Mod;
 
 [BurstCompile]
 [BatchPQSMod(typeof(PQSMod_VertexColorMap))]
-public class VertexColorMap(PQSMod_VertexColorMap mod)
-    : BatchPQSMod<PQSMod_VertexColorMap>(mod)
+public class VertexColorMap(PQSMod_VertexColorMap mod) : BatchPQSMod<PQSMod_VertexColorMap>(mod)
 {
     public override void OnQuadPreBuild(PQ quad, BatchPQSJobSet jobSet)
     {
         base.OnQuadPreBuild(quad, jobSet);
 
-        jobSet.Add(new BuildVerticesJob
-        {
-            vertexColorMap = new(mod.vertexColorMap),
-        });
+        jobSet.Add(new BuildVerticesJob { vertexColorMap = new(mod.vertexColorMap) });
     }
 
     [BurstCompile]

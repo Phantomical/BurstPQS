@@ -16,35 +16,31 @@ public class VertexHeightNoise(PQSMod_VertexHeightNoise mod)
         switch (mod.noiseMap)
         {
             case LibNoise.Perlin perlin:
-                jobSet.Add(new BuildHeightsPerlin
-                {
-                    deformity = mod.deformity,
-                    noise = new(perlin),
-                });
+                jobSet.Add(
+                    new BuildHeightsPerlin { deformity = mod.deformity, noise = new(perlin) }
+                );
                 break;
 
             case LibNoise.RidgedMultifractal multi:
-                jobSet.Add(new BuildHeightsRidgedMultifractal
-                {
-                    deformity = mod.deformity,
-                    noise = new(multi),
-                });
+                jobSet.Add(
+                    new BuildHeightsRidgedMultifractal
+                    {
+                        deformity = mod.deformity,
+                        noise = new(multi),
+                    }
+                );
                 break;
 
             case LibNoise.Billow billow:
-                jobSet.Add(new BuildHeightsBillow
-                {
-                    deformity = mod.deformity,
-                    noise = new(billow),
-                });
+                jobSet.Add(
+                    new BuildHeightsBillow { deformity = mod.deformity, noise = new(billow) }
+                );
                 break;
 
             default:
-                jobSet.Add(new BuildHeightsFallback
-                {
-                    deformity = mod.deformity,
-                    noiseMap = mod.noiseMap,
-                });
+                jobSet.Add(
+                    new BuildHeightsFallback { deformity = mod.deformity, noiseMap = mod.noiseMap }
+                );
                 break;
         }
     }

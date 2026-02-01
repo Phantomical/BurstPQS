@@ -88,32 +88,36 @@ public class VertexPlanet(PQSMod_VertexPlanet mod) : BatchPQSMod<PQSMod_VertexPl
     {
         base.OnQuadPreBuild(quad, jobSet);
 
-        jobSet.Add(new BuildJob
-        {
-            landClasses = landClasses,
-            continental = continental,
-            continentalSmoothing = continentalSmoothing,
-            continentalSharpness = new(
-                mod.continentalSharpness,
-                new BurstRidgedMultifractal((LibNoise.RidgedMultifractal)mod.continentalSharpness.noise)
-            ),
-            continentalSharpnessMap = continentalSharpnessMap,
-            continentalRuggedness = continentalRuggedness,
-            terrainType = terrainType,
-            terrainRidgeBalance = mod.terrainRidgeBalance,
-            terrainRidgesMax = mod.terrainRidgesMax,
-            terrainRidgesMin = mod.terrainRidgesMin,
-            terrainShapeStart = mod.terrainShapeStart,
-            terrainShapeEnd = mod.terrainShapeEnd,
-            oceanLevel = mod.oceanLevel,
-            oceanDepth = mod.oceanDepth,
-            oceanStep = mod.oceanStep,
-            oceanSnap = mod.oceanSnap,
-            deformity = mod.deformity,
-            terrainTypeDeformity = mod.terrainType.deformity,
-            buildHeightColors = mod.buildHeightColors,
-            colorDeformity = mod.colorDeformity,
-        });
+        jobSet.Add(
+            new BuildJob
+            {
+                landClasses = landClasses,
+                continental = continental,
+                continentalSmoothing = continentalSmoothing,
+                continentalSharpness = new(
+                    mod.continentalSharpness,
+                    new BurstRidgedMultifractal(
+                        (LibNoise.RidgedMultifractal)mod.continentalSharpness.noise
+                    )
+                ),
+                continentalSharpnessMap = continentalSharpnessMap,
+                continentalRuggedness = continentalRuggedness,
+                terrainType = terrainType,
+                terrainRidgeBalance = mod.terrainRidgeBalance,
+                terrainRidgesMax = mod.terrainRidgesMax,
+                terrainRidgesMin = mod.terrainRidgesMin,
+                terrainShapeStart = mod.terrainShapeStart,
+                terrainShapeEnd = mod.terrainShapeEnd,
+                oceanLevel = mod.oceanLevel,
+                oceanDepth = mod.oceanDepth,
+                oceanStep = mod.oceanStep,
+                oceanSnap = mod.oceanSnap,
+                deformity = mod.deformity,
+                terrainTypeDeformity = mod.terrainType.deformity,
+                buildHeightColors = mod.buildHeightColors,
+                colorDeformity = mod.colorDeformity,
+            }
+        );
     }
 
     // Running this through burst seems to have different results?

@@ -8,7 +8,8 @@ namespace BurstPQS.Mod;
 
 [BurstCompile]
 [BatchPQSMod(typeof(PQSMod_VertexSimplexMultiChromatic))]
-public class VertexSimplexMultiChromatic(PQSMod_VertexSimplexMultiChromatic mod) : BatchPQSMod<PQSMod_VertexSimplexMultiChromatic>(mod)
+public class VertexSimplexMultiChromatic(PQSMod_VertexSimplexMultiChromatic mod)
+    : BatchPQSMod<PQSMod_VertexSimplexMultiChromatic>(mod)
 {
     public override void OnQuadPreBuild(PQ quad, BatchPQSJobSet jobSet)
     {
@@ -19,14 +20,16 @@ public class VertexSimplexMultiChromatic(PQSMod_VertexSimplexMultiChromatic mod)
         using var bSimplex = new BurstSimplex(mod.blueSimplex);
         using var aSimplex = new BurstSimplex(mod.alphaSimplex);
 
-        jobSet.Add(new BuildJob
-        {
-            rSimplex = rSimplex,
-            gSimplex = gSimplex,
-            bSimplex = bSimplex,
-            aSimplex = aSimplex,
-            blend = mod.blend
-        });
+        jobSet.Add(
+            new BuildJob
+            {
+                rSimplex = rSimplex,
+                gSimplex = gSimplex,
+                bSimplex = bSimplex,
+                aSimplex = aSimplex,
+                blend = mod.blend,
+            }
+        );
     }
 
     [BurstCompile]

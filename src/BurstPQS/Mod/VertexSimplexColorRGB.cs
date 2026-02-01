@@ -10,7 +10,8 @@ namespace BurstPQS.Mod;
 
 [BurstCompile]
 [BatchPQSMod(typeof(PQSMod_VertexSimplexColorRGB))]
-public class VertexSimplexColorRGB(PQSMod_VertexSimplexColorRGB mod) : BatchPQSMod<PQSMod_VertexSimplexColorRGB>(mod)
+public class VertexSimplexColorRGB(PQSMod_VertexSimplexColorRGB mod)
+    : BatchPQSMod<PQSMod_VertexSimplexColorRGB>(mod)
 {
     public override void OnQuadPreBuild(PQ quad, BatchPQSJobSet jobSet)
     {
@@ -18,14 +19,16 @@ public class VertexSimplexColorRGB(PQSMod_VertexSimplexColorRGB mod) : BatchPQSM
 
         using var simplex = new BurstSimplex(mod.simplex);
 
-        jobSet.Add(new BuildJob
-        {
-            simplex = simplex,
-            rBlend = mod.rBlend,
-            gBlend = mod.gBlend,
-            bBlend = mod.bBlend,
-            blend = mod.blend
-        });
+        jobSet.Add(
+            new BuildJob
+            {
+                simplex = simplex,
+                rBlend = mod.rBlend,
+                gBlend = mod.gBlend,
+                bBlend = mod.bBlend,
+                blend = mod.blend,
+            }
+        );
     }
 
     [BurstCompile]

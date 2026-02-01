@@ -14,13 +14,15 @@ public class VertexSimplexNoiseColor(PQSMod_VertexSimplexNoiseColor mod)
     {
         base.OnQuadPreBuild(quad, jobSet);
 
-        jobSet.Add(new BuildVerticesJob
-        {
-            simplex = new(mod.simplex),
-            colorStart = mod.colorStart,
-            colorEnd = mod.colorEnd,
-            blend = mod.blend,
-        });
+        jobSet.Add(
+            new BuildVerticesJob
+            {
+                simplex = new(mod.simplex),
+                colorStart = mod.colorStart,
+                colorEnd = mod.colorEnd,
+                blend = mod.blend,
+            }
+        );
     }
 
     [BurstCompile]

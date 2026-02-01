@@ -16,14 +16,16 @@ public class VertexSimplexHeightMap(PQSMod_VertexSimplexHeightMap mod)
     {
         base.OnQuadPreBuild(quad, jobSet);
 
-        jobSet.Add(new BuildJob
-        {
-            simplex = simplex,
-            heightMap = new(mod.heightMap),
-            heightStart = mod.heightStart,
-            heightEnd = mod.heightEnd,
-            deformity = mod.deformity,
-        });
+        jobSet.Add(
+            new BuildJob
+            {
+                simplex = simplex,
+                heightMap = new(mod.heightMap),
+                heightStart = mod.heightStart,
+                heightEnd = mod.heightEnd,
+                deformity = mod.deformity,
+            }
+        );
     }
 
     public override void Dispose()

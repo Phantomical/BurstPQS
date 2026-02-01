@@ -16,51 +16,59 @@ public class VertexHeightNoiseHeightMap(PQSMod_VertexHeightNoiseHeightMap mod)
         switch (mod.noiseMap)
         {
             case LibNoise.Perlin perlin:
-                jobSet.Add(new BuildJobPerlin
-                {
-                    heightMap = mod.heightMap,
-                    noise = new(perlin),
-                    heightStart = mod.heightStart,
-                    heightEnd = mod.heightEnd,
-                    hDeltaR = mod.hDeltaR,
-                    deformity = mod.deformity,
-                });
+                jobSet.Add(
+                    new BuildJobPerlin
+                    {
+                        heightMap = mod.heightMap,
+                        noise = new(perlin),
+                        heightStart = mod.heightStart,
+                        heightEnd = mod.heightEnd,
+                        hDeltaR = mod.hDeltaR,
+                        deformity = mod.deformity,
+                    }
+                );
                 break;
 
             case LibNoise.RidgedMultifractal multi:
-                jobSet.Add(new BuildJobRidgedMultifractal
-                {
-                    heightMap = mod.heightMap,
-                    noise = new(multi),
-                    heightStart = mod.heightStart,
-                    heightEnd = mod.heightEnd,
-                    hDeltaR = mod.hDeltaR,
-                    deformity = mod.deformity,
-                });
+                jobSet.Add(
+                    new BuildJobRidgedMultifractal
+                    {
+                        heightMap = mod.heightMap,
+                        noise = new(multi),
+                        heightStart = mod.heightStart,
+                        heightEnd = mod.heightEnd,
+                        hDeltaR = mod.hDeltaR,
+                        deformity = mod.deformity,
+                    }
+                );
                 break;
 
             case LibNoise.Billow billow:
-                jobSet.Add(new BuildJobBillow
-                {
-                    heightMap = mod.heightMap,
-                    noise = new(billow),
-                    heightStart = mod.heightStart,
-                    heightEnd = mod.heightEnd,
-                    hDeltaR = mod.hDeltaR,
-                    deformity = mod.deformity,
-                });
+                jobSet.Add(
+                    new BuildJobBillow
+                    {
+                        heightMap = mod.heightMap,
+                        noise = new(billow),
+                        heightStart = mod.heightStart,
+                        heightEnd = mod.heightEnd,
+                        hDeltaR = mod.hDeltaR,
+                        deformity = mod.deformity,
+                    }
+                );
                 break;
 
             default:
-                jobSet.Add(new BuildJobFallback
-                {
-                    heightMap = mod.heightMap,
-                    noiseMap = mod.noiseMap,
-                    heightStart = mod.heightStart,
-                    heightEnd = mod.heightEnd,
-                    hDeltaR = mod.hDeltaR,
-                    deformity = mod.deformity,
-                });
+                jobSet.Add(
+                    new BuildJobFallback
+                    {
+                        heightMap = mod.heightMap,
+                        noiseMap = mod.noiseMap,
+                        heightStart = mod.heightStart,
+                        heightEnd = mod.heightEnd,
+                        hDeltaR = mod.hDeltaR,
+                        deformity = mod.deformity,
+                    }
+                );
                 break;
         }
     }
@@ -99,7 +107,15 @@ public class VertexHeightNoiseHeightMap(PQSMod_VertexHeightNoiseHeightMap mod)
         public float deformity;
 
         public readonly void BuildHeights(in BuildHeightsData data) =>
-            BuildHeightsImpl(in data, heightMap, in noise, heightStart, heightEnd, hDeltaR, deformity);
+            BuildHeightsImpl(
+                in data,
+                heightMap,
+                in noise,
+                heightStart,
+                heightEnd,
+                hDeltaR,
+                deformity
+            );
     }
 
     struct BuildJobRidgedMultifractal : IBatchPQSHeightJob
@@ -112,7 +128,15 @@ public class VertexHeightNoiseHeightMap(PQSMod_VertexHeightNoiseHeightMap mod)
         public float deformity;
 
         public readonly void BuildHeights(in BuildHeightsData data) =>
-            BuildHeightsImpl(in data, heightMap, in noise, heightStart, heightEnd, hDeltaR, deformity);
+            BuildHeightsImpl(
+                in data,
+                heightMap,
+                in noise,
+                heightStart,
+                heightEnd,
+                hDeltaR,
+                deformity
+            );
     }
 
     struct BuildJobBillow : IBatchPQSHeightJob
@@ -125,7 +149,15 @@ public class VertexHeightNoiseHeightMap(PQSMod_VertexHeightNoiseHeightMap mod)
         public float deformity;
 
         public readonly void BuildHeights(in BuildHeightsData data) =>
-            BuildHeightsImpl(in data, heightMap, in noise, heightStart, heightEnd, hDeltaR, deformity);
+            BuildHeightsImpl(
+                in data,
+                heightMap,
+                in noise,
+                heightStart,
+                heightEnd,
+                hDeltaR,
+                deformity
+            );
     }
 
     struct BuildJobFallback : IBatchPQSHeightJob
@@ -138,6 +170,14 @@ public class VertexHeightNoiseHeightMap(PQSMod_VertexHeightNoiseHeightMap mod)
         public float deformity;
 
         public readonly void BuildHeights(in BuildHeightsData data) =>
-            BuildHeightsImpl(in data, heightMap, noiseMap, heightStart, heightEnd, hDeltaR, deformity);
+            BuildHeightsImpl(
+                in data,
+                heightMap,
+                noiseMap,
+                heightStart,
+                heightEnd,
+                hDeltaR,
+                deformity
+            );
     }
 }

@@ -7,8 +7,7 @@ namespace BurstPQS.Mod;
 
 [BurstCompile]
 [BatchPQSMod(typeof(PQSMod_HeightColorMap))]
-public class HeightColorMap(PQSMod_HeightColorMap mod)
-    : BatchPQSMod<PQSMod_HeightColorMap>(mod)
+public class HeightColorMap(PQSMod_HeightColorMap mod) : BatchPQSMod<PQSMod_HeightColorMap>(mod)
 {
     public struct BurstLandClass(PQSMod_HeightColorMap.LandClass landClass)
     {
@@ -41,11 +40,7 @@ public class HeightColorMap(PQSMod_HeightColorMap mod)
     {
         base.OnQuadPreBuild(quad, jobSet);
 
-        jobSet.Add(new BuildVerticesJob
-        {
-            classes = burstLandClasses,
-            blend = mod.blend,
-        });
+        jobSet.Add(new BuildVerticesJob { classes = burstLandClasses, blend = mod.blend });
     }
 
     [BurstCompile]

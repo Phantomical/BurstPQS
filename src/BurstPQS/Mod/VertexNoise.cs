@@ -24,18 +24,24 @@ public class VertexNoise(PQSMod_VertexNoise mod) : BatchPQSMod<PQSMod_VertexNois
             new(ridged)
         );
 
-        jobSet.Add(new BuildJob
-        {
-            terrainHeightMap = noise,
-            sphereRadius = mod.sphere.radius,
-            noiseDeformity = mod.noiseDeformity
-        });
+        jobSet.Add(
+            new BuildJob
+            {
+                terrainHeightMap = noise,
+                sphereRadius = mod.sphere.radius,
+                noiseDeformity = mod.noiseDeformity,
+            }
+        );
     }
 
     [BurstCompile]
     struct BuildJob : IBatchPQSHeightJob
     {
-        public Select<BurstPerlin, ScaleBiasOutput<BurstBillow>, BurstRidgedMultifractal> terrainHeightMap;
+        public Select<
+            BurstPerlin,
+            ScaleBiasOutput<BurstBillow>,
+            BurstRidgedMultifractal
+        > terrainHeightMap;
         public double sphereRadius;
         public double noiseDeformity;
 

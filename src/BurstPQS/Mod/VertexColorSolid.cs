@@ -5,7 +5,8 @@ namespace BurstPQS.Mod;
 
 [BurstCompile]
 [BatchPQSMod(typeof(PQSMod_VertexColorSolid))]
-public class VertexColorSolid(PQSMod_VertexColorSolid mod) : BatchPQSMod<PQSMod_VertexColorSolid>(mod)
+public class VertexColorSolid(PQSMod_VertexColorSolid mod)
+    : BatchPQSMod<PQSMod_VertexColorSolid>(mod)
 {
     public override void OnQuadPreBuild(PQ quad, BatchPQSJobSet jobSet)
     {

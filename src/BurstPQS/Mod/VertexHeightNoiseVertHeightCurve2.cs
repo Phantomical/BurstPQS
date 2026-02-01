@@ -22,17 +22,19 @@ public class VertexHeightNoiseVertHeightCurve2(PQSMod_VertexHeightNoiseVertHeigh
     {
         base.OnQuadPreBuild(quad, jobSet);
 
-        jobSet.Add(new BuildHeightsJob
-        {
-            ridgedAdd = new(mod.ridgedAdd),
-            ridgedSub = new(mod.ridgedSub),
-            simplex = simplex,
-            simplexCurve = simplexCurve,
-            simplexHeightStart = mod.simplexHeightStart,
-            simplexHeightEnd = mod.simplexHeightEnd,
-            deformity = mod.deformity,
-            hDeltaR = mod.hDeltaR,
-        });
+        jobSet.Add(
+            new BuildHeightsJob
+            {
+                ridgedAdd = new(mod.ridgedAdd),
+                ridgedSub = new(mod.ridgedSub),
+                simplex = simplex,
+                simplexCurve = simplexCurve,
+                simplexHeightStart = mod.simplexHeightStart,
+                simplexHeightEnd = mod.simplexHeightEnd,
+                deformity = mod.deformity,
+                hDeltaR = mod.hDeltaR,
+            }
+        );
     }
 
     [BurstCompile]

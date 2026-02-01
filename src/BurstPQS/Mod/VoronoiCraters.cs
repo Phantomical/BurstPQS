@@ -15,21 +15,23 @@ public class VoronoiCraters(PQSMod_VoronoiCraters mod) : BatchPQSMod<PQSMod_Voro
     {
         base.OnQuadPreBuild(quad, jobSet);
 
-        jobSet.Add(new BuildJob
-        {
-            voronoi = new(mod.voronoi),
-            simplex = new(mod.simplex),
-            jitterCurve = new(mod.jitterCurve),
-            craterCurve = new(mod.craterCurve),
-            craterColorRamp = new(mod.craterColourRamp),
-            jitter = mod.jitter,
-            jitterHeight = mod.jitterHeight,
-            deformation = mod.deformation,
-            rFactor = mod.rFactor,
-            rOffset = mod.rOffset,
-            colorOpacity = mod.colorOpacity,
-            debugColorMapping = mod.DebugColorMapping,
-        });
+        jobSet.Add(
+            new BuildJob
+            {
+                voronoi = new(mod.voronoi),
+                simplex = new(mod.simplex),
+                jitterCurve = new(mod.jitterCurve),
+                craterCurve = new(mod.craterCurve),
+                craterColorRamp = new(mod.craterColourRamp),
+                jitter = mod.jitter,
+                jitterHeight = mod.jitterHeight,
+                deformation = mod.deformation,
+                rFactor = mod.rFactor,
+                rOffset = mod.rOffset,
+                colorOpacity = mod.colorOpacity,
+                debugColorMapping = mod.DebugColorMapping,
+            }
+        );
     }
 
     [BurstCompile]
@@ -54,11 +56,12 @@ public class VoronoiCraters(PQSMod_VoronoiCraters mod) : BatchPQSMod<PQSMod_Voro
         public void BuildHeights(in BuildHeightsData data)
         {
             vertexCount = data.VertexCount;
-            rs = (float*)UnsafeUtility.Malloc(
-                vertexCount * sizeof(float),
-                UnsafeUtility.AlignOf<float>(),
-                Unity.Collections.Allocator.Temp
-            );
+            rs = (float*)
+                UnsafeUtility.Malloc(
+                    vertexCount * sizeof(float),
+                    UnsafeUtility.AlignOf<float>(),
+                    Unity.Collections.Allocator.Temp
+                );
 
             for (int i = 0; i < data.VertexCount; ++i)
             {

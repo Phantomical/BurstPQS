@@ -14,13 +14,15 @@ public class RemoveQuadMap(PQSMod_RemoveQuadMap mod) : BatchPQSMod<PQSMod_Remove
         base.OnQuadPreBuild(quad, jobSet);
         mod.OnQuadBuilt(quad);
 
-        jobSet.Add(new BuildJob
-        {
-            mod = mod,
-            map = new(mod.map),
-            minHeight = mod.minHeight,
-            maxHeight = mod.maxHeight,
-        });
+        jobSet.Add(
+            new BuildJob
+            {
+                mod = mod,
+                map = new(mod.map),
+                minHeight = mod.minHeight,
+                maxHeight = mod.maxHeight,
+            }
+        );
     }
 
     struct BuildJob : IBatchPQSVertexJob, IBatchPQSMeshBuiltJob, IDisposable

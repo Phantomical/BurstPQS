@@ -13,11 +13,9 @@ public class VertexSimplexHeightAbsolute(PQSMod_VertexSimplexHeightAbsolute mod)
     {
         base.OnQuadPreBuild(quad, jobSet);
 
-        jobSet.Add(new BuildJob
-        {
-            simplex = new BurstSimplex(mod.simplex),
-            deformity = mod.deformity,
-        });
+        jobSet.Add(
+            new BuildJob { simplex = new BurstSimplex(mod.simplex), deformity = mod.deformity }
+        );
     }
 
     [BurstCompile]

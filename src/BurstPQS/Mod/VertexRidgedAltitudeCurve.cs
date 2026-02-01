@@ -23,17 +23,19 @@ public class VertexRidgedAltitudeCurve(PQSMod_VertexRidgedAltitudeCurve mod)
     {
         base.OnQuadPreBuild(quad, jobSet);
 
-        jobSet.Add(new BuildHeightsJob
-        {
-            simplex = simplex,
-            ridgedAdd = new(mod.ridgedAdd),
-            simplexCurve = simplexCurve,
-            simplexHeightStart = mod.simplexHeightStart,
-            radiusMin = mod.sphere != null ? mod.sphere.radiusMax : mod.ridgedMinimum,
-            hDeltaR = mod.hDeltaR,
-            ridgedMinimum = mod.ridgedMinimum,
-            deformity = mod.deformity,
-        });
+        jobSet.Add(
+            new BuildHeightsJob
+            {
+                simplex = simplex,
+                ridgedAdd = new(mod.ridgedAdd),
+                simplexCurve = simplexCurve,
+                simplexHeightStart = mod.simplexHeightStart,
+                radiusMin = mod.sphere != null ? mod.sphere.radiusMax : mod.ridgedMinimum,
+                hDeltaR = mod.hDeltaR,
+                ridgedMinimum = mod.ridgedMinimum,
+                deformity = mod.deformity,
+            }
+        );
     }
 
     [BurstCompile]

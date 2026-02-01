@@ -82,23 +82,25 @@ public class LandControl(PQSLandControl mod) : BatchPQSMod<PQSLandControl>(mod)
     {
         base.OnQuadPreBuild(quad, jobSet);
 
-        jobSet.Add(new BuildJob
-        {
-            landClasses = burstLandClasses,
-            altitudeSimplex = altitudeSimplex,
-            latitudeSimplex = latitudeSimplex,
-            longitudeSimplex = longitudeSimplex,
+        jobSet.Add(
+            new BuildJob
+            {
+                landClasses = burstLandClasses,
+                altitudeSimplex = altitudeSimplex,
+                latitudeSimplex = latitudeSimplex,
+                longitudeSimplex = longitudeSimplex,
 
-            heightMap = mod.useHeightMap ? new(mod.heightMap) : null,
-            altitudeBlend = mod.altitudeBlend,
-            latitudeBlend = mod.latitudeBlend,
-            longitudeBlend = mod.longitudeBlend,
-            vHeightMax = mod.vHeightMax,
+                heightMap = mod.useHeightMap ? new(mod.heightMap) : null,
+                altitudeBlend = mod.altitudeBlend,
+                latitudeBlend = mod.latitudeBlend,
+                longitudeBlend = mod.longitudeBlend,
+                vHeightMax = mod.vHeightMax,
 
-            createColors = mod.createColors,
-            scatterActive = mod.scatterActive,
-            mod = mod,
-        });
+                createColors = mod.createColors,
+                scatterActive = mod.scatterActive,
+                mod = mod,
+            }
+        );
     }
 
     public override void Dispose()
@@ -112,7 +114,11 @@ public class LandControl(PQSLandControl mod) : BatchPQSMod<PQSLandControl>(mod)
             blc.Dispose();
     }
 
-    unsafe struct BuildJob : IBatchPQSHeightJob, IBatchPQSVertexJob, IBatchPQSMeshBuiltJob, IDisposable
+    unsafe struct BuildJob
+        : IBatchPQSHeightJob,
+            IBatchPQSVertexJob,
+            IBatchPQSMeshBuiltJob,
+            IDisposable
     {
         public NativeArray<BurstLandClass> landClasses;
         public BurstSimplex altitudeSimplex;
@@ -145,21 +151,24 @@ public class LandControl(PQSLandControl mod) : BatchPQSMod<PQSLandControl>(mod)
             int lcActiveCount = vertexCount * landClassCount;
             int lcActiveUlongCount = (lcActiveCount + 63) / 64;
 
-            lcActive = (ulong*)UnsafeUtility.Malloc(
-                lcActiveUlongCount * sizeof(ulong),
-                UnsafeUtility.AlignOf<ulong>(),
-                Allocator.Temp
-            );
-            lcDeltas = (double*)UnsafeUtility.Malloc(
-                lcActiveCount * sizeof(double),
-                UnsafeUtility.AlignOf<double>(),
-                Allocator.Temp
-            );
-            vHeights = (double*)UnsafeUtility.Malloc(
-                vertexCount * sizeof(double),
-                UnsafeUtility.AlignOf<double>(),
-                Allocator.Temp
-            );
+            lcActive = (ulong*)
+                UnsafeUtility.Malloc(
+                    lcActiveUlongCount * sizeof(ulong),
+                    UnsafeUtility.AlignOf<ulong>(),
+                    Allocator.Temp
+                );
+            lcDeltas = (double*)
+                UnsafeUtility.Malloc(
+                    lcActiveCount * sizeof(double),
+                    UnsafeUtility.AlignOf<double>(),
+                    Allocator.Temp
+                );
+            vHeights = (double*)
+                UnsafeUtility.Malloc(
+                    vertexCount * sizeof(double),
+                    UnsafeUtility.AlignOf<double>(),
+                    Allocator.Temp
+                );
 
             var lcActiveBits = new BitSpan(new MemorySpan<ulong>(lcActive, lcActiveUlongCount));
             var lcDeltasSpan = new MemorySpan<double>(lcDeltas, lcActiveCount);
@@ -244,7 +253,9 @@ public class LandControl(PQSLandControl mod) : BatchPQSMod<PQSLandControl>(mod)
 
         public void BuildVertices(in BuildVerticesData data)
         {
-            var lcActiveBits = new BitSpan(new MemorySpan<ulong>(lcActive, (vertexCount * landClassCount + 63) / 64));
+            var lcActiveBits = new BitSpan(
+                new MemorySpan<ulong>(lcActive, (vertexCount * landClassCount + 63) / 64)
+            );
 
             // Initialize vertColor to black (moved from BuildHeights since BuildHeightsData lacks vertColor)
             for (int i = 0; i < vertexCount; ++i)
@@ -285,11 +296,12 @@ public class LandControl(PQSLandControl mod) : BatchPQSMod<PQSLandControl>(mod)
             // Copy allowScatter for use in OnMeshBuilt
             if (scatterActive)
             {
-                allowScatterCopy = (bool*)UnsafeUtility.Malloc(
-                    vertexCount * sizeof(bool),
-                    UnsafeUtility.AlignOf<bool>(),
-                    Allocator.Temp
-                );
+                allowScatterCopy = (bool*)
+                    UnsafeUtility.Malloc(
+                        vertexCount * sizeof(bool),
+                        UnsafeUtility.AlignOf<bool>(),
+                        Allocator.Temp
+                    );
                 for (int i = 0; i < vertexCount; ++i)
                     allowScatterCopy[i] = data.allowScatter[i];
             }
@@ -300,7 +312,9 @@ public class LandControl(PQSLandControl mod) : BatchPQSMod<PQSLandControl>(mod)
             if (!scatterActive)
                 return;
 
-            var lcActiveBits = new BitSpan(new MemorySpan<ulong>(lcActive, (vertexCount * landClassCount + 63) / 64));
+            var lcActiveBits = new BitSpan(
+                new MemorySpan<ulong>(lcActive, (vertexCount * landClassCount + 63) / 64)
+            );
 
             for (int i = 0; i < vertexCount; ++i)
             {

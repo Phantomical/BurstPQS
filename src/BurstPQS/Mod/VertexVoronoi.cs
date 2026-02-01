@@ -5,18 +5,15 @@ namespace BurstPQS.Mod;
 
 [BurstCompile]
 [BatchPQSMod(typeof(PQSMod_VertexVoronoi))]
-public class VertexVoronoi(PQSMod_VertexVoronoi mod)
-    : BatchPQSMod<PQSMod_VertexVoronoi>(mod)
+public class VertexVoronoi(PQSMod_VertexVoronoi mod) : BatchPQSMod<PQSMod_VertexVoronoi>(mod)
 {
     public override void OnQuadPreBuild(PQ quad, BatchPQSJobSet jobSet)
     {
         base.OnQuadPreBuild(quad, jobSet);
 
-        jobSet.Add(new BuildHeightsJob
-        {
-            voronoi = new(mod.voronoi),
-            deformation = mod.deformation,
-        });
+        jobSet.Add(
+            new BuildHeightsJob { voronoi = new(mod.voronoi), deformation = mod.deformation }
+        );
     }
 
     [BurstCompile]

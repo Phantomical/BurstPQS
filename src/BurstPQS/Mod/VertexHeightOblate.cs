@@ -5,7 +5,8 @@ namespace BurstPQS.Mod;
 
 [BurstCompile]
 [BatchPQSMod(typeof(PQSMod_VertexHeightOblate))]
-public class VertexHeightOblate(PQSMod_VertexHeightOblate mod) : BatchPQSMod<PQSMod_VertexHeightOblate>(mod)
+public class VertexHeightOblate(PQSMod_VertexHeightOblate mod)
+    : BatchPQSMod<PQSMod_VertexHeightOblate>(mod)
 {
     public override void OnQuadPreBuild(PQ quad, BatchPQSJobSet jobSet)
     {

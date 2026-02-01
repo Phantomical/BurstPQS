@@ -26,13 +26,41 @@ public class VertexHeightNoiseVertHeightCurve(PQSMod_VertexHeightNoiseVertHeight
         var curve = new BurstAnimationCurve(mod.curve);
 
         if (mod.noiseMap is LibNoise.Perlin perlin)
-            jobSet.Add(new BuildHeightsPerlinJob { noise = new(perlin), curve = curve, p = p });
+            jobSet.Add(
+                new BuildHeightsPerlinJob
+                {
+                    noise = new(perlin),
+                    curve = curve,
+                    p = p,
+                }
+            );
         else if (mod.noiseMap is LibNoise.RidgedMultifractal multi)
-            jobSet.Add(new BuildHeightsRidgedMultifractalJob { noise = new(multi), curve = curve, p = p });
+            jobSet.Add(
+                new BuildHeightsRidgedMultifractalJob
+                {
+                    noise = new(multi),
+                    curve = curve,
+                    p = p,
+                }
+            );
         else if (mod.noiseMap is LibNoise.Billow billow)
-            jobSet.Add(new BuildHeightsBillowJob { noise = new(billow), curve = curve, p = p });
+            jobSet.Add(
+                new BuildHeightsBillowJob
+                {
+                    noise = new(billow),
+                    curve = curve,
+                    p = p,
+                }
+            );
         else
-            jobSet.Add(new BuildHeightsFallbackJob { noiseMap = mod.noiseMap, curve = curve, p = p });
+            jobSet.Add(
+                new BuildHeightsFallbackJob
+                {
+                    noiseMap = mod.noiseMap,
+                    curve = curve,
+                    p = p,
+                }
+            );
     }
 
     struct Params
@@ -43,7 +71,12 @@ public class VertexHeightNoiseVertHeightCurve(PQSMod_VertexHeightNoiseVertHeight
         public float deformity;
     }
 
-    static void BuildVertex<N>(in BuildHeightsData data, in N noise, in BurstAnimationCurve curve, in Params p)
+    static void BuildVertex<N>(
+        in BuildHeightsData data,
+        in N noise,
+        in BurstAnimationCurve curve,
+        in Params p
+    )
         where N : IModule
     {
         double h;
@@ -72,7 +105,8 @@ public class VertexHeightNoiseVertHeightCurve(PQSMod_VertexHeightNoiseVertHeight
         public BurstAnimationCurve curve;
         public Params p;
 
-        public void BuildHeights(in BuildHeightsData data) => BuildVertex(in data, in noise, in curve, in p);
+        public void BuildHeights(in BuildHeightsData data) =>
+            BuildVertex(in data, in noise, in curve, in p);
 
         public void Dispose() => curve.Dispose();
     }
@@ -84,7 +118,8 @@ public class VertexHeightNoiseVertHeightCurve(PQSMod_VertexHeightNoiseVertHeight
         public BurstAnimationCurve curve;
         public Params p;
 
-        public void BuildHeights(in BuildHeightsData data) => BuildVertex(in data, in noise, in curve, in p);
+        public void BuildHeights(in BuildHeightsData data) =>
+            BuildVertex(in data, in noise, in curve, in p);
 
         public void Dispose() => curve.Dispose();
     }
@@ -96,7 +131,8 @@ public class VertexHeightNoiseVertHeightCurve(PQSMod_VertexHeightNoiseVertHeight
         public BurstAnimationCurve curve;
         public Params p;
 
-        public void BuildHeights(in BuildHeightsData data) => BuildVertex(in data, in noise, in curve, in p);
+        public void BuildHeights(in BuildHeightsData data) =>
+            BuildVertex(in data, in noise, in curve, in p);
 
         public void Dispose() => curve.Dispose();
     }
@@ -107,7 +143,8 @@ public class VertexHeightNoiseVertHeightCurve(PQSMod_VertexHeightNoiseVertHeight
         public BurstAnimationCurve curve;
         public Params p;
 
-        public void BuildHeights(in BuildHeightsData data) => BuildVertex(in data, in noiseMap, in curve, in p);
+        public void BuildHeights(in BuildHeightsData data) =>
+            BuildVertex(in data, in noiseMap, in curve, in p);
 
         public void Dispose() => curve.Dispose();
     }

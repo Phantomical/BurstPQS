@@ -8,11 +8,7 @@ public sealed class Shim(PQSMod mod) : BatchPQSMod
     {
         mod.OnQuadPreBuild(quad);
 
-        jobSet.Add(new ShimJob
-        {
-            mod = mod,
-            quad = quad,
-        });
+        jobSet.Add(new ShimJob { mod = mod, quad = quad });
     }
 
     struct ShimJob : IBatchPQSHeightJob, IBatchPQSVertexJob

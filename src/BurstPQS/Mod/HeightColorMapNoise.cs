@@ -7,7 +7,8 @@ namespace BurstPQS.Mod;
 
 [BurstCompile]
 [BatchPQSMod(typeof(PQSMod_HeightColorMapNoise))]
-public class HeightColorMapNoise(PQSMod_HeightColorMapNoise mod) : BatchPQSMod<PQSMod_HeightColorMapNoise>(mod)
+public class HeightColorMapNoise(PQSMod_HeightColorMapNoise mod)
+    : BatchPQSMod<PQSMod_HeightColorMapNoise>(mod)
 {
     public struct BurstLandClass(PQSMod_HeightColorMapNoise.LandClass landClass)
     {
@@ -37,13 +38,15 @@ public class HeightColorMapNoise(PQSMod_HeightColorMapNoise mod) : BatchPQSMod<P
 
         fixed (BurstLandClass* pClasses = burstLandClasses)
         {
-            jobSet.Add(new BuildJob
-            {
-                classes = new(pClasses, burstLandClasses.Length),
-                radiusMin = mod.sphere.radiusMin,
-                radiusDelta = mod.sphere.radiusDelta,
-                blend = mod.blend
-            });
+            jobSet.Add(
+                new BuildJob
+                {
+                    classes = new(pClasses, burstLandClasses.Length),
+                    radiusMin = mod.sphere.radiusMin,
+                    radiusDelta = mod.sphere.radiusDelta,
+                    blend = mod.blend,
+                }
+            );
         }
     }
 

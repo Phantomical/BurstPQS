@@ -14,11 +14,9 @@ public class VertexColorMapBlend(PQSMod_VertexColorMapBlend mod)
     {
         base.OnQuadPreBuild(quad, jobSet);
 
-        jobSet.Add(new BuildVerticesJob
-        {
-            vertexColorMap = new(mod.vertexColorMap),
-            blend = mod.blend,
-        });
+        jobSet.Add(
+            new BuildVerticesJob { vertexColorMap = new(mod.vertexColorMap), blend = mod.blend }
+        );
     }
 
     [BurstCompile]

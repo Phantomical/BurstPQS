@@ -6,7 +6,8 @@ namespace BurstPQS.Mod;
 // This seems to be backwards in the KSP source?
 [BurstCompile]
 [BatchPQSMod(typeof(PQSMod_VertexColorSolid))]
-public class VertexColorSolidBlend(PQSMod_VertexColorSolid mod) : BatchPQSMod<PQSMod_VertexColorSolid>(mod)
+public class VertexColorSolidBlend(PQSMod_VertexColorSolid mod)
+    : BatchPQSMod<PQSMod_VertexColorSolid>(mod)
 {
     public override void OnQuadPreBuild(PQ quad, BatchPQSJobSet jobSet)
     {

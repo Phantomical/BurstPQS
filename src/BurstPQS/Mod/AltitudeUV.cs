@@ -11,13 +11,15 @@ public class AltitudeUV(PQSMod_AltitudeUV mod) : BatchPQSMod<PQSMod_AltitudeUV>(
     {
         base.OnQuadPreBuild(quad, jobSet);
 
-        jobSet.Add(new BuildJob
-        {
-            radius = mod.sphere.radius,
-            atmosphereHeight = mod.atmosphereHeight,
-            oceanDepth = mod.oceanDepth,
-            invert = mod.invert,
-        });
+        jobSet.Add(
+            new BuildJob
+            {
+                radius = mod.sphere.radius,
+                atmosphereHeight = mod.atmosphereHeight,
+                oceanDepth = mod.oceanDepth,
+                invert = mod.invert,
+            }
+        );
     }
 
     [BurstCompile]

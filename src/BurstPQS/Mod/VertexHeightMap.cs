@@ -6,19 +6,20 @@ namespace BurstPQS.Mod;
 
 [BurstCompile]
 [BatchPQSMod(typeof(PQSMod_VertexHeightMap))]
-public class VertexHeightMap(PQSMod_VertexHeightMap mod)
-    : BatchPQSMod<PQSMod_VertexHeightMap>(mod)
+public class VertexHeightMap(PQSMod_VertexHeightMap mod) : BatchPQSMod<PQSMod_VertexHeightMap>(mod)
 {
     public override void OnQuadPreBuild(PQ quad, BatchPQSJobSet jobSet)
     {
         base.OnQuadPreBuild(quad, jobSet);
 
-        jobSet.Add(new BuildHeightsJob
-        {
-            heightMap = new BurstMapSO(mod.heightMap),
-            heightMapOffset = mod.heightMapOffset,
-            heightMapDeformity = mod.heightMapDeformity,
-        });
+        jobSet.Add(
+            new BuildHeightsJob
+            {
+                heightMap = new BurstMapSO(mod.heightMap),
+                heightMapOffset = mod.heightMapOffset,
+                heightMapDeformity = mod.heightMapDeformity,
+            }
+        );
     }
 
     [BurstCompile]

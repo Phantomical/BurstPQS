@@ -14,11 +14,7 @@ public class VertexSimplexHeight(PQSMod_VertexSimplexHeight mod)
     {
         base.OnQuadPreBuild(quad, jobSet);
 
-        jobSet.Add(new BuildJob
-        {
-            simplex = simplex,
-            deformity = mod.deformity,
-        });
+        jobSet.Add(new BuildJob { simplex = simplex, deformity = mod.deformity });
     }
 
     public override void Dispose()
