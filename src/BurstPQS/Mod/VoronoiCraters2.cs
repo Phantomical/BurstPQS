@@ -1,9 +1,8 @@
 using System;
-using BurstPQS.Collections;
 using BurstPQS.Noise;
 using BurstPQS.Util;
 using Unity.Burst;
-using Unity.Collections.LowLevel.Unsafe;
+using Unity.Collections;
 using UnityEngine;
 
 namespace BurstPQS.Mod;
@@ -32,27 +31,25 @@ public class VoronoiCraters2(PQSMod_VoronoiCraters2 mod) : BatchPQSMod<PQSMod_Vo
     }
 
     [BurstCompile(FloatMode = FloatMode.Fast)]
-    unsafe struct BuildJob : IBatchPQSHeightJob, IBatchPQSVertexJob, IDisposable
+    struct BuildJob(PQSMod_VoronoiCraters2 mod)
+        : IBatchPQSHeightJob,
+            IBatchPQSVertexJob,
+            IDisposable
     {
-        public BurstVoronoi voronoi;
-        public BurstSimplex jitterSimplex;
-        public BurstAnimationCurve craterCurve;
-        public BurstSimplex deformationSimplex;
-        public BurstGradient craterColorRamp;
-        public double jitter;
-        public double deformation;
-        public bool debugColorMapping;
+        public BurstVoronoi voronoi = new(mod.voronoi);
+        public BurstSimplex jitterSimplex = new(mod.jitterSimplex);
+        public BurstAnimationCurve craterCurve = new(mod.craterCurve);
+        public BurstSimplex deformationSimplex = new(mod.deformationSimplex);
+        public BurstGradient craterColorRamp = new(mod.craterColourRamp);
+        public double jitter = mod.jitter;
+        public double deformation = mod.deformation;
+        public bool debugColorMapping = mod.DebugColorMapping;
 
-        float* rs;
+        NativeArray<float> rs;
 
         public void BuildHeights(in BuildHeightsData data)
         {
-            rs = (float*)
-                UnsafeUtility.Malloc(
-                    data.VertexCount * sizeof(float),
-                    4,
-                    Unity.Collections.Allocator.Temp
-                );
+            rs = new(data.VertexCount, Allocator.Temp);
 
             for (int i = 0; i < data.VertexCount; ++i)
             {
@@ -88,13 +85,6 @@ public class VoronoiCraters2(PQSMod_VoronoiCraters2 mod) : BatchPQSMod<PQSMod_Vo
 
         public void Dispose()
         {
-            if (rs != null)
-            {
-                UnsafeUtility.Free(rs, Unity.Collections.Allocator.Temp);
-                rs = null;
-            }
-
-            voronoi.Dispose();
             jitterSimplex.Dispose();
             craterCurve.Dispose();
             deformationSimplex.Dispose();

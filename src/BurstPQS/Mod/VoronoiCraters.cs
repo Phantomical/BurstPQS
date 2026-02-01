@@ -2,6 +2,7 @@ using System;
 using BurstPQS.Noise;
 using BurstPQS.Util;
 using Unity.Burst;
+using Unity.Collections;
 using Unity.Collections.LowLevel.Unsafe;
 using UnityEngine;
 
@@ -35,33 +36,26 @@ public class VoronoiCraters(PQSMod_VoronoiCraters mod) : BatchPQSMod<PQSMod_Voro
     }
 
     [BurstCompile]
-    unsafe struct BuildJob : IBatchPQSHeightJob, IBatchPQSVertexJob, IDisposable
+    struct BuildJob(PQSMod_VoronoiCraters mod) : IBatchPQSHeightJob, IBatchPQSVertexJob, IDisposable
     {
-        public BurstVoronoi voronoi;
-        public BurstSimplex simplex;
-        public BurstAnimationCurve jitterCurve;
-        public BurstAnimationCurve craterCurve;
-        public BurstGradient craterColorRamp;
-        public double jitter;
-        public double jitterHeight;
-        public double deformation;
-        public float rFactor;
-        public float rOffset;
-        public float colorOpacity;
-        public bool debugColorMapping;
+        public BurstVoronoi voronoi = new(mod.voronoi);
+        public BurstSimplex simplex = new(mod.simplex);
+        public BurstAnimationCurve jitterCurve = new(mod.jitterCurve);
+        public BurstAnimationCurve craterCurve = new(mod.craterCurve);
+        public BurstGradient craterColorRamp = new(mod.craterColourRamp);
+        public double jitter = mod.jitter;
+        public double jitterHeight = mod.jitterHeight;
+        public double deformation = mod.deformation;
+        public float rFactor = mod.rFactor;
+        public float rOffset = mod.rOffset;
+        public float colorOpacity = mod.colorOpacity;
+        public bool debugColorMapping = mod.DebugColorMapping;
 
-        float* rs;
-        int vertexCount;
+        NativeArray<float> rs;
 
         public void BuildHeights(in BuildHeightsData data)
         {
-            vertexCount = data.VertexCount;
-            rs = (float*)
-                UnsafeUtility.Malloc(
-                    vertexCount * sizeof(float),
-                    UnsafeUtility.AlignOf<float>(),
-                    Unity.Collections.Allocator.Temp
-                );
+            rs = new(data.VertexCount, Allocator.Temp);
 
             for (int i = 0; i < data.VertexCount; ++i)
             {
@@ -98,11 +92,6 @@ public class VoronoiCraters(PQSMod_VoronoiCraters mod) : BatchPQSMod<PQSMod_Voro
 
         public void Dispose()
         {
-            if (rs != null)
-            {
-                UnsafeUtility.Free(rs, Unity.Collections.Allocator.Temp);
-                rs = null;
-            }
             simplex.Dispose();
             jitterCurve.Dispose();
             craterCurve.Dispose();
