@@ -234,10 +234,6 @@ public class LandControl(PQSLandControl mod) : BatchPQSMod<PQSLandControl>(mod)
             int landClassCount = landClasses.Length;
             var lcActiveBits = new BitSpan(new MemorySpan<ulong>(lcActive));
 
-            // Initialize vertColor to black (moved from BuildHeights since BuildHeightsData lacks vertColor)
-            for (int i = 0; i < data.VertexCount; ++i)
-                data.vertColor[i] = Color.black;
-
             if (createColors)
             {
                 for (int i = 0; i < data.VertexCount; ++i)
