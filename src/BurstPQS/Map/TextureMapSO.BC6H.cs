@@ -571,8 +571,7 @@ public static partial class TextureMapSO
             hi = e3;
         }
 
-        byte[] weights = modeInfo.indexBits == 3 ? BC7Weights3 : BC7Weights4;
-        int w = weights[idx];
+        int w = modeInfo.indexBits == 3 ? BC7Weights3[idx] : BC7Weights4[idx];
 
         int finalR = ((64 - w) * lo.x + w * hi.x + 32) >> 6;
         int finalG = ((64 - w) * lo.y + w * hi.y + 32) >> 6;

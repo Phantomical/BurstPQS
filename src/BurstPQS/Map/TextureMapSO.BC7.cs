@@ -712,13 +712,13 @@ public static partial class TextureMapSO
             alphaIdx = idx2;
         }
 
-        byte[] colorWeights = idxMode == 0 ? BC7Weights2 : BC7Weights3;
-        byte[] alphaWeights = idxMode == 0 ? BC7Weights3 : BC7Weights2;
+        int colorWeight = idxMode == 0 ? BC7Weights2[colorIdx] : BC7Weights3[colorIdx];
+        int alphaWeight = idxMode == 0 ? BC7Weights3[alphaIdx] : BC7Weights2[alphaIdx];
 
-        int ri = BC7Interpolate(BC7Unquantize(r0, 5), BC7Unquantize(r1, 5), colorWeights[colorIdx]);
-        int gi = BC7Interpolate(BC7Unquantize(g0, 5), BC7Unquantize(g1, 5), colorWeights[colorIdx]);
-        int bi = BC7Interpolate(BC7Unquantize(b0, 5), BC7Unquantize(b1, 5), colorWeights[colorIdx]);
-        int ai = BC7Interpolate(BC7Unquantize(a0, 6), BC7Unquantize(a1, 6), alphaWeights[alphaIdx]);
+        int ri = BC7Interpolate(BC7Unquantize(r0, 5), BC7Unquantize(r1, 5), colorWeight);
+        int gi = BC7Interpolate(BC7Unquantize(g0, 5), BC7Unquantize(g1, 5), colorWeight);
+        int bi = BC7Interpolate(BC7Unquantize(b0, 5), BC7Unquantize(b1, 5), colorWeight);
+        int ai = BC7Interpolate(BC7Unquantize(a0, 6), BC7Unquantize(a1, 6), alphaWeight);
 
         ApplyBC7Rotation(rotation, ref ri, ref gi, ref bi, ref ai);
         r = ri * Byte2Float;
