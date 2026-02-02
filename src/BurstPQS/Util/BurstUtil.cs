@@ -30,10 +30,16 @@ public static class BurstUtil
     internal static FunctionPointer<F> MaybeCompileFunctionPointer<F>(F del)
         where F : Delegate
     {
-        if (del.Method.GetCustomAttribute<BurstCompileAttribute>() is null)
-            return new(Marshal.GetFunctionPointerForDelegate(del));
-        else
+        try
+        {
             return BurstCompiler.CompileFunctionPointer(del);
+        }
+        // If the delegate is not a valid burst-compiled function then we just get
+        // a normal function pointer for it.
+        catch (InvalidOperationException)
+        {
+            return new(Marshal.GetFunctionPointerForDelegate(del));
+        }
     }
 
     public static unsafe T* Alloc<T>(T value, Allocator alloc = Allocator.Temp)

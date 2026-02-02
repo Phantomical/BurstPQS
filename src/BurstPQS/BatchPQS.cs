@@ -1,17 +1,10 @@
 using System;
 using System.Collections.Generic;
-using System.Runtime.CompilerServices;
-using System.Threading.Tasks;
-using BurstPQS.Async;
-using BurstPQS.Collections;
 using BurstPQS.Jobs;
 using BurstPQS.Patches;
-using BurstPQS.Util;
 using Unity.Burst;
 using Unity.Collections;
-using Unity.Collections.LowLevel.Unsafe;
 using Unity.Jobs;
-using Unity.Mathematics;
 using Unity.Profiling;
 using UnityEngine;
 using UnityEngine.Rendering;
@@ -22,11 +15,8 @@ namespace BurstPQS;
 [BurstCompile]
 public class BatchPQS : MonoBehaviour
 {
-    static bool ForceFallback = true;
+    static bool ForceFallback = false;
     static readonly ProfilerMarker BuildQuadMarker = new("BatchPQS.BuildQuad");
-    static readonly ProfilerMarker BuildQuadAsyncMarker = new("BatchPQS.BuildQuadAsync");
-    static readonly ProfilerMarker UpdateQuadsMarker = new("BatchPQS.UpdateQuads");
-    static readonly ProfilerMarker UpdateQuadsInitMarker = new("BatchPQS.UpdateQuadsInit");
 
     private PQS pqs;
     private BatchPQSMod[] mods;

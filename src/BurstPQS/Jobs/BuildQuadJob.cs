@@ -47,6 +47,11 @@ internal struct BuildQuadJob : IJob
     public ObjectHandle<MeshData> meshData;
     public ObjectHandle<PQ> pq;
 
+    public BuildQuadJob()
+    {
+        BuildQuadJobExt.Init();
+    }
+
     public unsafe void Execute()
     {
         using var jsguard = this.jobSet;
@@ -516,4 +521,7 @@ internal static class BuildQuadJobExt
     [BurstCompile]
     static void InitMeshDataBurst(this ref BuildQuadJob job, ref BuildMeshData data) =>
         job.InitMeshDataImpl(ref data);
+
+    // This is a no-op, it just makes sure that the static ctor is called on the main thread.
+    internal static void Init() { }
 }

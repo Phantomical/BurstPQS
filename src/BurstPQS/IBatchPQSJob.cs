@@ -3,8 +3,10 @@ using System.Collections.Generic;
 using System.Linq.Expressions;
 using System.Reflection;
 using System.Runtime.CompilerServices;
+using System.Runtime.InteropServices;
 using BurstPQS.Collections;
 using BurstPQS.Util;
+using HarmonyLib;
 using Unity.Burst;
 using Unity.Burst.CompilerServices;
 using Unity.Collections;
@@ -341,8 +343,14 @@ public interface IBatchPQSMeshBuiltJob
     void OnMeshBuilt(PQ quad);
 }
 
-internal abstract class JobData : IDisposable
+internal abstract unsafe class JobData : IDisposable
 {
+    protected delegate void BuildHeightsDelegate(void* self, in BuildHeightsData data);
+    protected delegate void BuildVerticesDelegate(void* self, in BuildVerticesData data);
+    protected delegate void BuildMeshDelegate(void* self, in BuildMeshData data);
+    protected delegate void OnMeshBuiltDelegate(void* self, PQ quad);
+    protected delegate void DisposeDelegate(void* self);
+
     protected JobData() { }
 
     public abstract void BuildHeights(in BuildHeightsData data);
@@ -350,17 +358,27 @@ internal abstract class JobData : IDisposable
     public abstract void BuildMesh(in BuildMeshData data);
     public abstract void OnMeshBuilt(PQ quad);
     public abstract void Dispose();
+
+    protected struct PinGuard(object obj) : IDisposable
+    {
+        GCHandle handle = GCHandle.Alloc(obj, GCHandleType.Pinned);
+
+        public void Dispose()
+        {
+            handle.Free();
+        }
+    }
+
+    protected static void DoDispose<T>(void* job)
+        where T : IDisposable
+    {
+        Unsafe.AsRef<T>(job).Dispose();
+    }
 }
 
-internal sealed class JobData<T>(in T job) : JobData
+internal sealed unsafe class JobData<T>(in T job) : JobData
     where T : struct
 {
-    delegate void BuildHeightsDelegate(ref T self, in BuildHeightsData data);
-    delegate void BuildVerticesDelegate(ref T self, in BuildVerticesData data);
-    delegate void BuildMeshDelegate(ref T self, in BuildMeshData data);
-    delegate void OnMeshBuiltDelegate(ref T self, PQ quad);
-    delegate void DisposeDelegate(ref T self);
-
     static readonly ProfilerMarker BuildHeightsMarker;
     static readonly ProfilerMarker BuildVerticesMarker;
     static readonly ProfilerMarker BuildMeshMarker;
@@ -424,8 +442,12 @@ internal sealed class JobData<T>(in T job) : JobData
 
         if (typeof(IDisposable).IsAssignableFrom(type))
         {
+            var disposeFn = typeof(JobData)
+                .GetMethod(nameof(DoDispose), BindingFlags.NonPublic | BindingFlags.Static)
+                .MakeGenericMethod(type);
+
             DisposeFunc = (DisposeDelegate)
-                Delegate.CreateDelegate(typeof(DisposeDelegate), type.GetMethod("Dispose", []));
+                Delegate.CreateDelegate(typeof(DisposeDelegate), disposeFn);
         }
 
         AutoDisposeFunc = BuildAutoDisposeDelegate();
@@ -486,7 +508,9 @@ internal sealed class JobData<T>(in T job) : JobData
             return;
 
         using var scope = BuildHeightsMarker.Auto();
-        BuildHeightsFunc(ref job, in data);
+        using var guard = new PinGuard(this);
+
+        BuildHeightsFunc(Unsafe.AsPointer(ref job), in data);
     }
 
     public override void BuildVertices(in BuildVerticesData data)
@@ -495,7 +519,9 @@ internal sealed class JobData<T>(in T job) : JobData
             return;
 
         using var scope = BuildVerticesMarker.Auto();
-        BuildVerticesFunc(ref job, in data);
+        using var guard = new PinGuard(this);
+
+        BuildVerticesFunc(Unsafe.AsPointer(ref job), in data);
     }
 
     public override void BuildMesh(in BuildMeshData data)
@@ -504,53 +530,57 @@ internal sealed class JobData<T>(in T job) : JobData
             return;
 
         using var scope = BuildMeshMarker.Auto();
-        BuildMeshFunc(ref job, in data);
+        using var guard = new PinGuard(this);
+
+        BuildMeshFunc(Unsafe.AsPointer(ref job), in data);
     }
 
     public override void OnMeshBuilt(PQ quad)
     {
-        OnMeshBuiltFunc?.Invoke(ref job, quad);
+        using var guard = new PinGuard(this);
+        OnMeshBuiltFunc?.Invoke(Unsafe.AsPointer(ref job), quad);
     }
 
     public override void Dispose()
     {
-        DisposeFunc?.Invoke(ref job);
+        using var guard = new PinGuard(this);
+        DisposeFunc?.Invoke(Unsafe.AsPointer(ref job));
         AutoDisposeFunc?.Invoke(job);
     }
 }
 
-internal static class IBatchPQSJobExtensions
+internal static unsafe class IBatchPQSJobExtensions
 {
     internal struct HeightJobStruct<T>
         where T : struct, IBatchPQSHeightJob
     {
-        public static void Execute(ref T self, in BuildHeightsData data)
+        public static void Execute(void* self, in BuildHeightsData data)
         {
-            self.BuildHeights(in data);
+            Unsafe.AsRef<T>(self).BuildHeights(in data);
         }
     }
 
     internal struct VertexJobStruct<T>
         where T : struct, IBatchPQSVertexJob
     {
-        public static void Execute(ref T self, in BuildVerticesData data)
+        public static void Execute(void* self, in BuildVerticesData data)
         {
-            self.BuildVertices(in data);
+            Unsafe.AsRef<T>(self).BuildVertices(in data);
         }
     }
 
     internal struct MeshJobStruct<T>
         where T : struct, IBatchPQSMeshJob
     {
-        public static void Execute(ref T self, in BuildMeshData data)
+        public static void Execute(void* self, in BuildMeshData data)
         {
-            self.BuildMesh(in data);
+            Unsafe.AsRef<T>(self).BuildMesh(in data);
         }
     }
 
     internal struct OnMeshBuiltStruct<T>
         where T : struct, IBatchPQSMeshBuiltJob
     {
-        public static void Execute(ref T self, PQ quad) => self.OnMeshBuilt(quad);
+        public static void Execute(void* self, PQ quad) => Unsafe.AsRef<T>(self).OnMeshBuilt(quad);
     }
 }
