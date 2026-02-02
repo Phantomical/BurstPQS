@@ -1,6 +1,7 @@
 using System;
 using System.Runtime.CompilerServices;
 using System.Security.Policy;
+using BurstPQS.Map;
 using BurstPQS.Util;
 using LibNoise.Models;
 using Unity.Burst;
@@ -20,11 +21,11 @@ public class MapDecalTangent(PQSMod_MapDecalTangent mod) : BatchPQSMod<PQSMod_Ma
 
         BurstMapSO? heightMap = null;
         if (mod.heightMap is not null)
-            heightMap = new BurstMapSO(mod.heightMap);
+            heightMap = BurstMapSO.Create(mod.heightMap);
 
         BurstMapSO? colorMap = null;
         if (mod.colorMap is not null)
-            colorMap = new BurstMapSO(mod.colorMap);
+            colorMap = BurstMapSO.Create(mod.colorMap);
 
         jobSet.Add(new BuildJob(mod) { heightMap = heightMap, colorMap = colorMap });
     }

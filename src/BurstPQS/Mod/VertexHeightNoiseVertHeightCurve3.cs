@@ -77,8 +77,8 @@ public class VertexHeightNoiseVertHeightCurve3(PQSMod_VertexHeightNoiseVertHeigh
                 {
                     r = ridgedAdd.GetValue(dir) - ridgedSub.GetValue(dir);
                     d = MathUtil.Lerp(
-                        p.deformityMin,
                         p.deformityMax,
+                        p.deformityMin,
                         deformity.noiseNormalized(dir)
                     );
                     r = MathUtil.Clamp(r, -1.0, 1.0);

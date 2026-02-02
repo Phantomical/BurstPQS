@@ -1,4 +1,5 @@
 using System;
+using BurstPQS.Map;
 using BurstPQS.Util;
 using Unity.Burst;
 using UnityEngine;
@@ -18,7 +19,7 @@ public class RemoveQuadMap(PQSMod_RemoveQuadMap mod) : BatchPQSMod<PQSMod_Remove
             new BuildJob
             {
                 mod = mod,
-                map = new(mod.map),
+                map = BurstMapSO.Create(mod.map),
                 minHeight = mod.minHeight,
                 maxHeight = mod.maxHeight,
             }

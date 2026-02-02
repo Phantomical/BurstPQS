@@ -35,7 +35,7 @@ public class SmoothLatitudeRange(PQSMod_SmoothLatitudeRange mod)
             {
                 var smooth = latitudeRange.Lerp(data.sy[i]);
                 if (smooth == 0.0)
-                    return;
+                    continue;
 
                 var alt = data.vertHeight[i] - sphereRadius;
                 var result = alt * (1.0 - smooth) + smoothToAltitude * smooth;

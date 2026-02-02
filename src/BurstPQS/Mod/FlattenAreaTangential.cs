@@ -49,7 +49,7 @@ public class FlattenAreaTangential(PQSMod_FlattenAreaTangential mod)
                 double testAngle = Math.Acos(Vector3d.Dot(data.directionFromCenter[i], posNorm));
                 double vHeight = flattenToRadius / Math.Cos(testAngle);
                 if (!(testAngle < angleOuter))
-                    return;
+                    continue;
 
                 if (testAngle < angleInner)
                 {

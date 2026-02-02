@@ -45,7 +45,7 @@ public class VertexSimplexColorRGB(PQSMod_VertexSimplexColorRGB mod)
             float3 cblend = new(rBlend, gBlend, bBlend);
             for (int i = 0; i < data.VertexCount; ++i)
             {
-                float n = (float)simplex.noise(data.directionFromCenter[i]);
+                float n = (float)((simplex.noise(data.directionFromCenter[i]) + 1.0) * 0.5);
                 float4 c = new(n * cblend, Color.white.a);
 
                 data.vertColor[i] = Color.Lerp(data.vertColor[i], BurstUtil.ConvertColor(c), blend);

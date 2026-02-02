@@ -1,4 +1,5 @@
 using System;
+using BurstPQS.Map;
 using BurstPQS.Util;
 using Unity.Burst;
 
@@ -15,7 +16,7 @@ public class VertexHeightMap(PQSMod_VertexHeightMap mod) : BatchPQSMod<PQSMod_Ve
         jobSet.Add(
             new BuildHeightsJob
             {
-                heightMap = new BurstMapSO(mod.heightMap),
+                heightMap = BurstMapSO.Create(mod.heightMap),
                 heightMapOffset = mod.heightMapOffset,
                 heightMapDeformity = mod.heightMapDeformity,
             }

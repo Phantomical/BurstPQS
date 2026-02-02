@@ -30,7 +30,7 @@ public class VertexRidgedAltitudeCurve(PQSMod_VertexRidgedAltitudeCurve mod)
                 ridgedAdd = new(mod.ridgedAdd),
                 simplexCurve = simplexCurve,
                 simplexHeightStart = mod.simplexHeightStart,
-                radiusMin = mod.sphere != null ? mod.sphere.radiusMax : mod.ridgedMinimum,
+                radiusMin = mod.sphere != null ? mod.sphere.radiusMin : mod.ridgedMinimum,
                 hDeltaR = mod.hDeltaR,
                 ridgedMinimum = mod.ridgedMinimum,
                 deformity = mod.deformity,
@@ -61,7 +61,7 @@ public class VertexRidgedAltitudeCurve(PQSMod_VertexRidgedAltitudeCurve mod)
                     continue;
 
                 double r = MathUtil.Clamp(
-                    Math.Max(ridgedMinimum, ridgedAdd.GetValue(data.directionFromCenter[i])),
+                    Math.Max(ridgedMinimum, ridgedAdd.GetValue(data.directionFromCenter[i])) * Math.Max(s, 0.0),
                     -1.0,
                     1.0
                 );

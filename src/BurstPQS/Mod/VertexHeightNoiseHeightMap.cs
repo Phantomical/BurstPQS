@@ -1,6 +1,7 @@
-using BurstPQS.Collections;
+using BurstPQS.Map;
 using BurstPQS.Noise;
 using BurstPQS.Util;
+using Unity.Burst;
 using IModule = LibNoise.IModule;
 
 namespace BurstPQS.Mod;
@@ -19,7 +20,7 @@ public class VertexHeightNoiseHeightMap(PQSMod_VertexHeightNoiseHeightMap mod)
                 jobSet.Add(
                     new BuildJobPerlin
                     {
-                        heightMap = mod.heightMap,
+                        heightMap = TextureMapSO.Create(mod.heightMap, MapSO.MapDepth.Greyscale),
                         noise = new(perlin),
                         heightStart = mod.heightStart,
                         heightEnd = mod.heightEnd,
@@ -33,7 +34,7 @@ public class VertexHeightNoiseHeightMap(PQSMod_VertexHeightNoiseHeightMap mod)
                 jobSet.Add(
                     new BuildJobRidgedMultifractal
                     {
-                        heightMap = mod.heightMap,
+                        heightMap = TextureMapSO.Create(mod.heightMap, MapSO.MapDepth.Greyscale),
                         noise = new(multi),
                         heightStart = mod.heightStart,
                         heightEnd = mod.heightEnd,
@@ -47,7 +48,7 @@ public class VertexHeightNoiseHeightMap(PQSMod_VertexHeightNoiseHeightMap mod)
                 jobSet.Add(
                     new BuildJobBillow
                     {
-                        heightMap = mod.heightMap,
+                        heightMap = TextureMapSO.Create(mod.heightMap, MapSO.MapDepth.Greyscale),
                         noise = new(billow),
                         heightStart = mod.heightStart,
                         heightEnd = mod.heightEnd,
@@ -61,7 +62,7 @@ public class VertexHeightNoiseHeightMap(PQSMod_VertexHeightNoiseHeightMap mod)
                 jobSet.Add(
                     new BuildJobFallback
                     {
-                        heightMap = mod.heightMap,
+                        heightMap = TextureMapSO.Create(mod.heightMap, MapSO.MapDepth.Greyscale),
                         noiseMap = mod.noiseMap,
                         heightStart = mod.heightStart,
                         heightEnd = mod.heightEnd,
@@ -75,7 +76,7 @@ public class VertexHeightNoiseHeightMap(PQSMod_VertexHeightNoiseHeightMap mod)
 
     static void BuildHeightsImpl<N>(
         in BuildHeightsData data,
-        MapSO heightMap,
+        BurstMapSO heightMap,
         in N noise,
         float heightStart,
         float heightEnd,
@@ -86,7 +87,7 @@ public class VertexHeightNoiseHeightMap(PQSMod_VertexHeightNoiseHeightMap mod)
     {
         for (int i = 0; i < data.VertexCount; ++i)
         {
-            double h = heightMap.GetPixelBilinear((float)data.sx[i], (float)data.sy[i]).grayscale;
+            double h = heightMap.GetPixelFloat((float)data.sx[i], (float)data.sy[i]);
             if (h < heightStart || h > heightEnd)
                 continue;
 
@@ -97,9 +98,10 @@ public class VertexHeightNoiseHeightMap(PQSMod_VertexHeightNoiseHeightMap mod)
         }
     }
 
+    [BurstCompile]
     struct BuildJobPerlin : IBatchPQSHeightJob
     {
-        public MapSO heightMap;
+        public BurstMapSO heightMap;
         public BurstPerlin noise;
         public float heightStart;
         public float heightEnd;
@@ -120,7 +122,7 @@ public class VertexHeightNoiseHeightMap(PQSMod_VertexHeightNoiseHeightMap mod)
 
     struct BuildJobRidgedMultifractal : IBatchPQSHeightJob
     {
-        public MapSO heightMap;
+        public BurstMapSO heightMap;
         public BurstRidgedMultifractal noise;
         public float heightStart;
         public float heightEnd;
@@ -141,7 +143,7 @@ public class VertexHeightNoiseHeightMap(PQSMod_VertexHeightNoiseHeightMap mod)
 
     struct BuildJobBillow : IBatchPQSHeightJob
     {
-        public MapSO heightMap;
+        public BurstMapSO heightMap;
         public BurstBillow noise;
         public float heightStart;
         public float heightEnd;
@@ -162,7 +164,7 @@ public class VertexHeightNoiseHeightMap(PQSMod_VertexHeightNoiseHeightMap mod)
 
     struct BuildJobFallback : IBatchPQSHeightJob
     {
-        public MapSO heightMap;
+        public BurstMapSO heightMap;
         public IModule noiseMap;
         public float heightStart;
         public float heightEnd;

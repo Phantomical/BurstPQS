@@ -25,7 +25,7 @@ public class VertexDefineCoastLine(PQSMod_VertexDefineCoastLine mod)
             for (int i = 0; i < data.VertexCount; ++i)
             {
                 if (data.vertHeight[i] < oceanRadius)
-                    data.vertHeight[i] -= depthOffset;
+                    data.vertHeight[i] += depthOffset;
             }
         }
     }

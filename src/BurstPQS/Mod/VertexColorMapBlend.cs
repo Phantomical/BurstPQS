@@ -1,4 +1,5 @@
 using System;
+using BurstPQS.Map;
 using BurstPQS.Util;
 using Unity.Burst;
 using UnityEngine;
@@ -15,7 +16,11 @@ public class VertexColorMapBlend(PQSMod_VertexColorMapBlend mod)
         base.OnQuadPreBuild(quad, jobSet);
 
         jobSet.Add(
-            new BuildVerticesJob { vertexColorMap = new(mod.vertexColorMap), blend = mod.blend }
+            new BuildVerticesJob
+            {
+                vertexColorMap = BurstMapSO.Create(mod.vertexColorMap),
+                blend = mod.blend,
+            }
         );
     }
 

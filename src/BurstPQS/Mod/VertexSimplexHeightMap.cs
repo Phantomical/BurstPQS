@@ -1,4 +1,5 @@
 using System;
+using BurstPQS.Map;
 using BurstPQS.Noise;
 using BurstPQS.Util;
 using Unity.Burst;
@@ -20,7 +21,7 @@ public class VertexSimplexHeightMap(PQSMod_VertexSimplexHeightMap mod)
             new BuildJob
             {
                 simplex = simplex,
-                heightMap = new(mod.heightMap),
+                heightMap = BurstMapSO.Create(mod.heightMap),
                 heightStart = mod.heightStart,
                 heightEnd = mod.heightEnd,
                 deformity = mod.deformity,

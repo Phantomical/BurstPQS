@@ -8,10 +8,10 @@ using UnityEngine;
 
 namespace BurstPQS.Map;
 
-public struct HeightAlpha(double height, double alpha)
+public struct HeightAlpha(float height, float alpha)
 {
-    public double height = height;
-    public double alpha = alpha;
+    public float height = height;
+    public float alpha = alpha;
 
     public static implicit operator HeightAlpha(MapSO.HeightAlpha ha) => new(ha.height, ha.alpha);
 
@@ -263,6 +263,7 @@ internal unsafe struct MapSOVTable
             GetPixelHeightAlpha_Int_Fp = MapSOVTable<T>.GetPixelHeightAlpha_Int_Fp,
             GetPixelHeightAlpha_Float_Fp = MapSOVTable<T>.GetPixelHeightAlpha_Float_Fp,
             GetPixelHeightAlpha_Double_Fp = MapSOVTable<T>.GetPixelHeightAlpha_Double_Fp,
+            Dispose_Fp = MapSOVTable<T>.Dispose_Fp,
         };
     }
 

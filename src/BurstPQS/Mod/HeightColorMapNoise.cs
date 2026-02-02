@@ -84,11 +84,11 @@ public class HeightColorMapNoise(PQSMod_HeightColorMapNoise mod)
         {
             for (int i = 0; i < classes.Length; ++i)
             {
-                if (height >= classes[i].altEnd && !(height > classes[i].altEnd))
+                if (height >= classes[i].altStart && height <= classes[i].altEnd)
                     return i;
             }
 
-            return Math.Min(classes.Length - 1, 0);
+            return Math.Max(classes.Length - 1, 0);
         }
     }
 }

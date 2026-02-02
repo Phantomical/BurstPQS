@@ -1,5 +1,6 @@
 using System;
 using System.Runtime.CompilerServices;
+using BurstPQS.Map;
 using BurstPQS.Util;
 using Unity.Burst;
 using Unity.Collections;
@@ -17,11 +18,11 @@ public class MapDecal(PQSMod_MapDecal mod) : BatchPQSMod<PQSMod_MapDecal>(mod)
 
         BurstMapSO? heightMap = null;
         if (mod.heightMap is not null)
-            heightMap = new BurstMapSO(mod.heightMap);
+            heightMap = BurstMapSO.Create(mod.heightMap);
 
         BurstMapSO? colorMap = null;
         if (mod.colorMap is not null)
-            colorMap = new BurstMapSO(mod.colorMap);
+            colorMap = BurstMapSO.Create(mod.colorMap);
 
         jobSet.Add(new BuildJob(mod) { heightMap = heightMap, colorMap = colorMap });
     }
@@ -41,7 +42,7 @@ public class MapDecal(PQSMod_MapDecal mod) : BatchPQSMod<PQSMod_MapDecal>(mod)
         public bool DEBUG_HighlightInclusion = mod.DEBUG_HighlightInclusion;
         public double inclusionAngle = mod.inclusionAngle;
         public bool quadActive = mod.quadActive;
-        public Vector3d posNorm = mod.position;
+        public Vector3d posNorm = mod.posNorm;
         public Quaternion rot = mod.rot;
         public bool buildHeight = mod.buildHeight;
         public float smoothCR = mod.smoothCR;

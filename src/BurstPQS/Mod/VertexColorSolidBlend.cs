@@ -3,11 +3,10 @@ using UnityEngine;
 
 namespace BurstPQS.Mod;
 
-// This seems to be backwards in the KSP source?
 [BurstCompile]
-[BatchPQSMod(typeof(PQSMod_VertexColorSolid))]
-public class VertexColorSolidBlend(PQSMod_VertexColorSolid mod)
-    : BatchPQSMod<PQSMod_VertexColorSolid>(mod)
+[BatchPQSMod(typeof(PQSMod_VertexColorSolidBlend))]
+public class VertexColorSolidBlend(PQSMod_VertexColorSolidBlend mod)
+    : BatchPQSMod<PQSMod_VertexColorSolidBlend>(mod)
 {
     public override void OnQuadPreBuild(PQ quad, BatchPQSJobSet jobSet)
     {

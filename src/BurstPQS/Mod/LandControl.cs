@@ -1,5 +1,6 @@
 using System;
 using BurstPQS.Collections;
+using BurstPQS.Map;
 using BurstPQS.Noise;
 using BurstPQS.Util;
 using Unity.Collections;
@@ -90,7 +91,7 @@ public class LandControl(PQSLandControl mod) : BatchPQSMod<PQSLandControl>(mod)
                 latitudeSimplex = latitudeSimplex,
                 longitudeSimplex = longitudeSimplex,
 
-                heightMap = mod.useHeightMap ? new(mod.heightMap) : null,
+                heightMap = mod.useHeightMap ? BurstMapSO.Create(mod.heightMap) : null,
                 altitudeBlend = mod.altitudeBlend,
                 latitudeBlend = mod.latitudeBlend,
                 longitudeBlend = mod.longitudeBlend,
