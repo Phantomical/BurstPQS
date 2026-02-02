@@ -1,6 +1,5 @@
 using System;
 using System.Runtime.CompilerServices;
-using Contracts.Agents.Mentalities;
 using Unity.Burst;
 using Unity.Collections;
 using Unity.Mathematics;
@@ -8,7 +7,7 @@ using UnityEngine;
 
 namespace BurstPQS.Map;
 
-[BurstCompile]
+[BurstCompile(FloatMode = FloatMode.Fast)]
 public static partial class TextureMapSO
 {
     const float Byte2Float = 1f / 255f;

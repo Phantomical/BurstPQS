@@ -10,7 +10,7 @@ namespace BurstPQS.Map;
 /// <summary>
 /// An <see cref="IMapSO"/> implementation for a stock <see cref="MapSO"/>.
 /// </summary>
-[BurstCompile]
+[BurstCompile(FloatMode = FloatMode.Fast)]
 public struct StockBurstMapSO : IMapSO, IDisposable
 {
     const float Byte2Float = 0.003921569f;

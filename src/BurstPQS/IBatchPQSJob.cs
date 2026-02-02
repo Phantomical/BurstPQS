@@ -299,7 +299,7 @@ public unsafe struct BuildMeshData
 [JobProducerType(typeof(IBatchPQSJobExtensions.HeightJobStruct<>))]
 public interface IBatchPQSHeightJob
 {
-    public void BuildHeights(in BuildHeightsData data);
+    void BuildHeights(in BuildHeightsData data);
 }
 
 /// <summary>
@@ -314,7 +314,7 @@ public interface IBatchPQSHeightJob
 [JobProducerType(typeof(IBatchPQSJobExtensions.VertexJobStruct<>))]
 public interface IBatchPQSVertexJob
 {
-    public void BuildVertices(in BuildVerticesData data);
+    void BuildVertices(in BuildVerticesData data);
 }
 
 /// <summary>
@@ -329,7 +329,7 @@ public interface IBatchPQSVertexJob
 [JobProducerType(typeof(IBatchPQSJobExtensions.MeshJobStruct<>))]
 public interface IBatchPQSMeshJob
 {
-    public void BuildMesh(in BuildMeshData data);
+    void BuildMesh(in BuildMeshData data);
 }
 
 /// <summary>
@@ -337,7 +337,7 @@ public interface IBatchPQSMeshJob
 /// </summary>
 public interface IBatchPQSMeshBuiltJob
 {
-    public void OnMeshBuilt(PQ quad);
+    void OnMeshBuilt(PQ quad);
 }
 
 internal abstract class JobData : IDisposable

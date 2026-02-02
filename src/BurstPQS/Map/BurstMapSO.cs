@@ -24,6 +24,9 @@ public struct HeightAlpha(float height, float alpha)
     }
 }
 
+/// <summary>
+/// An interface for a <see cref="MapSO"/> that can be used with <see cref="BurstMapSO"/>.
+/// </summary>
 public interface IMapSO
     : IMapSO_GetPixelFloat_Int,
         IMapSO_GetPixelFloat_Float,
