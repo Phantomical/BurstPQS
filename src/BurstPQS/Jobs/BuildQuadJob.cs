@@ -42,8 +42,6 @@ internal struct BuildQuadJob : IJob
     public int cacheTriCount;
 
     public SphereData sphere;
-    public double meshVertMax;
-    public double meshVertMin;
 
     public ObjectHandle<BatchPQSJobSet> jobSet;
     public ObjectHandle<MeshData> meshData;
@@ -205,7 +203,6 @@ internal struct BuildQuadJob : IJob
         foreach (var vheight in data.vertHeight)
         {
             var height = vheight - data.sphere.radius;
-            height = MathUtil.Clamp(height, meshVertMin, meshVertMax);
 
             vertMax = Math.Max(vertMax, height);
             vertMin = Math.Min(vertMin, height);

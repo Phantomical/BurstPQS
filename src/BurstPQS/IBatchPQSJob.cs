@@ -262,6 +262,15 @@ public unsafe struct BuildMeshData
     internal BuildMeshData(BuildVerticesData data)
     {
         this.data = data;
+
+        _vertsD = AllocVertexArray<Vector3d>();
+        _verts = AllocVertexArray<Vector3>();
+        _normals = AllocVertexArray<Vector3>();
+        _uvs = AllocVertexArray<Vector2>();
+        _uv2s = AllocVertexArray<Vector2>();
+        _uv3s = AllocVertexArray<Vector2>();
+        _uv4s = AllocVertexArray<Vector2>();
+        _tangents = AllocVertexArray<Vector4>();
     }
 
     internal readonly T* AllocVertexArray<T>()
