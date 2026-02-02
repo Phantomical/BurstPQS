@@ -2,7 +2,6 @@ using System;
 using System.Collections.Generic;
 using BurstPQS.Jobs;
 using BurstPQS.Patches;
-using Unity.Burst;
 using Unity.Collections;
 using Unity.Jobs;
 using Unity.Profiling;
@@ -63,7 +62,7 @@ public class BatchPQS : MonoBehaviour
         pqs.buildQuad = quad;
         // pqs.Mod_OnQuadPreBuild(quad);
 
-        var meshData = new MeshData();
+        using var meshData = new MeshData();
         using var jobSet = new BatchPQSJobSet();
         foreach (var mod in mods)
             mod.OnQuadPreBuild(quad, jobSet);
@@ -104,22 +103,29 @@ public class BatchPQS : MonoBehaviour
         var handle = job.Schedule();
 
         quad.mesh.Clear(false);
-        quad.mesh.SetIndexBufferParams(cacheTriIndexCount, IndexFormat.UInt32);
 
         handle.Complete();
 
-        if (!meshData.vertexData.IsCreated)
+        if (!meshData.positions.IsCreated)
             throw new Exception("mesh vertex data is empty");
 
-        quad.mesh.SetVertexBufferParams(cacheVertCount, meshData.descriptors);
-        quad.mesh.SetVertexBufferData(meshData.vertexData, 0, 0, cacheVertCount);
+        quad.mesh.SetVertices(meshData.positions);
+        quad.mesh.SetNormals(meshData.normals);
 
-        if (meshData.normalData.IsCreated)
-            quad.mesh.SetVertexBufferData(meshData.normalData, 0, 0, cacheVertCount, stream: 1);
-        if (meshData.tangentData.IsCreated)
-            quad.mesh.SetVertexBufferData(meshData.tangentData, 0, 0, cacheVertCount, stream: 2);
+        if (meshData.tangents.IsCreated)
+            quad.mesh.SetTangents(meshData.tangents);
+        if (meshData.colors.IsCreated)
+            quad.mesh.SetColors(meshData.colors);
+        if (meshData.uv0.IsCreated)
+            quad.mesh.SetUVs(0, meshData.uv0);
+        if (meshData.uv1.IsCreated)
+            quad.mesh.SetUVs(1, meshData.uv1);
+        if (meshData.uv2.IsCreated)
+            quad.mesh.SetUVs(2, meshData.uv2);
+        if (meshData.uv3.IsCreated)
+            quad.mesh.SetUVs(3, meshData.uv3);
 
-        quad.mesh.triangles = PQS.cacheIndices[0];
+        quad.mesh.SetTriangles(PQS.cacheIndices[0], 0);
         quad.mesh.RecalculateBounds();
         quad.edgeState = PQS.EdgeState.Reset;
 

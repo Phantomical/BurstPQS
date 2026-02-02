@@ -1,6 +1,5 @@
 using System;
-using System.Collections.Generic;
-using System.Linq;
+using System.Runtime.CompilerServices;
 using BurstPQS.Collections;
 using BurstPQS.Util;
 using Unity.Burst;
@@ -171,7 +170,7 @@ internal struct BuildQuadJob : IJob
     internal readonly void InitMeshDataImpl(ref BuildMeshData data)
     {
         if (cacheSideVertCount * cacheSideVertCount != data.VertexCount)
-            throw new Exception("side vertex count doesn't match total vertex count");
+            ThrowMismatchedVertexCount();
 
         if (surfaceRelativeQuads)
             BuildVertexSurfaceRelative(in data);
@@ -219,80 +218,64 @@ internal struct BuildQuadJob : IJob
 
     internal readonly void BuildMesh(ref BuildMeshData data, MeshData mesh)
     {
-        var descs = new List<VertexAttributeDescriptor>()
-        {
-            new(VertexAttribute.Position, VertexAttributeFormat.Float32, 3),
-            new(VertexAttribute.Normal, VertexAttributeFormat.Float32, 3, 1),
-        };
-
-        if (reqAssignTangents)
-            descs.Add(new(VertexAttribute.Tangent, VertexAttributeFormat.Float32, 4, 2));
-        if (reqColorChannel)
-            descs.Add(new(VertexAttribute.Color, VertexAttributeFormat.Float32, 4));
-        if (reqSphereUV || reqUVQuad)
-            descs.Add(new(VertexAttribute.TexCoord0, VertexAttributeFormat.Float32, 2));
-        if (reqUV2)
-            descs.Add(new(VertexAttribute.TexCoord1, VertexAttributeFormat.Float32, 2));
-        if (reqUV3)
-            descs.Add(new(VertexAttribute.TexCoord2, VertexAttributeFormat.Float32, 2));
-        if (reqUV4)
-            descs.Add(new(VertexAttribute.TexCoord3, VertexAttributeFormat.Float32, 2));
-
-        var stride = descs.Where(attr => attr.stream == 0).Sum(attr => attr.dimension);
-        var meshData = new NativeArray<float>(data.VertexCount * stride, Allocator.TempJob);
-        mesh.vertexData = meshData;
-
-        AssignMeshData(meshData, descs, VertexAttribute.Position, data.verts);
-
-        if (reqColorChannel)
-            AssignMeshData(meshData, descs, VertexAttribute.Color, data.vertColor);
-        if (reqSphereUV || reqUVQuad)
-            AssignMeshData(meshData, descs, VertexAttribute.TexCoord0, data.uvs);
-        if (reqUV2)
-            AssignMeshData(meshData, descs, VertexAttribute.TexCoord1, data.uv2s);
-        if (reqUV3)
-            AssignMeshData(meshData, descs, VertexAttribute.TexCoord2, data.uv3s);
-        if (reqUV4)
-            AssignMeshData(meshData, descs, VertexAttribute.TexCoord3, data.uv4s);
+        var positions = new NativeArray<Vector3>(data.VertexCount, Allocator.TempJob);
+        mesh.positions = positions;
+        CopyToNativeArray(positions, data.verts);
 
         var normals = new NativeArray<Vector3>(data.VertexCount, Allocator.TempJob);
-        mesh.normalData = normals;
+        mesh.normals = normals;
         normals.CopyFrom(data.normals.AsNativeArray());
 
         if (reqAssignTangents)
         {
             var tangents = new NativeArray<Vector4>(data.VertexCount, Allocator.TempJob);
-            mesh.tangentData = tangents;
+            mesh.tangents = tangents;
             tangents.CopyFrom(data.tangents.AsNativeArray());
         }
 
-        mesh.descriptors = [.. descs];
+        if (reqColorChannel)
+        {
+            var colors = new NativeArray<Color>(data.VertexCount, Allocator.TempJob);
+            mesh.colors = colors;
+            CopyToNativeArray(colors, data.vertColor);
+        }
+
+        if (reqSphereUV || reqUVQuad)
+        {
+            var uv0 = new NativeArray<Vector2>(data.VertexCount, Allocator.TempJob);
+            mesh.uv0 = uv0;
+            CopyToNativeArray(uv0, data.uvs);
+        }
+
+        if (reqUV2)
+        {
+            var uv1 = new NativeArray<Vector2>(data.VertexCount, Allocator.TempJob);
+            mesh.uv1 = uv1;
+            CopyToNativeArray(uv1, data.uv2s);
+        }
+
+        if (reqUV3)
+        {
+            var uv2 = new NativeArray<Vector2>(data.VertexCount, Allocator.TempJob);
+            mesh.uv2 = uv2;
+            CopyToNativeArray(uv2, data.uv3s);
+        }
+
+        if (reqUV4)
+        {
+            var uv3 = new NativeArray<Vector2>(data.VertexCount, Allocator.TempJob);
+            mesh.uv3 = uv3;
+            CopyToNativeArray(uv3, data.uv4s);
+        }
     }
 
-    readonly unsafe void AssignMeshData<T>(
-        NativeArray<float> vertexBuffer,
-        List<VertexAttributeDescriptor> descs,
-        VertexAttribute attribute,
-        MemorySpan<T> data
-    )
+    static unsafe void CopyToNativeArray<T>(NativeArray<T> dest, MemorySpan<T> src)
         where T : unmanaged
     {
-        var stride = descs
-            .Where(attr => attr.stream == 0)
-            .Sum(attr => attr.dimension * sizeof(float));
-        var offset = descs
-            .TakeWhile(attr => attr.attribute != attribute)
-            .Where(attr => attr.stream == 0)
-            .Sum(attr => attr.dimension);
+        if (dest.Length != src.Length)
+            ThrowArraySizeMismatch();
 
-        var slice = NativeSliceUnsafeUtility.ConvertExistingDataToNativeSlice<T>(
-            (float*)vertexBuffer.GetUnsafePtr() + offset,
-            stride,
-            cacheVertexCount
-        );
-
-        for (int i = 0; i < cacheVertexCount; ++i)
-            slice[i] = data[i];
+        UnsafeUtility.MemCpy(dest.GetUnsafePtr(), src.GetDataPtr(), sizeof(T) * src.Length);
     }
 
     readonly void BuildVertexHeight(in BuildMeshData data)
@@ -474,6 +457,14 @@ internal struct BuildQuadJob : IJob
     {
         return z * cacheSideVertCount + x;
     }
+
+    [MethodImpl(MethodImplOptions.NoInlining)]
+    static void ThrowArraySizeMismatch() =>
+        throw new IndexOutOfRangeException("CopyToNativeArray: array sizes did not match");
+
+    [MethodImpl(MethodImplOptions.NoInlining)]
+    static void ThrowMismatchedVertexCount() =>
+        throw new Exception("InitMeshData: side vertex count does not match total vertex count");
 }
 
 // [BurstCompile]
