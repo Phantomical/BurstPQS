@@ -247,7 +247,7 @@ public static partial class TextureMapSO
     // csharpier-ignore-start
 
     // BC6H uses the same 2-subset partition table as BC7 (first 32 entries)
-    static readonly int[] BC6HPartitionTable =
+    static readonly byte[] BC6HPartitionTable =
     {
         0, 0, 1, 1, 0, 0, 1, 1, 0, 0, 1, 1, 0, 0, 1, 1, // partition 0
         0, 0, 0, 1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0, 0, 1, // partition 1
@@ -283,7 +283,7 @@ public static partial class TextureMapSO
         0, 0, 1, 1, 1, 0, 0, 1, 1, 0, 0, 1, 1, 1, 0, 0, // partition 31
     };
 
-    static readonly int[] BC6HAnchorIndex =
+    static readonly byte[] BC6HAnchorIndex =
     {
         15, 15, 15, 15, 15, 15, 15, 15,
         15, 15, 15, 15, 15, 15, 15, 15,
@@ -570,7 +570,7 @@ public static partial class TextureMapSO
             hi = e3;
         }
 
-        int[] weights = modeInfo.indexBits == 3 ? BC7Weights3 : BC7Weights4;
+        byte[] weights = modeInfo.indexBits == 3 ? BC7Weights3 : BC7Weights4;
         int w = weights[idx];
 
         int finalR = ((64 - w) * lo.x + w * hi.x + 32) >> 6;

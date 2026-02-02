@@ -97,7 +97,7 @@ public static partial class TextureMapSO
 
     // csharpier-ignore-start
     // 2-subset partition table: 64 partitions x 16 pixels
-    static readonly int[] BC7PartitionTable2 =
+    static readonly byte[] BC7PartitionTable2 =
     {
         0,0,1,1,0,0,1,1,0,0,1,1,0,0,1,1, // partition  0
         0,0,0,1,0,0,0,1,0,0,0,1,0,0,0,1, // partition  1
@@ -166,7 +166,7 @@ public static partial class TextureMapSO
     };
 
     // 3-subset partition table: 64 partitions x 16 pixels
-    static readonly int[] BC7PartitionTable3 =
+    static readonly byte[] BC7PartitionTable3 =
     {
         0,0,1,1,0,0,1,1,0,2,2,1,2,2,2,2, // partition  0
         0,0,0,1,0,0,1,1,2,2,1,1,2,2,2,1, // partition  1
@@ -235,7 +235,7 @@ public static partial class TextureMapSO
     };
 
     // Anchor indices for 2-subset partitions (second subset anchor)
-    static readonly int[] BC7AnchorIndex2_1 =
+    static readonly byte[] BC7AnchorIndex2_1 =
     {
         15,15,15,15,15,15,15,15,
         15,15,15,15,15,15,15,15,
@@ -248,7 +248,7 @@ public static partial class TextureMapSO
     };
 
     // Anchor indices for 3-subset partitions (second subset)
-    static readonly int[] BC7AnchorIndex3_1 =
+    static readonly byte[] BC7AnchorIndex3_1 =
     {
          3, 3,15,15, 8, 3,15,15,
          8, 8, 6, 6, 6, 5, 3, 3,
@@ -261,7 +261,7 @@ public static partial class TextureMapSO
     };
 
     // Anchor indices for 3-subset partitions (third subset)
-    static readonly int[] BC7AnchorIndex3_2 =
+    static readonly byte[] BC7AnchorIndex3_2 =
     {
         15, 8, 8, 3,15,15, 3, 8,
         15,15,15,15,15,15,15, 8,
@@ -360,9 +360,9 @@ public static partial class TextureMapSO
         }
     }
 
-    static readonly int[] BC7Weights2 = { 0, 21, 43, 64 };
-    static readonly int[] BC7Weights3 = { 0, 9, 18, 27, 37, 46, 55, 64 };
-    static readonly int[] BC7Weights4 =
+    static readonly byte[] BC7Weights2 = { 0, 21, 43, 64 };
+    static readonly byte[] BC7Weights3 = { 0, 9, 18, 27, 37, 46, 55, 64 };
+    static readonly byte[] BC7Weights4 =
     {
         0, 4, 9, 13, 17, 21, 26, 30, 34, 38, 43, 47, 51, 55, 60, 64,
     };
@@ -711,8 +711,8 @@ public static partial class TextureMapSO
             alphaIdx = idx2;
         }
 
-        int[] colorWeights = idxMode == 0 ? BC7Weights2 : BC7Weights3;
-        int[] alphaWeights = idxMode == 0 ? BC7Weights3 : BC7Weights2;
+        byte[] colorWeights = idxMode == 0 ? BC7Weights2 : BC7Weights3;
+        byte[] alphaWeights = idxMode == 0 ? BC7Weights3 : BC7Weights2;
 
         int ri = BC7Interpolate(BC7Unquantize(r0, 5), BC7Unquantize(r1, 5), colorWeights[colorIdx]);
         int gi = BC7Interpolate(BC7Unquantize(g0, 5), BC7Unquantize(g1, 5), colorWeights[colorIdx]);
