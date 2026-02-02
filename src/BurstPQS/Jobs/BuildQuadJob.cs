@@ -244,6 +244,8 @@ internal struct BuildQuadJob : IJob
 
         AssignMeshData(meshData, descs, VertexAttribute.Position, data.verts);
 
+        if (reqColorChannel)
+            AssignMeshData(meshData, descs, VertexAttribute.Color, data.vertColor);
         if (reqSphereUV || reqUVQuad)
             AssignMeshData(meshData, descs, VertexAttribute.TexCoord0, data.uvs);
         if (reqUV2)
@@ -252,9 +254,6 @@ internal struct BuildQuadJob : IJob
             AssignMeshData(meshData, descs, VertexAttribute.TexCoord2, data.uv3s);
         if (reqUV4)
             AssignMeshData(meshData, descs, VertexAttribute.TexCoord3, data.uv4s);
-
-        if (reqColorChannel)
-            AssignMeshData(meshData, descs, VertexAttribute.Color, data.vertColor);
 
         var normals = new NativeArray<Vector3>(data.VertexCount, Allocator.TempJob);
         mesh.normalData = normals;
