@@ -6,7 +6,7 @@ namespace BurstPQS.Map;
 
 public static partial class TextureMapSO
 {
-    [BurstCompile]
+    // [BurstCompile]
     public struct RFloat : IMapSO
     {
         NativeArray<float> data;

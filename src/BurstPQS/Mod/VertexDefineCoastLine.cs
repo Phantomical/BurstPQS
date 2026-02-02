@@ -2,7 +2,7 @@ using Unity.Burst;
 
 namespace BurstPQS.Mod;
 
-[BurstCompile]
+// [BurstCompile]
 [BatchPQSMod(typeof(PQSMod_VertexDefineCoastLine))]
 public class VertexDefineCoastLine(PQSMod_VertexDefineCoastLine mod)
     : BatchPQSMod<PQSMod_VertexDefineCoastLine>(mod)
@@ -14,7 +14,7 @@ public class VertexDefineCoastLine(PQSMod_VertexDefineCoastLine mod)
         jobSet.Add(new BuildJob { oceanRadius = mod.oceanRadius, depthOffset = mod.depthOffset });
     }
 
-    [BurstCompile]
+    // [BurstCompile]
     struct BuildJob : IBatchPQSHeightJob
     {
         public double oceanRadius;

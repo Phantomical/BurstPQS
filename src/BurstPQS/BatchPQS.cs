@@ -12,7 +12,7 @@ using static PQS;
 
 namespace BurstPQS;
 
-[BurstCompile]
+// [BurstCompile]
 public class BatchPQS : MonoBehaviour
 {
     static bool ForceFallback = false;
@@ -107,6 +107,9 @@ public class BatchPQS : MonoBehaviour
         quad.mesh.SetIndexBufferParams(cacheTriIndexCount, IndexFormat.UInt32);
 
         handle.Complete();
+
+        if (!meshData.vertexData.IsCreated)
+            throw new Exception("mesh vertex data is empty");
 
         quad.mesh.SetVertexBufferParams(cacheVertCount, meshData.descriptors);
         quad.mesh.SetVertexBufferData(meshData.vertexData, 0, 0, cacheVertCount);

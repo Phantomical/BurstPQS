@@ -4,7 +4,7 @@ using Unity.Burst;
 
 namespace BurstPQS.Mod;
 
-[BurstCompile]
+// [BurstCompile]
 [BatchPQSMod(typeof(PQSMod_TangentTextureRanges))]
 public class TangentTextureRanges(PQSMod_TangentTextureRanges mod)
     : BatchPQSMod<PQSMod_TangentTextureRanges>(mod)

@@ -13,7 +13,7 @@ public static partial class TextureMapSO
     /// a 4x4 grid of 2-bit indices selecting from a 4-color palette interpolated between them.
     /// When <c>color0 &lt;= color1</c>, index 3 produces transparent black (1-bit alpha).
     /// </summary>
-    [BurstCompile]
+    // [BurstCompile]
     public struct DXT1 : IMapSO
     {
         NativeArray<byte> data;

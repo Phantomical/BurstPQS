@@ -9,7 +9,7 @@ using UnityEngine;
 
 namespace BurstPQS.Mod;
 
-[BurstCompile]
+// [BurstCompile]
 [BatchPQSMod(typeof(PQSMod_VertexPlanet))]
 public class VertexPlanet(PQSMod_VertexPlanet mod) : BatchPQSMod<PQSMod_VertexPlanet>(mod)
 {

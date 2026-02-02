@@ -6,7 +6,7 @@ namespace BurstPQS.Map;
 
 public static partial class TextureMapSO
 {
-    [BurstCompile]
+    // [BurstCompile]
     public struct RGB24 : IMapSO
     {
         NativeArray<byte> data;

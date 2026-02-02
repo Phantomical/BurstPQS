@@ -3,7 +3,7 @@ using Unity.Burst;
 
 namespace BurstPQS.Mod;
 
-[BurstCompile]
+// [BurstCompile]
 [BatchPQSMod(typeof(PQSMod_FlattenOcean))]
 public class FlattenOcean(PQSMod_FlattenOcean mod) : BatchPQSMod<PQSMod_FlattenOcean>(mod)
 {
@@ -14,7 +14,7 @@ public class FlattenOcean(PQSMod_FlattenOcean mod) : BatchPQSMod<PQSMod_FlattenO
         jobSet.Add(new BuildJob { oceanRad = mod.oceanRad });
     }
 
-    [BurstCompile]
+    // [BurstCompile]
     struct BuildJob : IBatchPQSHeightJob
     {
         public double oceanRad;

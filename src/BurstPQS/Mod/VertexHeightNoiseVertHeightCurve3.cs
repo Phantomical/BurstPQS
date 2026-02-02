@@ -5,7 +5,7 @@ using Unity.Burst;
 
 namespace BurstPQS.Mod;
 
-[BurstCompile]
+// [BurstCompile]
 [BatchPQSMod(typeof(PQSMod_VertexHeightNoiseVertHeightCurve3))]
 public class VertexHeightNoiseVertHeightCurve3(PQSMod_VertexHeightNoiseVertHeightCurve3 mod)
     : BatchPQSMod<PQSMod_VertexHeightNoiseVertHeightCurve3>(mod)
@@ -45,7 +45,7 @@ public class VertexHeightNoiseVertHeightCurve3(PQSMod_VertexHeightNoiseVertHeigh
         public double hDeltaR;
     }
 
-    [BurstCompile]
+    // [BurstCompile]
     struct BuildJob : IBatchPQSHeightJob, IDisposable
     {
         public BurstRidgedMultifractal ridgedAdd;

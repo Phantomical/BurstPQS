@@ -5,7 +5,7 @@ using UnityEngine;
 
 namespace BurstPQS.Mod;
 
-[BurstCompile]
+// [BurstCompile]
 [BatchPQSMod(typeof(PQSMod_HeightColorMap2))]
 public class HeightColorMap2(PQSMod_HeightColorMap2 mod) : BatchPQSMod<PQSMod_HeightColorMap2>(mod)
 {

@@ -3,7 +3,7 @@ using Unity.Burst;
 
 namespace BurstPQS.Mod;
 
-[BurstCompile]
+// [BurstCompile]
 [BatchPQSMod(typeof(PQSMod_VertexHeightOblate))]
 public class VertexHeightOblate(PQSMod_VertexHeightOblate mod)
     : BatchPQSMod<PQSMod_VertexHeightOblate>(mod)
@@ -15,7 +15,7 @@ public class VertexHeightOblate(PQSMod_VertexHeightOblate mod)
         jobSet.Add(new BuildJob { height = mod.height, pow = mod.pow });
     }
 
-    [BurstCompile]
+    // [BurstCompile]
     struct BuildJob : IBatchPQSHeightJob
     {
         public double height;

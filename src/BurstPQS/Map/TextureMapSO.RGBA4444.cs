@@ -10,7 +10,7 @@ public static partial class TextureMapSO
     /// RGBA4444 format. Each pixel is a 16-bit value with 4 bits per channel
     /// in the order R, G, B, A (high to low bits).
     /// </summary>
-    [BurstCompile]
+    // [BurstCompile]
     public struct RGBA4444 : IMapSO
     {
         NativeArray<byte> data;

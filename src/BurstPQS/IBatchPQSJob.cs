@@ -526,7 +526,7 @@ internal sealed unsafe class JobData<T>(in T job) : JobData
 
     public override void BuildMesh(in BuildMeshData data)
     {
-        if (BuildVerticesFunc is null)
+        if (BuildMeshFunc is null)
             return;
 
         using var scope = BuildMeshMarker.Auto();

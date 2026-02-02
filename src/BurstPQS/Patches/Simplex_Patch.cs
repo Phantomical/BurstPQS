@@ -25,7 +25,7 @@ internal static class Simplex_Noise_Patch
         return false;
     }
 
-    [BurstCompile]
+    // [BurstCompile]
     // [BurstPQSAutoPatch]
     static double Noise(in BurstSimplex simplex, double x, double y, double z)
     {
@@ -51,7 +51,7 @@ internal static class Billow_GetValue_Patch
         return false;
     }
 
-    [BurstCompile]
+    // [BurstCompile]
     [BurstPQSAutoPatch]
     static double GetValue(in BurstBillow noise, double x, double y, double z) =>
         noise.GetValue(x, y, z);
@@ -74,7 +74,7 @@ internal static class RidgedMultifractal_GetValue_Patch
         return false;
     }
 
-    [BurstCompile]
+    // [BurstCompile]
     [BurstPQSAutoPatch]
     static double GetValue(in BurstRidgedMultifractal noise, double x, double y, double z) =>
         noise.GetValue(x, y, z);
@@ -103,7 +103,7 @@ internal static class Voronoi_GetValue_Patch
         return false;
     }
 
-    [BurstCompile]
+    // [BurstCompile]
     // [BurstPQSAutoPatch]
     static double GetValue(in BurstVoronoi noise, double x, double y, double z) =>
         noise.GetValue(x, y, z);

@@ -13,7 +13,7 @@ public static partial class TextureMapSO
     /// of 3-bit indices selecting from a 6- or 8-value palette interpolated between them.
     /// Uses the same alpha block encoding as DXT5.
     /// </summary>
-    [BurstCompile]
+    // [BurstCompile]
     public struct BC4 : IMapSO
     {
         NativeArray<byte> data;

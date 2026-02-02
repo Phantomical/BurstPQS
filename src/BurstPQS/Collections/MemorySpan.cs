@@ -106,6 +106,14 @@ public readonly unsafe struct MemorySpan<T> : IEnumerable<T>
         );
     }
 
+    public readonly T[] ToArray()
+    {
+        var array = new T[Length];
+        fixed (T* ptr = array)
+            UnsafeUtility.MemCpy(ptr, GetDataPtr(), sizeof(T) * Length);
+        return array;
+    }
+
     #region IEnumerator
     public readonly Enumerator GetEnumerator() => new(this);
 

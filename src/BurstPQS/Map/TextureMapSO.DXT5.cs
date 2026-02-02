@@ -13,7 +13,7 @@ public static partial class TextureMapSO
     /// DXT1 color block. The alpha block stores two 8-bit endpoints and a 4x4 grid of
     /// 3-bit indices selecting from an 8-value palette interpolated between them.
     /// </summary>
-    [BurstCompile]
+    // [BurstCompile]
     public struct DXT5 : IMapSO
     {
         NativeArray<byte> data;

@@ -8,7 +8,7 @@ using UnityEngine;
 
 namespace BurstPQS.Mod;
 
-[BurstCompile]
+// [BurstCompile]
 [BatchPQSMod(typeof(PQSMod_VertexSimplexColorRGB))]
 public class VertexSimplexColorRGB(PQSMod_VertexSimplexColorRGB mod)
     : BatchPQSMod<PQSMod_VertexSimplexColorRGB>(mod)
@@ -31,7 +31,7 @@ public class VertexSimplexColorRGB(PQSMod_VertexSimplexColorRGB mod)
         );
     }
 
-    [BurstCompile]
+    // [BurstCompile]
     struct BuildJob : IBatchPQSVertexJob, IDisposable
     {
         public BurstSimplex simplex;

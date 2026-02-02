@@ -4,7 +4,7 @@ using Unity.Burst;
 
 namespace BurstPQS.Mod;
 
-[BurstCompile]
+// [BurstCompile]
 [BatchPQSMod(typeof(PQSMod_VertexNoise))]
 public class VertexNoise(PQSMod_VertexNoise mod) : BatchPQSMod<PQSMod_VertexNoise>(mod)
 {
@@ -34,7 +34,7 @@ public class VertexNoise(PQSMod_VertexNoise mod) : BatchPQSMod<PQSMod_VertexNois
         );
     }
 
-    [BurstCompile]
+    // [BurstCompile]
     struct BuildJob : IBatchPQSHeightJob
     {
         public Select<

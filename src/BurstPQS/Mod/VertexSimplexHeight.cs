@@ -3,7 +3,7 @@ using Unity.Burst;
 
 namespace BurstPQS.Mod;
 
-[BurstCompile]
+// [BurstCompile]
 [BatchPQSMod(typeof(PQSMod_VertexSimplexHeight))]
 public class VertexSimplexHeight(PQSMod_VertexSimplexHeight mod)
     : BatchPQSMod<PQSMod_VertexSimplexHeight>(mod)
@@ -22,7 +22,7 @@ public class VertexSimplexHeight(PQSMod_VertexSimplexHeight mod)
         simplex.Dispose();
     }
 
-    [BurstCompile]
+    // [BurstCompile]
     struct BuildJob : IBatchPQSHeightJob
     {
         public BurstSimplex simplex;

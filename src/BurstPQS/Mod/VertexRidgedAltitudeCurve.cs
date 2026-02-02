@@ -5,7 +5,7 @@ using Unity.Burst;
 
 namespace BurstPQS.Mod;
 
-[BurstCompile]
+// [BurstCompile]
 [BatchPQSMod(typeof(PQSMod_VertexRidgedAltitudeCurve))]
 public class VertexRidgedAltitudeCurve(PQSMod_VertexRidgedAltitudeCurve mod)
     : BatchPQSMod<PQSMod_VertexRidgedAltitudeCurve>(mod)
@@ -38,7 +38,7 @@ public class VertexRidgedAltitudeCurve(PQSMod_VertexRidgedAltitudeCurve mod)
         );
     }
 
-    [BurstCompile]
+    // [BurstCompile]
     struct BuildHeightsJob : IBatchPQSHeightJob
     {
         public BurstSimplex simplex;

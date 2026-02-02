@@ -10,7 +10,7 @@ public static partial class TextureMapSO
     /// ARGB4444 format. Each pixel is a 16-bit value with 4 bits per channel
     /// in the order A, R, G, B (high to low bits).
     /// </summary>
-    [BurstCompile]
+    // [BurstCompile]
     public struct ARGB4444 : IMapSO
     {
         NativeArray<byte> data;

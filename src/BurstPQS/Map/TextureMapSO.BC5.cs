@@ -12,7 +12,7 @@ public static partial class TextureMapSO
     /// 4x4 pixels (8 bits/pixel). Each block consists of two independent BC4 blocks
     /// side by side, one for the red channel and one for the green channel.
     /// </summary>
-    [BurstCompile]
+    // [BurstCompile]
     public struct BC5 : IMapSO
     {
         NativeArray<byte> data;

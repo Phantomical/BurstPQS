@@ -5,7 +5,7 @@ using Unity.Burst;
 
 namespace BurstPQS.Mod;
 
-[BurstCompile]
+// [BurstCompile]
 [BatchPQSMod(typeof(PQSMod_VertexColorMap))]
 public class VertexColorMap(PQSMod_VertexColorMap mod) : BatchPQSMod<PQSMod_VertexColorMap>(mod)
 {
@@ -16,7 +16,7 @@ public class VertexColorMap(PQSMod_VertexColorMap mod) : BatchPQSMod<PQSMod_Vert
         jobSet.Add(new BuildVerticesJob { vertexColorMap = BurstMapSO.Create(mod.vertexColorMap) });
     }
 
-    [BurstCompile]
+    // [BurstCompile]
     struct BuildVerticesJob : IBatchPQSVertexJob, IDisposable
     {
         public BurstMapSO vertexColorMap;

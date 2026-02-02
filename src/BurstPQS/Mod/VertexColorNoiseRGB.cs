@@ -39,7 +39,7 @@ public class VertexColorNoiseRGB(PQSMod_VertexColorNoiseRGB mod)
         public float total;
     }
 
-    [BurstCompile]
+    // [BurstCompile]
     struct PerlinJob : IBatchPQSVertexJob
     {
         public BurstPerlin noise;
@@ -56,7 +56,7 @@ public class VertexColorNoiseRGB(PQSMod_VertexColorNoiseRGB mod)
         }
     }
 
-    [BurstCompile]
+    // [BurstCompile]
     struct RidgedMultifractalJob : IBatchPQSVertexJob
     {
         public BurstRidgedMultifractal noise;
@@ -73,7 +73,7 @@ public class VertexColorNoiseRGB(PQSMod_VertexColorNoiseRGB mod)
         }
     }
 
-    [BurstCompile]
+    // [BurstCompile]
     struct BillowJob : IBatchPQSVertexJob
     {
         public BurstBillow noise;

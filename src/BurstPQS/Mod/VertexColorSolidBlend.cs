@@ -3,7 +3,7 @@ using UnityEngine;
 
 namespace BurstPQS.Mod;
 
-[BurstCompile]
+// [BurstCompile]
 [BatchPQSMod(typeof(PQSMod_VertexColorSolidBlend))]
 public class VertexColorSolidBlend(PQSMod_VertexColorSolidBlend mod)
     : BatchPQSMod<PQSMod_VertexColorSolidBlend>(mod)
@@ -15,7 +15,7 @@ public class VertexColorSolidBlend(PQSMod_VertexColorSolidBlend mod)
         jobSet.Add(new BuildJob { color = mod.color });
     }
 
-    [BurstCompile]
+    // [BurstCompile]
     struct BuildJob : IBatchPQSVertexJob
     {
         public Color color;

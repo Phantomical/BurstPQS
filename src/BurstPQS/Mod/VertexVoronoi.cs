@@ -3,7 +3,7 @@ using Unity.Burst;
 
 namespace BurstPQS.Mod;
 
-[BurstCompile]
+// [BurstCompile]
 [BatchPQSMod(typeof(PQSMod_VertexVoronoi))]
 public class VertexVoronoi(PQSMod_VertexVoronoi mod) : BatchPQSMod<PQSMod_VertexVoronoi>(mod)
 {
@@ -16,7 +16,7 @@ public class VertexVoronoi(PQSMod_VertexVoronoi mod) : BatchPQSMod<PQSMod_Vertex
         );
     }
 
-    [BurstCompile]
+    // [BurstCompile]
     struct BuildHeightsJob : IBatchPQSHeightJob
     {
         public BurstVoronoi voronoi;

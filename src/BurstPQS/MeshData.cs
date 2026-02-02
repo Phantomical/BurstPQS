@@ -8,7 +8,7 @@ namespace BurstPQS;
 internal class MeshData : IDisposable
 {
     public VertexAttributeDescriptor[] descriptors;
-    public NativeArray<byte> vertexData;
+    public NativeArray<float> vertexData;
     public NativeArray<Vector3> normalData;
     public NativeArray<Vector4> tangentData;
 

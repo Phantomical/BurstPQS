@@ -222,8 +222,13 @@ internal struct BuildQuadJob : IJob
         var descs = new List<VertexAttributeDescriptor>()
         {
             new(VertexAttribute.Position, VertexAttributeFormat.Float32, 3),
+            new(VertexAttribute.Normal, VertexAttributeFormat.Float32, 3, 1),
         };
 
+        if (reqAssignTangents)
+            descs.Add(new(VertexAttribute.Tangent, VertexAttributeFormat.Float32, 4, 2));
+        if (reqColorChannel)
+            descs.Add(new(VertexAttribute.Color, VertexAttributeFormat.Float32, 4));
         if (reqSphereUV || reqUVQuad)
             descs.Add(new(VertexAttribute.TexCoord0, VertexAttributeFormat.Float32, 2));
         if (reqUV2)
@@ -232,13 +237,9 @@ internal struct BuildQuadJob : IJob
             descs.Add(new(VertexAttribute.TexCoord2, VertexAttributeFormat.Float32, 2));
         if (reqUV4)
             descs.Add(new(VertexAttribute.TexCoord3, VertexAttributeFormat.Float32, 2));
-        if (reqColorChannel)
-            descs.Add(new(VertexAttribute.Color, VertexAttributeFormat.Float32, 4));
-        if (reqAssignTangents)
-            descs.Add(new(VertexAttribute.Tangent, VertexAttributeFormat.Float32, 4));
 
-        var stride = descs.Sum(attr => attr.dimension * sizeof(float));
-        var meshData = new NativeArray<byte>(data.VertexCount * stride, Allocator.TempJob);
+        var stride = descs.Where(attr => attr.stream == 0).Sum(attr => attr.dimension);
+        var meshData = new NativeArray<float>(data.VertexCount * stride, Allocator.TempJob);
         mesh.vertexData = meshData;
 
         AssignMeshData(meshData, descs, VertexAttribute.Position, data.verts);
@@ -258,34 +259,35 @@ internal struct BuildQuadJob : IJob
         var normals = new NativeArray<Vector3>(data.VertexCount, Allocator.TempJob);
         mesh.normalData = normals;
         normals.CopyFrom(data.normals.AsNativeArray());
-        descs.Add(new(VertexAttribute.Normal, VertexAttributeFormat.Float32, 3, 1));
 
         if (reqAssignTangents)
         {
             var tangents = new NativeArray<Vector4>(data.VertexCount, Allocator.TempJob);
             mesh.tangentData = tangents;
             tangents.CopyFrom(data.tangents.AsNativeArray());
-            descs.Add(new(VertexAttribute.Tangent, VertexAttributeFormat.Float32, 4, 2));
         }
 
         mesh.descriptors = [.. descs];
     }
 
     readonly unsafe void AssignMeshData<T>(
-        NativeArray<byte> vertexBuffer,
+        NativeArray<float> vertexBuffer,
         List<VertexAttributeDescriptor> descs,
         VertexAttribute attribute,
         MemorySpan<T> data
     )
         where T : unmanaged
     {
-        var stride = descs.Sum(attr => attr.dimension * sizeof(float));
+        var stride = descs
+            .Where(attr => attr.stream == 0)
+            .Sum(attr => attr.dimension * sizeof(float));
         var offset = descs
             .TakeWhile(attr => attr.attribute != attribute)
-            .Sum(attr => attr.dimension * sizeof(float));
+            .Where(attr => attr.stream == 0)
+            .Sum(attr => attr.dimension);
 
         var slice = NativeSliceUnsafeUtility.ConvertExistingDataToNativeSlice<T>(
-            vertexBuffer.GetUnsafePtr(),
+            (float*)vertexBuffer.GetUnsafePtr() + offset,
             stride,
             cacheVertexCount
         );
@@ -475,7 +477,7 @@ internal struct BuildQuadJob : IJob
     }
 }
 
-[BurstCompile]
+// [BurstCompile]
 internal static class BuildQuadJobExt
 {
     delegate void InitHeightDataDelegate(ref BuildQuadJob job, in BuildHeightsData data);
@@ -488,16 +490,16 @@ internal static class BuildQuadJobExt
 
     static BuildQuadJobExt()
     {
-        InitHeightDataFunc = BurstCompiler
-            .CompileFunctionPointer<InitHeightDataDelegate>(InitHeightDataBurst)
+        InitHeightDataFunc = BurstUtil
+            .MaybeCompileFunctionPointer<InitHeightDataDelegate>(InitHeightDataBurst)
             .Invoke;
 
-        InitVertexDataFunc = BurstCompiler
-            .CompileFunctionPointer<InitVertexDataDelegate>(InitVertexDataBurst)
+        InitVertexDataFunc = BurstUtil
+            .MaybeCompileFunctionPointer<InitVertexDataDelegate>(InitVertexDataBurst)
             .Invoke;
 
-        InitMeshDataFunc = BurstCompiler
-            .CompileFunctionPointer<InitMeshDataDelegate>(InitMeshDataBurst)
+        InitMeshDataFunc = BurstUtil
+            .MaybeCompileFunctionPointer<InitMeshDataDelegate>(InitMeshDataBurst)
             .Invoke;
     }
 
@@ -510,15 +512,15 @@ internal static class BuildQuadJobExt
     internal static void InitMeshData(this ref BuildQuadJob job, ref BuildMeshData data) =>
         InitMeshDataFunc(ref job, ref data);
 
-    [BurstCompile]
+    // [BurstCompile]
     static void InitHeightDataBurst(this ref BuildQuadJob job, in BuildHeightsData data) =>
         job.InitHeightDataImpl(in data);
 
-    [BurstCompile]
+    // [BurstCompile]
     static void InitVertexDataBurst(this ref BuildQuadJob job, in BuildVerticesData data) =>
         job.InitVertexDataImpl(in data);
 
-    [BurstCompile]
+    // [BurstCompile]
     static void InitMeshDataBurst(this ref BuildQuadJob job, ref BuildMeshData data) =>
         job.InitMeshDataImpl(ref data);
 

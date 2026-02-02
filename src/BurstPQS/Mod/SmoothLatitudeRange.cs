@@ -3,7 +3,7 @@ using Unity.Burst;
 
 namespace BurstPQS.Mod;
 
-[BurstCompile]
+// [BurstCompile]
 [BatchPQSMod(typeof(PQSMod_SmoothLatitudeRange))]
 public class SmoothLatitudeRange(PQSMod_SmoothLatitudeRange mod)
     : BatchPQSMod<PQSMod_SmoothLatitudeRange>(mod)
@@ -22,7 +22,7 @@ public class SmoothLatitudeRange(PQSMod_SmoothLatitudeRange mod)
         );
     }
 
-    [BurstCompile]
+    // [BurstCompile]
     struct BuildJob : IBatchPQSHeightJob
     {
         public BurstLerpRange latitudeRange;

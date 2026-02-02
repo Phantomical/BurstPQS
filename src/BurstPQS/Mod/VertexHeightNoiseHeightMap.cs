@@ -98,7 +98,7 @@ public class VertexHeightNoiseHeightMap(PQSMod_VertexHeightNoiseHeightMap mod)
         }
     }
 
-    [BurstCompile]
+    // [BurstCompile]
     struct BuildJobPerlin : IBatchPQSHeightJob
     {
         public BurstMapSO heightMap;

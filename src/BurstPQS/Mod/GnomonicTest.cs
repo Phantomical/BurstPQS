@@ -2,7 +2,7 @@ using Unity.Burst;
 
 namespace BurstPQS.Mod;
 
-[BurstCompile]
+// [BurstCompile]
 [BatchPQSMod(typeof(PQSMod_GnomonicTest))]
 public class GnomonicTest(PQSMod_GnomonicTest mod) : BatchPQSMod<PQSMod_GnomonicTest>(mod)
 {

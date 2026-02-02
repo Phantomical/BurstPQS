@@ -11,7 +11,7 @@ public static partial class TextureMapSO
     /// R8A8 format (not a native Unity format). Each pixel is 2 bytes: R, A.
     /// Used by some KSP mods.
     /// </summary>
-    [BurstCompile]
+    // [BurstCompile]
     public struct R8A8 : IMapSO
     {
         NativeArray<byte> data;

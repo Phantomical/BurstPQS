@@ -8,7 +8,7 @@ using UnityEngine;
 
 namespace BurstPQS.Mod;
 
-[BurstCompile]
+// [BurstCompile]
 [BatchPQSMod(typeof(PQSMod_VoronoiCraters))]
 public class VoronoiCraters(PQSMod_VoronoiCraters mod) : BatchPQSMod<PQSMod_VoronoiCraters>(mod)
 {
@@ -35,7 +35,7 @@ public class VoronoiCraters(PQSMod_VoronoiCraters mod) : BatchPQSMod<PQSMod_Voro
         );
     }
 
-    [BurstCompile]
+    // [BurstCompile]
     struct BuildJob(PQSMod_VoronoiCraters mod) : IBatchPQSHeightJob, IBatchPQSVertexJob, IDisposable
     {
         public BurstVoronoi voronoi = new(mod.voronoi);
