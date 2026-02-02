@@ -7,6 +7,11 @@ using UnityEngine;
 
 namespace BurstPQS.Map;
 
+/// <summary>
+/// This class is closer to a collection of individual <see cref="IMapSO"/>
+/// implementations that can be used to convert a <see cref="Texture2D"/>
+/// into a <see cref="BurstMapSO"/>.
+/// </summary>
 [BurstCompile(FloatMode = FloatMode.Fast)]
 public static partial class TextureMapSO
 {
@@ -15,60 +20,35 @@ public static partial class TextureMapSO
 
     public static BurstMapSO Create(Texture2D texture, MapSO.MapDepth depth)
     {
-        switch (texture.format)
+        return texture.format switch
         {
-            case TextureFormat.Alpha8:
-                return BurstMapSO.Create(new Alpha8(texture, depth));
-            case TextureFormat.ARGB32:
-                return BurstMapSO.Create(new ARGB32(texture, depth));
-            case TextureFormat.ARGB4444:
-                return BurstMapSO.Create(new ARGB4444(texture, depth));
-            case TextureFormat.BC4:
-                return BurstMapSO.Create(new BC4(texture, depth));
-            case TextureFormat.BC5:
-                return BurstMapSO.Create(new BC5(texture, depth));
-            case TextureFormat.BC6H:
-                return BurstMapSO.Create(new BC6H(texture, depth));
-            case TextureFormat.BC7:
-                return BurstMapSO.Create(new BC7(texture, depth));
-            case TextureFormat.BGRA32:
-                return BurstMapSO.Create(new BGRA32(texture, depth));
-            case TextureFormat.DXT1:
-                return BurstMapSO.Create(new DXT1(texture, depth));
-            case TextureFormat.DXT5:
-                return BurstMapSO.Create(new DXT5(texture, depth));
-            case TextureFormat.R8:
-                return BurstMapSO.Create(new R8(texture, depth));
-            case TextureFormat.R16:
-                return BurstMapSO.Create(new R16(texture, depth));
-            case TextureFormat.RFloat:
-                return BurstMapSO.Create(new RFloat(texture, depth));
-            case TextureFormat.RG16:
-                return BurstMapSO.Create(new RG16(texture, depth));
-            case TextureFormat.RGB24:
-                return BurstMapSO.Create(new RGB24(texture, depth));
-            case TextureFormat.RGB565:
-                return BurstMapSO.Create(new RGB565(texture, depth));
-            case TextureFormat.RGBA32:
-                return BurstMapSO.Create(new RGBA32(texture, depth));
-            case TextureFormat.RGBA4444:
-                return BurstMapSO.Create(new RGBA4444(texture, depth));
-            case TextureFormat.RGBAFloat:
-                return BurstMapSO.Create(new RGBAFloat(texture, depth));
-            case TextureFormat.RGBAHalf:
-                return BurstMapSO.Create(new RGBAHalf(texture, depth));
-            case TextureFormat.RGFloat:
-                return BurstMapSO.Create(new RGFloat(texture, depth));
-            case TextureFormat.RHalf:
-                return BurstMapSO.Create(new RHalf(texture, depth));
-            case TextureFormat.RGHalf:
-                return BurstMapSO.Create(new RGHalf(texture, depth));
-
-            default:
-                throw new NotSupportedException(
-                    $"texture format {texture.format} is not supported by TextureMapSO"
-                );
-        }
+            TextureFormat.Alpha8 => BurstMapSO.Create(new Alpha8(texture, depth)),
+            TextureFormat.ARGB32 => BurstMapSO.Create(new ARGB32(texture, depth)),
+            TextureFormat.ARGB4444 => BurstMapSO.Create(new ARGB4444(texture, depth)),
+            TextureFormat.BC4 => BurstMapSO.Create(new BC4(texture, depth)),
+            TextureFormat.BC5 => BurstMapSO.Create(new BC5(texture, depth)),
+            TextureFormat.BC6H => BurstMapSO.Create(new BC6H(texture, depth)),
+            TextureFormat.BC7 => BurstMapSO.Create(new BC7(texture, depth)),
+            TextureFormat.BGRA32 => BurstMapSO.Create(new BGRA32(texture, depth)),
+            TextureFormat.DXT1 => BurstMapSO.Create(new DXT1(texture, depth)),
+            TextureFormat.DXT5 => BurstMapSO.Create(new DXT5(texture, depth)),
+            TextureFormat.R8 => BurstMapSO.Create(new R8(texture, depth)),
+            TextureFormat.R16 => BurstMapSO.Create(new R16(texture, depth)),
+            TextureFormat.RFloat => BurstMapSO.Create(new RFloat(texture, depth)),
+            TextureFormat.RG16 => BurstMapSO.Create(new RG16(texture, depth)),
+            TextureFormat.RGB24 => BurstMapSO.Create(new RGB24(texture, depth)),
+            TextureFormat.RGB565 => BurstMapSO.Create(new RGB565(texture, depth)),
+            TextureFormat.RGBA32 => BurstMapSO.Create(new RGBA32(texture, depth)),
+            TextureFormat.RGBA4444 => BurstMapSO.Create(new RGBA4444(texture, depth)),
+            TextureFormat.RGBAFloat => BurstMapSO.Create(new RGBAFloat(texture, depth)),
+            TextureFormat.RGBAHalf => BurstMapSO.Create(new RGBAHalf(texture, depth)),
+            TextureFormat.RGFloat => BurstMapSO.Create(new RGFloat(texture, depth)),
+            TextureFormat.RHalf => BurstMapSO.Create(new RHalf(texture, depth)),
+            TextureFormat.RGHalf => BurstMapSO.Create(new RGHalf(texture, depth)),
+            _ => throw new NotSupportedException(
+                $"texture format {texture.format} is not supported by TextureMapSO"
+            ),
+        };
     }
 
     static void ValidateFormat(Texture2D texture, TextureFormat expected)
