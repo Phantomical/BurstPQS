@@ -29,6 +29,7 @@ public static class MathUtil
     }
 
     public static double Clamp(double v, double min, double max) => Math.Min(Math.Max(v, min), max);
+
     public static int Clamp(int v, int min, int max) => Math.Min(Math.Max(v, min), max);
 
     public static double Clamp01(double v) => Clamp(v, 0.0, 1.0);
