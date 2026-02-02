@@ -1,4 +1,7 @@
+using System;
+using System.Reflection;
 using System.Runtime.CompilerServices;
+using System.Runtime.InteropServices;
 using Unity.Burst;
 using Unity.Collections;
 using Unity.Collections.LowLevel.Unsafe;
@@ -22,6 +25,15 @@ public static class BurstUtil
             Managed(ref burst);
             return burst;
         }
+    }
+
+    internal static FunctionPointer<F> MaybeCompileFunctionPointer<F>(F del)
+        where F : Delegate
+    {
+        if (del.Method.GetCustomAttribute<BurstCompileAttribute>() is null)
+            return new(Marshal.GetFunctionPointerForDelegate(del));
+        else
+            return BurstCompiler.CompileFunctionPointer(del);
     }
 
     public static unsafe T* Alloc<T>(T value, Allocator alloc = Allocator.Temp)

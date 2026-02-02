@@ -4,6 +4,7 @@ using System.Linq.Expressions;
 using System.Reflection;
 using System.Runtime.CompilerServices;
 using BurstPQS.Collections;
+using BurstPQS.Util;
 using Unity.Burst;
 using Unity.Burst.CompilerServices;
 using Unity.Collections;
@@ -387,7 +388,7 @@ internal sealed class JobData<T>(in T job) : JobData
             var executeDel = (BuildHeightsDelegate)
                 Delegate.CreateDelegate(typeof(BuildHeightsDelegate), executeFn);
 
-            BuildHeightsFunc = BurstCompiler.CompileFunctionPointer(executeDel).Invoke;
+            BuildHeightsFunc = BurstUtil.MaybeCompileFunctionPointer(executeDel).Invoke;
         }
 
         if (typeof(IBatchPQSVertexJob).IsAssignableFrom(type))
@@ -398,7 +399,7 @@ internal sealed class JobData<T>(in T job) : JobData
             var executeDel = (BuildVerticesDelegate)
                 Delegate.CreateDelegate(typeof(BuildVerticesDelegate), executeFn);
 
-            BuildVerticesFunc = BurstCompiler.CompileFunctionPointer(executeDel).Invoke;
+            BuildVerticesFunc = BurstUtil.MaybeCompileFunctionPointer(executeDel).Invoke;
         }
 
         if (typeof(IBatchPQSMeshJob).IsAssignableFrom(type))
@@ -409,7 +410,7 @@ internal sealed class JobData<T>(in T job) : JobData
             var executeDel = (BuildMeshDelegate)
                 Delegate.CreateDelegate(typeof(BuildMeshDelegate), executeFn);
 
-            BuildMeshFunc = BurstCompiler.CompileFunctionPointer(executeDel).Invoke;
+            BuildMeshFunc = BurstUtil.MaybeCompileFunctionPointer(executeDel).Invoke;
         }
 
         if (typeof(IBatchPQSMeshBuiltJob).IsAssignableFrom(type))

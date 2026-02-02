@@ -2,6 +2,7 @@ using System;
 using System.Collections.Generic;
 using System.Runtime.CompilerServices;
 using BurstPQS.Map.Detail;
+using BurstPQS.Util;
 using Unity.Burst;
 using Unity.Collections.LowLevel.Unsafe;
 using UnityEngine;
@@ -371,54 +372,54 @@ internal static unsafe class MapSOVTable<T>
     static MapSOVTable()
     {
         GetPixelFloat_Int_Fp =
-            BurstCompiler.CompileFunctionPointer<MapSOVTable.GetPixelFloat_Int_Fn>(
+            BurstUtil.MaybeCompileFunctionPointer<MapSOVTable.GetPixelFloat_Int_Fn>(
                 MapSOExtensions.GetPixelFloat_Int<T>.Execute
             );
         GetPixelFloat_Float_Fp =
-            BurstCompiler.CompileFunctionPointer<MapSOVTable.GetPixelFloat_Float_Fn>(
+            BurstUtil.MaybeCompileFunctionPointer<MapSOVTable.GetPixelFloat_Float_Fn>(
                 MapSOExtensions.GetPixelFloat_Float<T>.Execute
             );
         GetPixelFloat_Double_Fp =
-            BurstCompiler.CompileFunctionPointer<MapSOVTable.GetPixelFloat_Double_Fn>(
+            BurstUtil.MaybeCompileFunctionPointer<MapSOVTable.GetPixelFloat_Double_Fn>(
                 MapSOExtensions.GetPixelFloat_Double<T>.Execute
             );
 
         GetPixelColor_Int_Fp =
-            BurstCompiler.CompileFunctionPointer<MapSOVTable.GetPixelColor_Int_Fn>(
+            BurstUtil.MaybeCompileFunctionPointer<MapSOVTable.GetPixelColor_Int_Fn>(
                 MapSOExtensions.GetPixelColor_Int<T>.Execute
             );
         GetPixelColor_Float_Fp =
-            BurstCompiler.CompileFunctionPointer<MapSOVTable.GetPixelColor_Float_Fn>(
+            BurstUtil.MaybeCompileFunctionPointer<MapSOVTable.GetPixelColor_Float_Fn>(
                 MapSOExtensions.GetPixelColor_Float<T>.Execute
             );
         GetPixelColor_Double_Fp =
-            BurstCompiler.CompileFunctionPointer<MapSOVTable.GetPixelColor_Double_Fn>(
+            BurstUtil.MaybeCompileFunctionPointer<MapSOVTable.GetPixelColor_Double_Fn>(
                 MapSOExtensions.GetPixelColor_Double<T>.Execute
             );
 
         GetPixelColor32_Int_Fp =
-            BurstCompiler.CompileFunctionPointer<MapSOVTable.GetPixelColor32_Int_Fn>(
+            BurstUtil.MaybeCompileFunctionPointer<MapSOVTable.GetPixelColor32_Int_Fn>(
                 MapSOExtensions.GetPixelColor32_Int<T>.Execute
             );
         GetPixelColor32_Float_Fp =
-            BurstCompiler.CompileFunctionPointer<MapSOVTable.GetPixelColor32_Float_Fn>(
+            BurstUtil.MaybeCompileFunctionPointer<MapSOVTable.GetPixelColor32_Float_Fn>(
                 MapSOExtensions.GetPixelColor32_Float<T>.Execute
             );
         GetPixelColor32_Double_Fp =
-            BurstCompiler.CompileFunctionPointer<MapSOVTable.GetPixelColor32_Double_Fn>(
+            BurstUtil.MaybeCompileFunctionPointer<MapSOVTable.GetPixelColor32_Double_Fn>(
                 MapSOExtensions.GetPixelColor32_Double<T>.Execute
             );
 
         GetPixelHeightAlpha_Int_Fp =
-            BurstCompiler.CompileFunctionPointer<MapSOVTable.GetPixelHeightAlpha_Int_Fn>(
+            BurstUtil.MaybeCompileFunctionPointer<MapSOVTable.GetPixelHeightAlpha_Int_Fn>(
                 MapSOExtensions.GetPixelHeightAlpha_Int<T>.Execute
             );
         GetPixelHeightAlpha_Float_Fp =
-            BurstCompiler.CompileFunctionPointer<MapSOVTable.GetPixelHeightAlpha_Float_Fn>(
+            BurstUtil.MaybeCompileFunctionPointer<MapSOVTable.GetPixelHeightAlpha_Float_Fn>(
                 MapSOExtensions.GetPixelHeightAlpha_Float<T>.Execute
             );
         GetPixelHeightAlpha_Double_Fp =
-            BurstCompiler.CompileFunctionPointer<MapSOVTable.GetPixelHeightAlpha_Double_Fn>(
+            BurstUtil.MaybeCompileFunctionPointer<MapSOVTable.GetPixelHeightAlpha_Double_Fn>(
                 MapSOExtensions.GetPixelHeightAlpha_Double<T>.Execute
             );
 
@@ -430,7 +431,7 @@ internal static unsafe class MapSOVTable<T>
             var del = (MapSOVTable.DisposeFn)
                 Delegate.CreateDelegate(typeof(MapSOVTable.DisposeFn), disposeFn);
 
-            Dispose_Fp = BurstCompiler.CompileFunctionPointer(del);
+            Dispose_Fp = BurstUtil.MaybeCompileFunctionPointer(del);
         }
 
         VTable = MapSOVTable.Create<T>();
