@@ -26,6 +26,7 @@ public static partial class TextureMapSO
 
         public BC6H(Texture2D texture, MapSO.MapDepth depth, bool signed = false)
         {
+            ValidateFormat(texture, TextureFormat.BC6H);
             data = texture.GetRawTextureData<byte>();
             Width = texture.width;
             Height = texture.height;

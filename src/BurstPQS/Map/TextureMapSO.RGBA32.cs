@@ -17,6 +17,7 @@ public static partial class TextureMapSO
 
         public RGBA32(Texture2D texture, MapSO.MapDepth depth)
         {
+            ValidateFormat(texture, TextureFormat.RGBA32);
             data = texture.GetRawTextureData<byte>();
             Width = texture.width;
             Height = texture.height;

@@ -17,6 +17,7 @@ public static partial class TextureMapSO
 
         public RGBAFloat(Texture2D texture, MapSO.MapDepth depth)
         {
+            ValidateFormat(texture, TextureFormat.RGBAFloat);
             data = texture.GetRawTextureData<float>();
             Width = texture.width;
             Height = texture.height;

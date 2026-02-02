@@ -23,6 +23,7 @@ public static partial class TextureMapSO
 
         public BC5(Texture2D texture, MapSO.MapDepth depth)
         {
+            ValidateFormat(texture, TextureFormat.BC5);
             data = texture.GetRawTextureData<byte>();
             Width = texture.width;
             Height = texture.height;

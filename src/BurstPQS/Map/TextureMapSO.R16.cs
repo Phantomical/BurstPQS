@@ -17,6 +17,7 @@ public static partial class TextureMapSO
 
         public R16(Texture2D texture, MapSO.MapDepth depth)
         {
+            ValidateFormat(texture, TextureFormat.R16);
             data = texture.GetRawTextureData<ushort>();
             Width = texture.width;
             Height = texture.height;

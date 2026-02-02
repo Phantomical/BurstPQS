@@ -1,3 +1,4 @@
+using System;
 using Unity.Burst;
 using Unity.Collections;
 using UnityEngine;
@@ -21,6 +22,11 @@ public static partial class TextureMapSO
 
         public R8A8(Texture2D texture, MapSO.MapDepth depth)
         {
+            if (texture.format != TextureFormat.R16 && texture.format != TextureFormat.RG16)
+                throw new ArgumentException(
+                    $"Expected texture format R16 or RG16 but got {texture.format}",
+                    nameof(texture)
+                );
             data = texture.GetRawTextureData<byte>();
             Width = texture.width;
             Height = texture.height;

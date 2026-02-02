@@ -17,6 +17,7 @@ public static partial class TextureMapSO
 
         public R8(Texture2D texture, MapSO.MapDepth depth)
         {
+            ValidateFormat(texture, TextureFormat.R8);
             data = texture.GetRawTextureData<byte>();
             Width = texture.width;
             Height = texture.height;

@@ -72,6 +72,15 @@ public static partial class TextureMapSO
         }
     }
 
+    static void ValidateFormat(Texture2D texture, TextureFormat expected)
+    {
+        if (texture.format != expected)
+            throw new ArgumentException(
+                $"Expected texture format {expected} but got {texture.format}",
+                nameof(texture)
+            );
+    }
+
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
     static int PixelIndex(int x, int y, int width, int height)
     {

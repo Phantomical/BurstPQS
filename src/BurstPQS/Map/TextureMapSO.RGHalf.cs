@@ -18,6 +18,7 @@ public static partial class TextureMapSO
 
         public RGHalf(Texture2D texture, MapSO.MapDepth depth)
         {
+            ValidateFormat(texture, TextureFormat.RGHalf);
             data = texture.GetRawTextureData<half>();
             Width = texture.width;
             Height = texture.height;

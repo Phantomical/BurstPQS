@@ -23,6 +23,7 @@ public static partial class TextureMapSO
 
         public ARGB4444(Texture2D texture, MapSO.MapDepth depth)
         {
+            ValidateFormat(texture, TextureFormat.ARGB4444);
             data = texture.GetRawTextureData<byte>();
             Width = texture.width;
             Height = texture.height;
