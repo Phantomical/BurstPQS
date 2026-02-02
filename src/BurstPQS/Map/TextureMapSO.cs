@@ -127,6 +127,18 @@ public static partial class TextureMapSO
         };
     }
 
+    static Color32 DepthToColor32(byte r, byte g, byte b, byte a, MapSO.MapDepth depth)
+    {
+        return depth switch
+        {
+            MapSO.MapDepth.Greyscale => new Color32(r, r, r, 255),
+            MapSO.MapDepth.HeightAlpha => new Color32(r, r, r, a),
+            MapSO.MapDepth.RGB => new Color32(r, g, b, 255),
+            MapSO.MapDepth.RGBA => new Color32(r, g, b, a),
+            _ => new Color32(r, r, r, 255),
+        };
+    }
+
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
     static HeightAlpha DepthToHeightAlpha(float r, float g, float b, float a, MapSO.MapDepth depth)
     {

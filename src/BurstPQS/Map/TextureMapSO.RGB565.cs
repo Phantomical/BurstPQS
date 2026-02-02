@@ -13,7 +13,7 @@ public static partial class TextureMapSO
     [BurstCompile]
     public struct RGB565 : IMapSO
     {
-        NativeArray<byte> data;
+        NativeArray<ushort> data;
         MapSO.MapDepth depth;
 
         public int Width { get; private set; }
@@ -22,22 +22,16 @@ public static partial class TextureMapSO
         public RGB565(Texture2D texture, MapSO.MapDepth depth)
         {
             ValidateFormat(texture, TextureFormat.RGB565);
-            data = texture.GetRawTextureData<byte>();
+            data = texture.GetRawTextureData<ushort>();
             Width = texture.width;
             Height = texture.height;
             this.depth = depth;
         }
 
-        readonly void GetComponents(
-            int x,
-            int y,
-            out float r,
-            out float g,
-            out float b
-        )
+        readonly void GetComponents(int x, int y, out float r, out float g, out float b)
         {
-            int i = PixelIndex(x, y, Width, Height) * 2;
-            ushort pixel = (ushort)(data[i] | (data[i + 1] << 8));
+            int i = PixelIndex(x, y, Width, Height);
+            ushort pixel = data[i];
             UnpackRGB565(pixel, out r, out g, out b);
         }
 

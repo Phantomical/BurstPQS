@@ -38,8 +38,8 @@ public static partial class TextureMapSO
 
         public readonly Color32 GetPixelColor32(int x, int y)
         {
-            float v = data[PixelIndex(x, y, Width, Height)] * UShort2Float;
-            return DepthToColor32(v, 0f, 0f, 1f, depth);
+            ushort v = data[PixelIndex(x, y, Width, Height)];
+            return DepthToColor32((byte)(v >> 8), 0, 0, 255, depth);
         }
 
         public readonly HeightAlpha GetPixelHeightAlpha(int x, int y)
