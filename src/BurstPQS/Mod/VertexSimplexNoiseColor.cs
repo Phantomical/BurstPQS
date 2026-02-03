@@ -5,7 +5,7 @@ using UnityEngine;
 
 namespace BurstPQS.Mod;
 
-// [BurstCompile]
+[BurstCompile]
 [BatchPQSMod(typeof(PQSMod_VertexSimplexNoiseColor))]
 public class VertexSimplexNoiseColor(PQSMod_VertexSimplexNoiseColor mod)
     : BatchPQSMod<PQSMod_VertexSimplexNoiseColor>(mod)
@@ -25,7 +25,7 @@ public class VertexSimplexNoiseColor(PQSMod_VertexSimplexNoiseColor mod)
         );
     }
 
-    // [BurstCompile]
+    [BurstCompile]
     struct BuildVerticesJob : IBatchPQSVertexJob, IDisposable
     {
         public BurstSimplex simplex;

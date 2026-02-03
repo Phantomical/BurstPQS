@@ -5,7 +5,7 @@ using UnityEngine;
 
 namespace BurstPQS.Mod;
 
-// [BurstCompile]
+[BurstCompile]
 [BatchPQSMod(typeof(PQSMod_FlattenArea))]
 public class FlattenArea(PQSMod_FlattenArea mod) : BatchPQSMod<PQSMod_FlattenArea>(mod)
 {
@@ -33,7 +33,7 @@ public class FlattenArea(PQSMod_FlattenArea mod) : BatchPQSMod<PQSMod_FlattenAre
         );
     }
 
-    // [BurstCompile]
+    [BurstCompile]
     struct BuildJob : IBatchPQSVertexJob
     {
         public bool DEBUG_showColors;

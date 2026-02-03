@@ -3,7 +3,7 @@ using Unity.Jobs;
 
 namespace BurstPQS.Mod;
 
-// [BurstCompile]
+[BurstCompile]
 [BatchPQSMod(typeof(PQSMod_AltitudeAlpha))]
 public class AltitudeAlpha(PQSMod_AltitudeAlpha mod) : BatchPQSMod<PQSMod_AltitudeAlpha>(mod)
 {
@@ -14,7 +14,7 @@ public class AltitudeAlpha(PQSMod_AltitudeAlpha mod) : BatchPQSMod<PQSMod_Altitu
         jobSet.Add(new BuildJob { atmosphereDepth = mod.atmosphereDepth, invert = mod.invert });
     }
 
-    // [BurstCompile]
+    [BurstCompile]
     struct BuildJob : IBatchPQSVertexJob
     {
         public double atmosphereDepth;
