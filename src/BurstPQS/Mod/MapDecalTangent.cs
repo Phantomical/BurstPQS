@@ -11,7 +11,7 @@ using UnityEngine;
 
 namespace BurstPQS.Mod;
 
-// [BurstCompile]
+[BurstCompile]
 [BatchPQSMod(typeof(PQSMod_MapDecalTangent))]
 public class MapDecalTangent(PQSMod_MapDecalTangent mod) : BatchPQSMod<PQSMod_MapDecalTangent>(mod)
 {
@@ -30,7 +30,7 @@ public class MapDecalTangent(PQSMod_MapDecalTangent mod) : BatchPQSMod<PQSMod_Ma
         jobSet.Add(new BuildJob(mod) { heightMap = heightMap, colorMap = colorMap });
     }
 
-    // [BurstCompile]
+    [BurstCompile]
     struct BuildJob(PQSMod_MapDecalTangent mod)
         : IBatchPQSHeightJob,
             IBatchPQSVertexJob,

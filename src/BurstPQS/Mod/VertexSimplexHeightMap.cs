@@ -6,7 +6,7 @@ using Unity.Burst;
 
 namespace BurstPQS.Mod;
 
-// [BurstCompile]
+[BurstCompile]
 [BatchPQSMod(typeof(PQSMod_VertexSimplexHeightMap))]
 public class VertexSimplexHeightMap(PQSMod_VertexSimplexHeightMap mod)
     : BatchPQSMod<PQSMod_VertexSimplexHeightMap>(mod)
@@ -34,7 +34,7 @@ public class VertexSimplexHeightMap(PQSMod_VertexSimplexHeightMap mod)
         simplex.Dispose();
     }
 
-    // [BurstCompile]
+    [BurstCompile]
     struct BuildJob : IBatchPQSHeightJob, IDisposable
     {
         public BurstSimplex simplex;

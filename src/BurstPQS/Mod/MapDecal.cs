@@ -8,7 +8,7 @@ using UnityEngine;
 
 namespace BurstPQS.Mod;
 
-// [BurstCompile]
+[BurstCompile]
 [BatchPQSMod(typeof(PQSMod_MapDecal))]
 public class MapDecal(PQSMod_MapDecal mod) : BatchPQSMod<PQSMod_MapDecal>(mod)
 {
@@ -27,7 +27,7 @@ public class MapDecal(PQSMod_MapDecal mod) : BatchPQSMod<PQSMod_MapDecal>(mod)
         jobSet.Add(new BuildJob(mod) { heightMap = heightMap, colorMap = colorMap });
     }
 
-    // [BurstCompile]
+    [BurstCompile]
     struct BuildJob(PQSMod_MapDecal mod) : IBatchPQSHeightJob, IBatchPQSVertexJob, IDisposable
     {
         public double radius = mod.radius;

@@ -2,7 +2,7 @@ using Unity.Burst;
 
 namespace BurstPQS.Mod;
 
-// [BurstCompile]
+[BurstCompile]
 [BatchPQSMod(typeof(PQSMod_VertexHeightOffset))]
 public class VertexHeightOffset(PQSMod_VertexHeightOffset mod)
     : BatchPQSMod<PQSMod_VertexHeightOffset>(mod)
@@ -14,7 +14,7 @@ public class VertexHeightOffset(PQSMod_VertexHeightOffset mod)
         jobSet.Add(new BuildJob { offset = mod.offset });
     }
 
-    // [BurstCompile]
+    [BurstCompile]
     struct BuildJob : IBatchPQSHeightJob
     {
         public double offset;
