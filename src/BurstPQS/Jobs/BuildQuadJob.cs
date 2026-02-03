@@ -95,6 +95,10 @@ internal struct BuildQuadJob : IJob
         }
 
         BuildMesh(ref meshData, meshOutputData);
+
+        // Populate shared quad arrays that stock PQS normally fills
+        meshData.verts.AsNativeArray().CopyTo(pq.verts);
+        meshData.normals.AsNativeArray().CopyTo(pq.vertNormals);
     }
 
     internal readonly void InitHeightDataImpl(in BuildHeightsData data)
