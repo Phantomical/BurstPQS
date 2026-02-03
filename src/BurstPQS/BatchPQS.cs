@@ -104,10 +104,10 @@ public class BatchPQS : MonoBehaviour
 
         handle.Complete();
 
-        if (!meshData.positions.IsCreated)
+        if (!meshData.verts.IsCreated)
             throw new Exception("mesh vertex data is empty");
 
-        quad.mesh.SetVertices(meshData.positions);
+        quad.mesh.SetVertices(meshData.verts);
         quad.mesh.SetNormals(meshData.normals);
 
         if (meshData.tangents.IsCreated)
@@ -123,7 +123,10 @@ public class BatchPQS : MonoBehaviour
         if (meshData.uv3.IsCreated)
             quad.mesh.SetUVs(3, meshData.uv3);
 
-        // Populate global PQS cache arrays that stock normally fills per-vertex
+        // Populate global PQS cache arrays that stock normally fills per-vertex.
+        // These must be populated before OnMeshBuilt since stock PQSMods may read them.
+        meshData.vertsD.CopyTo(PQS.verts);
+        meshData.normals.CopyTo(PQS.normals);
         if (meshData.colors.IsCreated)
             meshData.colors.CopyTo(PQS.cacheColors);
         if (meshData.tangents.IsCreated)

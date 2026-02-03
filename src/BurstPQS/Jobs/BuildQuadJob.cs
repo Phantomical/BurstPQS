@@ -223,8 +223,12 @@ internal struct BuildQuadJob : IJob
     internal readonly void BuildMesh(ref BuildMeshData data, MeshData mesh)
     {
         var positions = new NativeArray<Vector3>(data.VertexCount, Allocator.TempJob);
-        mesh.positions = positions;
+        mesh.verts = positions;
         CopyToNativeArray(positions, data.verts);
+
+        var positionsD = new NativeArray<Vector3d>(data.VertexCount, Allocator.TempJob);
+        mesh.vertsD = positionsD;
+        CopyToNativeArray(positionsD, data.vertsD);
 
         var normals = new NativeArray<Vector3>(data.VertexCount, Allocator.TempJob);
         mesh.normals = normals;

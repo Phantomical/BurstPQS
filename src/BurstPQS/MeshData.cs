@@ -6,7 +6,8 @@ namespace BurstPQS;
 
 internal class MeshData : IDisposable
 {
-    public NativeArray<Vector3> positions;
+    public NativeArray<Vector3> verts;
+    public NativeArray<Vector3d> vertsD;
     public NativeArray<Vector3> normals;
     public NativeArray<Vector4> tangents;
     public NativeArray<Color> colors;
@@ -17,7 +18,8 @@ internal class MeshData : IDisposable
 
     public void Dispose()
     {
-        positions.Dispose();
+        verts.Dispose();
+        vertsD.Dispose();
         normals.Dispose();
         tangents.Dispose();
         colors.Dispose();
