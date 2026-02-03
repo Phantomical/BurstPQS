@@ -195,7 +195,7 @@ public static class MapSODefaults
     }
 }
 
-internal unsafe struct MapSOVTable
+internal static unsafe class MapSOVTableDelegates
 {
     internal delegate void DisposeFn(void* self);
 
@@ -231,24 +231,27 @@ internal unsafe struct MapSOVTable
         double y,
         out HeightAlpha ha
     );
+}
 
-    FunctionPointer<GetPixelFloat_Int_Fn> GetPixelFloat_Int_Fp;
-    FunctionPointer<GetPixelFloat_Float_Fn> GetPixelFloat_Float_Fp;
-    FunctionPointer<GetPixelFloat_Double_Fn> GetPixelFloat_Double_Fp;
+internal unsafe struct MapSOVTable
+{
+    FunctionPointer<MapSOVTableDelegates.GetPixelFloat_Int_Fn> GetPixelFloat_Int_Fp;
+    FunctionPointer<MapSOVTableDelegates.GetPixelFloat_Float_Fn> GetPixelFloat_Float_Fp;
+    FunctionPointer<MapSOVTableDelegates.GetPixelFloat_Double_Fn> GetPixelFloat_Double_Fp;
 
-    FunctionPointer<GetPixelColor_Int_Fn> GetPixelColor_Int_Fp;
-    FunctionPointer<GetPixelColor_Float_Fn> GetPixelColor_Float_Fp;
-    FunctionPointer<GetPixelColor_Double_Fn> GetPixelColor_Double_Fp;
+    FunctionPointer<MapSOVTableDelegates.GetPixelColor_Int_Fn> GetPixelColor_Int_Fp;
+    FunctionPointer<MapSOVTableDelegates.GetPixelColor_Float_Fn> GetPixelColor_Float_Fp;
+    FunctionPointer<MapSOVTableDelegates.GetPixelColor_Double_Fn> GetPixelColor_Double_Fp;
 
-    FunctionPointer<GetPixelColor32_Int_Fn> GetPixelColor32_Int_Fp;
-    FunctionPointer<GetPixelColor32_Float_Fn> GetPixelColor32_Float_Fp;
-    FunctionPointer<GetPixelColor32_Double_Fn> GetPixelColor32_Double_Fp;
+    FunctionPointer<MapSOVTableDelegates.GetPixelColor32_Int_Fn> GetPixelColor32_Int_Fp;
+    FunctionPointer<MapSOVTableDelegates.GetPixelColor32_Float_Fn> GetPixelColor32_Float_Fp;
+    FunctionPointer<MapSOVTableDelegates.GetPixelColor32_Double_Fn> GetPixelColor32_Double_Fp;
 
-    FunctionPointer<GetPixelHeightAlpha_Int_Fn> GetPixelHeightAlpha_Int_Fp;
-    FunctionPointer<GetPixelHeightAlpha_Float_Fn> GetPixelHeightAlpha_Float_Fp;
-    FunctionPointer<GetPixelHeightAlpha_Double_Fn> GetPixelHeightAlpha_Double_Fp;
+    FunctionPointer<MapSOVTableDelegates.GetPixelHeightAlpha_Int_Fn> GetPixelHeightAlpha_Int_Fp;
+    FunctionPointer<MapSOVTableDelegates.GetPixelHeightAlpha_Float_Fn> GetPixelHeightAlpha_Float_Fp;
+    FunctionPointer<MapSOVTableDelegates.GetPixelHeightAlpha_Double_Fn> GetPixelHeightAlpha_Double_Fp;
 
-    FunctionPointer<DisposeFn> Dispose_Fp;
+    FunctionPointer<MapSOVTableDelegates.DisposeFn> Dispose_Fp;
 
     public static MapSOVTable Create<T>()
         where T : struct, IMapSO
@@ -339,6 +342,155 @@ internal unsafe struct MapSOVTable
         if (Dispose_Fp.IsCreated)
             Dispose_Fp.Invoke(mapSO);
     }
+
+    public MapSOVTableManaged ToManaged()
+    {
+        return new MapSOVTableManaged(
+            GetPixelFloat_Int_Fp.Invoke,
+            GetPixelFloat_Float_Fp.Invoke,
+            GetPixelFloat_Double_Fp.Invoke,
+            GetPixelColor_Int_Fp.Invoke,
+            GetPixelColor_Float_Fp.Invoke,
+            GetPixelColor_Double_Fp.Invoke,
+            GetPixelColor32_Int_Fp.Invoke,
+            GetPixelColor32_Float_Fp.Invoke,
+            GetPixelColor32_Double_Fp.Invoke,
+            GetPixelHeightAlpha_Int_Fp.Invoke,
+            GetPixelHeightAlpha_Float_Fp.Invoke,
+            GetPixelHeightAlpha_Double_Fp.Invoke,
+            Dispose_Fp.IsCreated ? Dispose_Fp.Invoke : null
+        );
+    }
+}
+
+/// <summary>
+/// A managed version of <see cref="MapSOVTable"/> that stores pre-cached delegates
+/// to avoid allocations from <see cref="FunctionPointer{T}.Invoke"/> calling
+/// <see cref="System.Runtime.InteropServices.Marshal.GetDelegateForFunctionPointer"/>.
+/// </summary>
+internal unsafe class MapSOVTableManaged(
+    MapSOVTableDelegates.GetPixelFloat_Int_Fn getPixelFloat_Int,
+    MapSOVTableDelegates.GetPixelFloat_Float_Fn getPixelFloat_Float,
+    MapSOVTableDelegates.GetPixelFloat_Double_Fn getPixelFloat_Double,
+    MapSOVTableDelegates.GetPixelColor_Int_Fn getPixelColor_Int,
+    MapSOVTableDelegates.GetPixelColor_Float_Fn getPixelColor_Float,
+    MapSOVTableDelegates.GetPixelColor_Double_Fn getPixelColor_Double,
+    MapSOVTableDelegates.GetPixelColor32_Int_Fn getPixelColor32_Int,
+    MapSOVTableDelegates.GetPixelColor32_Float_Fn getPixelColor32_Float,
+    MapSOVTableDelegates.GetPixelColor32_Double_Fn getPixelColor32_Double,
+    MapSOVTableDelegates.GetPixelHeightAlpha_Int_Fn getPixelHeightAlpha_Int,
+    MapSOVTableDelegates.GetPixelHeightAlpha_Float_Fn getPixelHeightAlpha_Float,
+    MapSOVTableDelegates.GetPixelHeightAlpha_Double_Fn getPixelHeightAlpha_Double,
+    MapSOVTableDelegates.DisposeFn dispose
+)
+{
+    readonly MapSOVTableDelegates.GetPixelFloat_Int_Fn GetPixelFloat_Int_Del = getPixelFloat_Int;
+    readonly MapSOVTableDelegates.GetPixelFloat_Float_Fn GetPixelFloat_Float_Del =
+        getPixelFloat_Float;
+    readonly MapSOVTableDelegates.GetPixelFloat_Double_Fn GetPixelFloat_Double_Del =
+        getPixelFloat_Double;
+
+    readonly MapSOVTableDelegates.GetPixelColor_Int_Fn GetPixelColor_Int_Del = getPixelColor_Int;
+    readonly MapSOVTableDelegates.GetPixelColor_Float_Fn GetPixelColor_Float_Del =
+        getPixelColor_Float;
+    readonly MapSOVTableDelegates.GetPixelColor_Double_Fn GetPixelColor_Double_Del =
+        getPixelColor_Double;
+
+    readonly MapSOVTableDelegates.GetPixelColor32_Int_Fn GetPixelColor32_Int_Del =
+        getPixelColor32_Int;
+    readonly MapSOVTableDelegates.GetPixelColor32_Float_Fn GetPixelColor32_Float_Del =
+        getPixelColor32_Float;
+    readonly MapSOVTableDelegates.GetPixelColor32_Double_Fn GetPixelColor32_Double_Del =
+        getPixelColor32_Double;
+
+    readonly MapSOVTableDelegates.GetPixelHeightAlpha_Int_Fn GetPixelHeightAlpha_Int_Del =
+        getPixelHeightAlpha_Int;
+    readonly MapSOVTableDelegates.GetPixelHeightAlpha_Float_Fn GetPixelHeightAlpha_Float_Del =
+        getPixelHeightAlpha_Float;
+    readonly MapSOVTableDelegates.GetPixelHeightAlpha_Double_Fn GetPixelHeightAlpha_Double_Del =
+        getPixelHeightAlpha_Double;
+
+    readonly MapSOVTableDelegates.DisposeFn Dispose_Del = dispose;
+
+    [MethodImpl(MethodImplOptions.AggressiveInlining)]
+    public float GetPixelFloat(void* mapSO, int x, int y) => GetPixelFloat_Int_Del(mapSO, x, y);
+
+    [MethodImpl(MethodImplOptions.AggressiveInlining)]
+    public float GetPixelFloat(void* mapSO, float x, float y) =>
+        GetPixelFloat_Float_Del(mapSO, x, y);
+
+    [MethodImpl(MethodImplOptions.AggressiveInlining)]
+    public float GetPixelFloat(void* mapSO, double x, double y) =>
+        GetPixelFloat_Double_Del(mapSO, x, y);
+
+    [MethodImpl(MethodImplOptions.AggressiveInlining)]
+    public Color GetPixelColor(void* mapSO, int x, int y)
+    {
+        GetPixelColor_Int_Del(mapSO, x, y, out var color);
+        return color;
+    }
+
+    [MethodImpl(MethodImplOptions.AggressiveInlining)]
+    public Color GetPixelColor(void* mapSO, float x, float y)
+    {
+        GetPixelColor_Float_Del(mapSO, x, y, out var color);
+        return color;
+    }
+
+    [MethodImpl(MethodImplOptions.AggressiveInlining)]
+    public Color GetPixelColor(void* mapSO, double x, double y)
+    {
+        GetPixelColor_Double_Del(mapSO, x, y, out var color);
+        return color;
+    }
+
+    [MethodImpl(MethodImplOptions.AggressiveInlining)]
+    public Color32 GetPixelColor32(void* mapSO, int x, int y)
+    {
+        GetPixelColor32_Int_Del(mapSO, x, y, out var color);
+        return color;
+    }
+
+    [MethodImpl(MethodImplOptions.AggressiveInlining)]
+    public Color32 GetPixelColor32(void* mapSO, float x, float y)
+    {
+        GetPixelColor32_Float_Del(mapSO, x, y, out var color);
+        return color;
+    }
+
+    [MethodImpl(MethodImplOptions.AggressiveInlining)]
+    public Color32 GetPixelColor32(void* mapSO, double x, double y)
+    {
+        GetPixelColor32_Double_Del(mapSO, x, y, out var color);
+        return color;
+    }
+
+    [MethodImpl(MethodImplOptions.AggressiveInlining)]
+    public HeightAlpha GetPixelHeightAlpha(void* mapSO, int x, int y)
+    {
+        GetPixelHeightAlpha_Int_Del(mapSO, x, y, out var color);
+        return color;
+    }
+
+    [MethodImpl(MethodImplOptions.AggressiveInlining)]
+    public HeightAlpha GetPixelHeightAlpha(void* mapSO, float x, float y)
+    {
+        GetPixelHeightAlpha_Float_Del(mapSO, x, y, out var color);
+        return color;
+    }
+
+    [MethodImpl(MethodImplOptions.AggressiveInlining)]
+    public HeightAlpha GetPixelHeightAlpha(void* mapSO, double x, double y)
+    {
+        GetPixelHeightAlpha_Double_Del(mapSO, x, y, out var color);
+        return color;
+    }
+
+    [MethodImpl(MethodImplOptions.AggressiveInlining)]
+    public void Dispose(void* mapSO)
+    {
+        Dispose_Del?.Invoke(mapSO);
+    }
 }
 
 internal static unsafe class MapSOVTable<T>
@@ -353,73 +505,74 @@ internal static unsafe class MapSOVTable<T>
         typeof(Container).GetField("mapSO")
     );
 
-    internal static readonly FunctionPointer<MapSOVTable.GetPixelFloat_Int_Fn> GetPixelFloat_Int_Fp;
-    internal static readonly FunctionPointer<MapSOVTable.GetPixelFloat_Float_Fn> GetPixelFloat_Float_Fp;
-    internal static readonly FunctionPointer<MapSOVTable.GetPixelFloat_Double_Fn> GetPixelFloat_Double_Fp;
-    internal static readonly FunctionPointer<MapSOVTable.GetPixelColor_Int_Fn> GetPixelColor_Int_Fp;
-    internal static readonly FunctionPointer<MapSOVTable.GetPixelColor_Float_Fn> GetPixelColor_Float_Fp;
-    internal static readonly FunctionPointer<MapSOVTable.GetPixelColor_Double_Fn> GetPixelColor_Double_Fp;
-    internal static readonly FunctionPointer<MapSOVTable.GetPixelColor32_Int_Fn> GetPixelColor32_Int_Fp;
-    internal static readonly FunctionPointer<MapSOVTable.GetPixelColor32_Float_Fn> GetPixelColor32_Float_Fp;
-    internal static readonly FunctionPointer<MapSOVTable.GetPixelColor32_Double_Fn> GetPixelColor32_Double_Fp;
-    internal static readonly FunctionPointer<MapSOVTable.GetPixelHeightAlpha_Int_Fn> GetPixelHeightAlpha_Int_Fp;
-    internal static readonly FunctionPointer<MapSOVTable.GetPixelHeightAlpha_Float_Fn> GetPixelHeightAlpha_Float_Fp;
-    internal static readonly FunctionPointer<MapSOVTable.GetPixelHeightAlpha_Double_Fn> GetPixelHeightAlpha_Double_Fp;
-    internal static readonly FunctionPointer<MapSOVTable.DisposeFn> Dispose_Fp;
+    internal static readonly FunctionPointer<MapSOVTableDelegates.GetPixelFloat_Int_Fn> GetPixelFloat_Int_Fp;
+    internal static readonly FunctionPointer<MapSOVTableDelegates.GetPixelFloat_Float_Fn> GetPixelFloat_Float_Fp;
+    internal static readonly FunctionPointer<MapSOVTableDelegates.GetPixelFloat_Double_Fn> GetPixelFloat_Double_Fp;
+    internal static readonly FunctionPointer<MapSOVTableDelegates.GetPixelColor_Int_Fn> GetPixelColor_Int_Fp;
+    internal static readonly FunctionPointer<MapSOVTableDelegates.GetPixelColor_Float_Fn> GetPixelColor_Float_Fp;
+    internal static readonly FunctionPointer<MapSOVTableDelegates.GetPixelColor_Double_Fn> GetPixelColor_Double_Fp;
+    internal static readonly FunctionPointer<MapSOVTableDelegates.GetPixelColor32_Int_Fn> GetPixelColor32_Int_Fp;
+    internal static readonly FunctionPointer<MapSOVTableDelegates.GetPixelColor32_Float_Fn> GetPixelColor32_Float_Fp;
+    internal static readonly FunctionPointer<MapSOVTableDelegates.GetPixelColor32_Double_Fn> GetPixelColor32_Double_Fp;
+    internal static readonly FunctionPointer<MapSOVTableDelegates.GetPixelHeightAlpha_Int_Fn> GetPixelHeightAlpha_Int_Fp;
+    internal static readonly FunctionPointer<MapSOVTableDelegates.GetPixelHeightAlpha_Float_Fn> GetPixelHeightAlpha_Float_Fp;
+    internal static readonly FunctionPointer<MapSOVTableDelegates.GetPixelHeightAlpha_Double_Fn> GetPixelHeightAlpha_Double_Fp;
+    internal static readonly FunctionPointer<MapSOVTableDelegates.DisposeFn> Dispose_Fp;
 
     internal static readonly MapSOVTable VTable;
+    internal static readonly MapSOVTableManaged VTableManaged;
 
     static MapSOVTable()
     {
         GetPixelFloat_Int_Fp =
-            BurstUtil.MaybeCompileFunctionPointer<MapSOVTable.GetPixelFloat_Int_Fn>(
+            BurstUtil.MaybeCompileFunctionPointer<MapSOVTableDelegates.GetPixelFloat_Int_Fn>(
                 MapSOExtensions.GetPixelFloat_Int<T>.Execute
             );
         GetPixelFloat_Float_Fp =
-            BurstUtil.MaybeCompileFunctionPointer<MapSOVTable.GetPixelFloat_Float_Fn>(
+            BurstUtil.MaybeCompileFunctionPointer<MapSOVTableDelegates.GetPixelFloat_Float_Fn>(
                 MapSOExtensions.GetPixelFloat_Float<T>.Execute
             );
         GetPixelFloat_Double_Fp =
-            BurstUtil.MaybeCompileFunctionPointer<MapSOVTable.GetPixelFloat_Double_Fn>(
+            BurstUtil.MaybeCompileFunctionPointer<MapSOVTableDelegates.GetPixelFloat_Double_Fn>(
                 MapSOExtensions.GetPixelFloat_Double<T>.Execute
             );
 
         GetPixelColor_Int_Fp =
-            BurstUtil.MaybeCompileFunctionPointer<MapSOVTable.GetPixelColor_Int_Fn>(
+            BurstUtil.MaybeCompileFunctionPointer<MapSOVTableDelegates.GetPixelColor_Int_Fn>(
                 MapSOExtensions.GetPixelColor_Int<T>.Execute
             );
         GetPixelColor_Float_Fp =
-            BurstUtil.MaybeCompileFunctionPointer<MapSOVTable.GetPixelColor_Float_Fn>(
+            BurstUtil.MaybeCompileFunctionPointer<MapSOVTableDelegates.GetPixelColor_Float_Fn>(
                 MapSOExtensions.GetPixelColor_Float<T>.Execute
             );
         GetPixelColor_Double_Fp =
-            BurstUtil.MaybeCompileFunctionPointer<MapSOVTable.GetPixelColor_Double_Fn>(
+            BurstUtil.MaybeCompileFunctionPointer<MapSOVTableDelegates.GetPixelColor_Double_Fn>(
                 MapSOExtensions.GetPixelColor_Double<T>.Execute
             );
 
         GetPixelColor32_Int_Fp =
-            BurstUtil.MaybeCompileFunctionPointer<MapSOVTable.GetPixelColor32_Int_Fn>(
+            BurstUtil.MaybeCompileFunctionPointer<MapSOVTableDelegates.GetPixelColor32_Int_Fn>(
                 MapSOExtensions.GetPixelColor32_Int<T>.Execute
             );
         GetPixelColor32_Float_Fp =
-            BurstUtil.MaybeCompileFunctionPointer<MapSOVTable.GetPixelColor32_Float_Fn>(
+            BurstUtil.MaybeCompileFunctionPointer<MapSOVTableDelegates.GetPixelColor32_Float_Fn>(
                 MapSOExtensions.GetPixelColor32_Float<T>.Execute
             );
         GetPixelColor32_Double_Fp =
-            BurstUtil.MaybeCompileFunctionPointer<MapSOVTable.GetPixelColor32_Double_Fn>(
+            BurstUtil.MaybeCompileFunctionPointer<MapSOVTableDelegates.GetPixelColor32_Double_Fn>(
                 MapSOExtensions.GetPixelColor32_Double<T>.Execute
             );
 
         GetPixelHeightAlpha_Int_Fp =
-            BurstUtil.MaybeCompileFunctionPointer<MapSOVTable.GetPixelHeightAlpha_Int_Fn>(
+            BurstUtil.MaybeCompileFunctionPointer<MapSOVTableDelegates.GetPixelHeightAlpha_Int_Fn>(
                 MapSOExtensions.GetPixelHeightAlpha_Int<T>.Execute
             );
         GetPixelHeightAlpha_Float_Fp =
-            BurstUtil.MaybeCompileFunctionPointer<MapSOVTable.GetPixelHeightAlpha_Float_Fn>(
+            BurstUtil.MaybeCompileFunctionPointer<MapSOVTableDelegates.GetPixelHeightAlpha_Float_Fn>(
                 MapSOExtensions.GetPixelHeightAlpha_Float<T>.Execute
             );
         GetPixelHeightAlpha_Double_Fp =
-            BurstUtil.MaybeCompileFunctionPointer<MapSOVTable.GetPixelHeightAlpha_Double_Fn>(
+            BurstUtil.MaybeCompileFunctionPointer<MapSOVTableDelegates.GetPixelHeightAlpha_Double_Fn>(
                 MapSOExtensions.GetPixelHeightAlpha_Double<T>.Execute
             );
 
@@ -428,13 +581,14 @@ internal static unsafe class MapSOVTable<T>
             var disposeFn = typeof(MapSOExtensions)
                 .GetMethod("Dispose")
                 .MakeGenericMethod(typeof(T));
-            var del = (MapSOVTable.DisposeFn)
-                Delegate.CreateDelegate(typeof(MapSOVTable.DisposeFn), disposeFn);
+            var del = (MapSOVTableDelegates.DisposeFn)
+                Delegate.CreateDelegate(typeof(MapSOVTableDelegates.DisposeFn), disposeFn);
 
             Dispose_Fp = BurstUtil.MaybeCompileFunctionPointer(del);
         }
 
         VTable = MapSOVTable.Create<T>();
+        VTableManaged = VTable.ToManaged();
     }
 }
 
@@ -463,6 +617,7 @@ public unsafe struct BurstMapSO : IMapSO, IDisposable
 {
     void* data;
     MapSOVTable* vtable;
+    ObjectHandle<MapSOVTableManaged> managed;
     ulong gchandle;
 
     int width;
@@ -482,6 +637,7 @@ public unsafe struct BurstMapSO : IMapSO, IDisposable
         // This is probably wildly unsafe, but mono never moves static readonly fields
         // so it is ok
         var vtable = (MapSOVTable*)Unsafe.AsPointer(ref Unsafe.AsRef(in MapSOVTable<T>.VTable));
+        var managed = new ObjectHandle<MapSOVTableManaged>(MapSOVTable<T>.VTableManaged);
         var obj = UnsafeUtility.PinGCObjectAndGetAddress(container, out var gchandle);
         var data = Unsafe.Add<byte>(obj, MapSOVTable<T>.FieldOffset);
 
@@ -489,26 +645,30 @@ public unsafe struct BurstMapSO : IMapSO, IDisposable
         {
             data = data,
             vtable = vtable,
+            managed = managed,
             gchandle = gchandle,
             width = width,
             height = height,
         };
     }
 
-    public static BurstMapSO Create(global::MapSO mapSO)
+    public static BurstMapSO Create(MapSO mapSO)
     {
         var factory = BurstMapSORegistry.GetFactoryFunc(mapSO);
         return factory(mapSO);
     }
 
     public static void RegisterMapSOFactoryFunc<TMapSO>(Func<TMapSO, BurstMapSO> func)
-        where TMapSO : global::MapSO
+        where TMapSO : MapSO
     {
         BurstMapSORegistry.RegisterFunc(func);
     }
 
     public void Dispose()
     {
+        managed.Dispose();
+        managed = default;
+
         if (data is null)
             return;
 
@@ -523,96 +683,216 @@ public unsafe struct BurstMapSO : IMapSO, IDisposable
         if (!IsValid)
             return 0f;
 
-        return vtable->GetPixelFloat(data, x, y);
+        float result;
+        if (BurstUtil.IsBurstCompiled)
+            result = vtable->GetPixelFloat(data, x, y);
+        else
+            GetPixelFloatManaged(x, y, out result);
+        return result;
     }
+
+    [BurstDiscard]
+    [MethodImpl(MethodImplOptions.AggressiveInlining)]
+    private void GetPixelFloatManaged(int x, int y, out float result) =>
+        result = managed.Target.GetPixelFloat(data, x, y);
 
     public float GetPixelFloat(float x, float y)
     {
         if (!IsValid)
             return 0f;
 
-        return vtable->GetPixelFloat(data, x, y);
+        float result;
+        if (BurstUtil.IsBurstCompiled)
+            result = vtable->GetPixelFloat(data, x, y);
+        else
+            GetPixelFloatManaged(x, y, out result);
+        return result;
     }
+
+    [BurstDiscard]
+    [MethodImpl(MethodImplOptions.AggressiveInlining)]
+    private void GetPixelFloatManaged(float x, float y, out float result) =>
+        result = managed.Target.GetPixelFloat(data, x, y);
 
     public float GetPixelFloat(double x, double y)
     {
         if (!IsValid)
             return 0f;
 
-        return vtable->GetPixelFloat(data, x, y);
+        float result;
+        if (BurstUtil.IsBurstCompiled)
+            result = vtable->GetPixelFloat(data, x, y);
+        else
+            GetPixelFloatManaged(x, y, out result);
+        return result;
     }
+
+    [BurstDiscard]
+    [MethodImpl(MethodImplOptions.AggressiveInlining)]
+    private void GetPixelFloatManaged(double x, double y, out float result) =>
+        result = managed.Target.GetPixelFloat(data, x, y);
 
     public Color GetPixelColor(int x, int y)
     {
         if (!IsValid)
             return Color.black;
 
-        return vtable->GetPixelColor(data, x, y);
+        Color result;
+        if (BurstUtil.IsBurstCompiled)
+            result = vtable->GetPixelColor(data, x, y);
+        else
+            GetPixelColorManaged(x, y, out result);
+        return result;
     }
+
+    [BurstDiscard]
+    [MethodImpl(MethodImplOptions.AggressiveInlining)]
+    private void GetPixelColorManaged(int x, int y, out Color result) =>
+        result = managed.Target.GetPixelColor(data, x, y);
 
     public Color GetPixelColor(float x, float y)
     {
         if (!IsValid)
             return Color.black;
 
-        return vtable->GetPixelColor(data, x, y);
+        Color result;
+        if (BurstUtil.IsBurstCompiled)
+            result = vtable->GetPixelColor(data, x, y);
+        else
+            GetPixelColorManaged(x, y, out result);
+        return result;
     }
+
+    [BurstDiscard]
+    [MethodImpl(MethodImplOptions.AggressiveInlining)]
+    private void GetPixelColorManaged(float x, float y, out Color result) =>
+        result = managed.Target.GetPixelColor(data, x, y);
 
     public Color GetPixelColor(double x, double y)
     {
         if (!IsValid)
             return Color.black;
 
-        return vtable->GetPixelColor(data, x, y);
+        Color result;
+        if (BurstUtil.IsBurstCompiled)
+            result = vtable->GetPixelColor(data, x, y);
+        else
+            GetPixelColorManaged(x, y, out result);
+        return result;
     }
+
+    [BurstDiscard]
+    [MethodImpl(MethodImplOptions.AggressiveInlining)]
+    private void GetPixelColorManaged(double x, double y, out Color result) =>
+        result = managed.Target.GetPixelColor(data, x, y);
 
     public Color32 GetPixelColor32(int x, int y)
     {
         if (!IsValid)
             return default;
 
-        return vtable->GetPixelColor32(data, x, y);
+        Color32 result;
+        if (BurstUtil.IsBurstCompiled)
+            result = vtable->GetPixelColor32(data, x, y);
+        else
+            GetPixelColor32Managed(x, y, out result);
+        return result;
     }
+
+    [BurstDiscard]
+    [MethodImpl(MethodImplOptions.AggressiveInlining)]
+    private void GetPixelColor32Managed(int x, int y, out Color32 result) =>
+        result = managed.Target.GetPixelColor32(data, x, y);
 
     public Color32 GetPixelColor32(float x, float y)
     {
         if (!IsValid)
             return default;
 
-        return vtable->GetPixelColor32(data, x, y);
+        Color32 result;
+        if (BurstUtil.IsBurstCompiled)
+            result = vtable->GetPixelColor32(data, x, y);
+        else
+            GetPixelColor32Managed(x, y, out result);
+        return result;
     }
+
+    [BurstDiscard]
+    [MethodImpl(MethodImplOptions.AggressiveInlining)]
+    private void GetPixelColor32Managed(float x, float y, out Color32 result) =>
+        result = managed.Target.GetPixelColor32(data, x, y);
 
     public Color32 GetPixelColor32(double x, double y)
     {
         if (!IsValid)
             return default;
 
-        return vtable->GetPixelColor32(data, x, y);
+        Color32 result;
+        if (BurstUtil.IsBurstCompiled)
+            result = vtable->GetPixelColor32(data, x, y);
+        else
+            GetPixelColor32Managed(x, y, out result);
+        return result;
     }
+
+    [BurstDiscard]
+    [MethodImpl(MethodImplOptions.AggressiveInlining)]
+    private void GetPixelColor32Managed(double x, double y, out Color32 result) =>
+        result = managed.Target.GetPixelColor32(data, x, y);
 
     public HeightAlpha GetPixelHeightAlpha(int x, int y)
     {
         if (!IsValid)
             return default;
 
-        return vtable->GetPixelHeightAlpha(data, x, y);
+        HeightAlpha result;
+        if (BurstUtil.IsBurstCompiled)
+            result = vtable->GetPixelHeightAlpha(data, x, y);
+        else
+            GetPixelHeightAlphaManaged(x, y, out result);
+        return result;
     }
+
+    [BurstDiscard]
+    [MethodImpl(MethodImplOptions.AggressiveInlining)]
+    private void GetPixelHeightAlphaManaged(int x, int y, out HeightAlpha result) =>
+        result = managed.Target.GetPixelHeightAlpha(data, x, y);
 
     public HeightAlpha GetPixelHeightAlpha(float x, float y)
     {
         if (!IsValid)
             return default;
 
-        return vtable->GetPixelHeightAlpha(data, x, y);
+        HeightAlpha result;
+        if (BurstUtil.IsBurstCompiled)
+            result = vtable->GetPixelHeightAlpha(data, x, y);
+        else
+            GetPixelHeightAlphaManaged(x, y, out result);
+        return result;
     }
+
+    [BurstDiscard]
+    [MethodImpl(MethodImplOptions.AggressiveInlining)]
+    private void GetPixelHeightAlphaManaged(float x, float y, out HeightAlpha result) =>
+        result = managed.Target.GetPixelHeightAlpha(data, x, y);
 
     public HeightAlpha GetPixelHeightAlpha(double x, double y)
     {
         if (!IsValid)
             return default;
 
-        return vtable->GetPixelHeightAlpha(data, x, y);
+        HeightAlpha result;
+        if (BurstUtil.IsBurstCompiled)
+            result = vtable->GetPixelHeightAlpha(data, x, y);
+        else
+            GetPixelHeightAlphaManaged(x, y, out result);
+        return result;
     }
+
+    [BurstDiscard]
+    [MethodImpl(MethodImplOptions.AggressiveInlining)]
+    private void GetPixelHeightAlphaManaged(double x, double y, out HeightAlpha result) =>
+        result = managed.Target.GetPixelHeightAlpha(data, x, y);
 }
 
 internal class BurstMapSORegistry

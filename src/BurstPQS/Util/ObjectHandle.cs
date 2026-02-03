@@ -1,4 +1,5 @@
 using System;
+using System.Runtime.CompilerServices;
 using System.Runtime.InteropServices;
 using Unity.Jobs;
 
@@ -13,7 +14,11 @@ internal struct ObjectHandle<T>(T value) : IDisposable
 {
     GCHandle handle = GCHandle.Alloc(value);
 
-    public T Target => (T)handle.Target;
+    public T Target
+    {
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        get => (T)handle.Target;
+    }
 
     public void Dispose() => handle.Free();
 
