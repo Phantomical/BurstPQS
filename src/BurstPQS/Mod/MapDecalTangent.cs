@@ -90,7 +90,7 @@ public class MapDecalTangent(PQSMod_MapDecalTangent mod) : BatchPQSMod<PQSMod_Ma
                 if (buildHeight || sphereIsBuildingMaps)
                     vertActive[i] = true;
                 if (this.heightMap is not BurstMapSO heightMap)
-                    return;
+                    continue;
 
                 var ha = heightMap.GetPixelHeightAlpha(u, v);
                 var smoothFactor = GetHeightSmoothing(u, v);

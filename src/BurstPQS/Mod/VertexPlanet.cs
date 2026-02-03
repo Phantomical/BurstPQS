@@ -269,7 +269,7 @@ public class VertexPlanet(PQSMod_VertexPlanet mod) : BatchPQSMod<PQSMod_VertexPl
     {
         for (int i = 0; i < lcs.Length; ++i)
         {
-            if (lcs[i].fractalStart <= height && height < lcs[i].fractalEnd)
+            if (lcs[i].fractalStart <= height && height <= lcs[i].fractalEnd)
                 return i;
         }
 
