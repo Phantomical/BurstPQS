@@ -393,10 +393,11 @@ internal sealed unsafe class JobData<T>(in T job) : JobData
     static JobData()
     {
         var type = typeof(T);
+        var profileName = type.IsNested ? type.DeclaringType.Name : type.Name;
 
-        BuildHeightsMarker = new($"{type.Name}:{nameof(IBatchPQSHeightJob.BuildHeights)}");
-        BuildVerticesMarker = new($"{type.Name}:{nameof(IBatchPQSVertexJob.BuildVertices)}");
-        BuildMeshMarker = new($"{type.Name}:{nameof(IBatchPQSMeshJob.BuildMesh)}");
+        BuildHeightsMarker = new($"{profileName}:{nameof(IBatchPQSHeightJob.BuildHeights)}");
+        BuildVerticesMarker = new($"{profileName}:{nameof(IBatchPQSVertexJob.BuildVertices)}");
+        BuildMeshMarker = new($"{profileName}:{nameof(IBatchPQSMeshJob.BuildMesh)}");
 
         if (typeof(IBatchPQSHeightJob).IsAssignableFrom(type))
         {
