@@ -83,7 +83,7 @@ public class MapDecal(PQSMod_MapDecal mod) : BatchPQSMod<PQSMod_MapDecal>(mod)
                 if (buildHeight || sphereIsBuildingMaps)
                     vertActive[i] = true;
                 if (heightMap is not BurstMapSO hMap)
-                    return;
+                    continue;
 
                 var ha = hMap.GetPixelHeightAlpha(u, v);
                 var smoothFactor = GetHeightSmoothing(u, v);
