@@ -5,7 +5,7 @@ using UnityEngine;
 
 namespace BurstPQS.Mod;
 
-// [BurstCompile]
+[BurstCompile]
 [BatchPQSMod(typeof(PQSMod_HeightColorMap))]
 public class HeightColorMap(PQSMod_HeightColorMap mod) : BatchPQSMod<PQSMod_HeightColorMap>(mod)
 {
@@ -43,7 +43,7 @@ public class HeightColorMap(PQSMod_HeightColorMap mod) : BatchPQSMod<PQSMod_Heig
         jobSet.Add(new BuildVerticesJob { classes = burstLandClasses, blend = mod.blend });
     }
 
-    // [BurstCompile]
+    [BurstCompile]
     struct BuildVerticesJob : IBatchPQSVertexJob
     {
         public NativeArray<BurstLandClass> classes;
