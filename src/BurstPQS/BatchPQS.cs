@@ -6,8 +6,6 @@ using Unity.Collections;
 using Unity.Jobs;
 using Unity.Profiling;
 using UnityEngine;
-using UnityEngine.Rendering;
-using static PQS;
 
 namespace BurstPQS;
 
