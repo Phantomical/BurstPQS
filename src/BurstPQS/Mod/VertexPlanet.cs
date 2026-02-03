@@ -9,7 +9,7 @@ using UnityEngine;
 
 namespace BurstPQS.Mod;
 
-// [BurstCompile]
+[BurstCompile]
 [BatchPQSMod(typeof(PQSMod_VertexPlanet))]
 public class VertexPlanet(PQSMod_VertexPlanet mod) : BatchPQSMod<PQSMod_VertexPlanet>(mod)
 {
@@ -120,9 +120,7 @@ public class VertexPlanet(PQSMod_VertexPlanet mod) : BatchPQSMod<PQSMod_VertexPl
         );
     }
 
-    // Running this through burst seems to have different results?
-    // The struct does NOT have [BurstCompile] because the heights computation
-    // produces different results when burst compiled.
+    [BurstCompile]
     struct BuildJob : IBatchPQSHeightJob, IBatchPQSVertexJob
     {
         public NativeArray<BurstLandClass> landClasses;
