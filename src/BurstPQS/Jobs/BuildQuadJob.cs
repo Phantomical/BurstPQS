@@ -88,7 +88,7 @@ internal struct BuildQuadJob : IJob
             );
 
             if (reqCustomNormals)
-                BuildMeshCustomNormals(in meshData, indices);
+                BuildMeshNormals(in meshData, indices);
 
             if (reqBuildTangents)
                 BuildMeshTangents(in meshData, tan2);
@@ -99,6 +99,10 @@ internal struct BuildQuadJob : IJob
         // Populate shared quad arrays that stock PQS normally fills
         meshData.verts.AsNativeArray().CopyTo(pq.verts);
         meshData.normals.AsNativeArray().CopyTo(pq.vertNormals);
+
+        // Backup edge normals after the normals have been copied to pq.vertNormals
+        if (reqCustomNormals)
+            BackupEdgeNormals();
     }
 
     internal readonly void InitHeightDataImpl(in BuildHeightsData data)
@@ -355,12 +359,6 @@ internal struct BuildQuadJob : IJob
     {
         for (int i = 0; i < data.VertexCount; ++i)
             uvs[i] = new((float)u[i], (float)v[i]);
-    }
-
-    readonly void BuildMeshCustomNormals(in BuildMeshData data, NativeArray<int> indices)
-    {
-        BuildMeshNormals(in data, indices);
-        BackupEdgeNormals();
     }
 
     readonly void BuildMeshTangents(in BuildMeshData data, NativeArray<Vector3> tan2)
