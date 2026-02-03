@@ -92,19 +92,21 @@ public abstract class BatchPQSMod : IDisposable
 
         var onQuadPreBuild = type.GetMethod(nameof(PQSMod.OnQuadPreBuild), [typeof(PQ)]);
         var onQuadBuilt = type.GetMethod(nameof(PQSMod.OnQuadBuilt), [typeof(PQ)]);
+        var onMeshBuild = type.GetMethod(nameof(PQSMod.OnMeshBuild), []);
         var onVertexBuildHeight = type.GetMethod(nameof(PQSMod.OnVertexBuildHeight));
         var onVertexBuild = type.GetMethod(nameof(PQSMod.OnVertexBuild));
 
         var overridesQuadPreBuild = onQuadPreBuild.DeclaringType != typeof(PQSMod);
         var overridesQuadBuilt = onQuadBuilt.DeclaringType != typeof(PQSMod);
+        var overridesMeshBuild = onMeshBuild.DeclaringType != typeof(PQSMod);
         var overridesVertexBuildHeight = onVertexBuildHeight.DeclaringType != typeof(PQSMod);
         var overridesVertexBuild = onVertexBuild.DeclaringType != typeof(PQSMod);
 
         if (!overridesVertexBuild && !overridesVertexBuildHeight)
         {
             // This is a shim which just passes through OnQuadPreBuild and OnQuadBuilt
-            if (overridesQuadBuilt || overridesQuadPreBuild)
-                return new BatchPQSModShim(mod);
+            if (overridesQuadBuilt || overridesQuadPreBuild || overridesMeshBuild)
+                return new BatchPQSModShim(mod) { overridesMeshBuild = overridesMeshBuild };
 
             // Otherwise it doesn't override any build methods, so it is likely
             // compatible.
@@ -114,8 +116,25 @@ public abstract class BatchPQSMod : IDisposable
         throw new UnsupportedPQSModException($"PQSMod {type.Name} is not compatible with BatchPQS");
     }
 
-    class BatchPQSModShim(PQSMod mod) : BatchPQSMod<PQSMod>(mod) { }
+    class BatchPQSModShim(PQSMod mod) : BatchPQSMod<PQSMod>(mod)
+    {
+        public bool overridesMeshBuild;
 
+        public override void OnQuadPreBuild(PQ quad, BatchPQSJobSet jobSet)
+        {
+            base.OnQuadPreBuild(quad, jobSet);
+
+            if (overridesMeshBuild)
+                jobSet.Add(new MeshBuiltCallback(mod));
+        }
+
+        readonly struct MeshBuiltCallback(PQSMod mod) : IBatchPQSMeshBuiltJob
+        {
+            readonly PQSMod mod = mod;
+
+            public void OnMeshBuilt(PQ quad) => mod.OnMeshBuild();
+        }
+    }
     #endregion
 }
 
