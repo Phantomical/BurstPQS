@@ -136,7 +136,7 @@ internal struct BuildQuadJob : IJob
 
         for (int i = 0; i < data.VertexCount; ++i)
         {
-            var latitude = Math.Asin(MathUtil.Clamp01(data.directionFromCenter[i].y));
+            var latitude = Math.Asin(MathUtil.Clamp(data.directionFromCenter[i].y, -1.0, 1.0));
             var directionXZ = new Vector3d(
                 data.directionFromCenter[i].x,
                 0.0,
