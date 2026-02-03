@@ -153,10 +153,10 @@ internal struct BuildQuadJob : IJob
 
             data.latitude[i] = latitude;
             data.longitude[i] = longitude;
-            data.u[i] = latitude / Math.PI + 0.5;
-            data.v[i] = longitude / Math.PI * 0.5;
-            data.sx[i] = data.v[i];
-            data.sy[i] = data.u[i];
+            data.u[i] = longitude / Math.PI * 0.5;
+            data.v[i] = latitude / Math.PI + 0.5;
+            data.sx[i] = data.u[i];
+            data.sy[i] = data.v[i];
         }
     }
 
