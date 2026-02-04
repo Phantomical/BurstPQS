@@ -295,9 +295,16 @@ public unsafe struct BuildMeshData
 /// </summary>
 ///
 /// <remarks>
+/// <para>
 /// This fills much the same role as overriding <c>OnBuildHeight</c>
 /// in a regular <see cref="PQSMod"/>. The main differences are that
 /// it is called with the data for the entire quad at once.
+/// </para>
+///
+/// <para>
+/// You can compile this method using burst by annotating your job struct with
+/// <c>[BurstCompile]</c>.
+/// </para>
 /// </remarks>
 [JobProducerType(typeof(IBatchPQSJobExtensions.HeightJobStruct<>))]
 public interface IBatchPQSHeightJob
@@ -310,9 +317,16 @@ public interface IBatchPQSHeightJob
 /// </summary>
 ///
 /// <remarks>
+/// <para>
 /// This fills much the same role as overriding <c>OnBuildVertex</c>
 /// in a regular <see cref="PQSMod"/>. The main differences are that
 /// it is called with the data for the entire quad at once.
+/// </para>
+///
+/// <para>
+/// You can compile this method using burst by annotating your job struct with
+/// <c>[BurstCompile]</c>.
+/// </para>
 /// </remarks>
 [JobProducerType(typeof(IBatchPQSJobExtensions.VertexJobStruct<>))]
 public interface IBatchPQSVertexJob
@@ -326,8 +340,15 @@ public interface IBatchPQSVertexJob
 /// </summary>
 ///
 /// <remarks>
+/// <para>
 /// This allows you to modify the final mesh data on the job thread before it
 /// gets sent back to the main thread.
+/// </para>
+///
+/// <para>
+/// You can compile this method using burst by annotating your job struct with
+/// <c>[BurstCompile]</c>.
+/// </para>
 /// </remarks>
 [JobProducerType(typeof(IBatchPQSJobExtensions.MeshJobStruct<>))]
 public interface IBatchPQSMeshJob

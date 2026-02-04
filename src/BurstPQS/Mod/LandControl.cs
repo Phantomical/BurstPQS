@@ -3,12 +3,13 @@ using BurstPQS.Collections;
 using BurstPQS.Map;
 using BurstPQS.Noise;
 using BurstPQS.Util;
+using Unity.Burst;
 using Unity.Collections;
-using Unity.Collections.LowLevel.Unsafe;
 using UnityEngine;
 
 namespace BurstPQS.Mod;
 
+[BurstCompile]
 [BatchPQSMod(typeof(PQSLandControl))]
 public class LandControl(PQSLandControl mod) : BatchPQSMod<PQSLandControl>(mod)
 {
@@ -99,7 +100,7 @@ public class LandControl(PQSLandControl mod) : BatchPQSMod<PQSLandControl>(mod)
 
                 createColors = mod.createColors,
                 scatterActive = mod.scatterActive,
-                mod = mod,
+                mod = new(mod),
             }
         );
     }
@@ -115,6 +116,7 @@ public class LandControl(PQSLandControl mod) : BatchPQSMod<PQSLandControl>(mod)
             blc.Dispose();
     }
 
+    [BurstCompile]
     struct BuildJob : IBatchPQSHeightJob, IBatchPQSVertexJob, IBatchPQSMeshBuiltJob, IDisposable
     {
         public NativeArray<BurstLandClass> landClasses;
@@ -130,7 +132,7 @@ public class LandControl(PQSLandControl mod) : BatchPQSMod<PQSLandControl>(mod)
 
         public bool createColors;
         public bool scatterActive;
-        public PQSLandControl mod;
+        public ObjectHandle<PQSLandControl> mod;
 
         // Cross-phase state allocated in BuildHeights, used through OnMeshBuilt
         NativeArray<ulong> lcActive;
@@ -163,7 +165,7 @@ public class LandControl(PQSLandControl mod) : BatchPQSMod<PQSLandControl>(mod)
                 double totalDelta = 0.0;
                 double vHeight;
 
-                if (this.heightMap is BurstMapSO hMap)
+                if (heightMap is BurstMapSO hMap)
                     vHeight = hMap.GetPixelFloat(data.u[i], data.v[i]);
                 else
                     vHeight = (data.vertHeight[i] - sphereRadius) / vHeightMax;
@@ -224,9 +226,6 @@ public class LandControl(PQSLandControl mod) : BatchPQSMod<PQSLandControl>(mod)
                     }
                 }
             }
-
-            heightMap?.Dispose();
-            heightMap = null;
         }
 
         public void BuildVertices(in BuildVerticesData data)
@@ -269,7 +268,7 @@ public class LandControl(PQSLandControl mod) : BatchPQSMod<PQSLandControl>(mod)
             // Copy allowScatter for use in OnMeshBuilt
             if (scatterActive)
             {
-                allowScatterCopy = new(data.VertexCount, Allocator.Temp);
+                allowScatterCopy = new(data.VertexCount, Allocator.TempJob);
                 for (int i = 0; i < data.VertexCount; ++i)
                     allowScatterCopy[i] = data.allowScatter[i];
             }
@@ -283,6 +282,7 @@ public class LandControl(PQSLandControl mod) : BatchPQSMod<PQSLandControl>(mod)
             var vertexCount = vHeights.Length;
             var landClassCount = landClasses.Length;
             var lcActiveBits = new BitSpan(new MemorySpan<ulong>(lcActive));
+            var mod = this.mod.Target;
 
             for (int i = 0; i < vertexCount; ++i)
             {
@@ -299,18 +299,17 @@ public class LandControl(PQSLandControl mod) : BatchPQSMod<PQSLandControl>(mod)
                     var lc = mod.landClasses[itr];
                     if (!allowScatterCopy[i] || delta <= 0.05)
                         continue;
+                    if (quad.subdivision < mod.scatterMinSubdiv)
+                        continue;
 
                     foreach (var landClassScatterAmount in lc.scatter)
                     {
-                        if (quad.subdivision >= mod.scatterMinSubdiv)
-                        {
-                            mod.lcScatterList[landClassScatterAmount.scatterIndex] +=
-                                landClassScatterAmount.density
-                                * delta
-                                * PQS.cacheVertCountReciprocal
-                                * PQS.Global_ScatterFactor;
-                            mod.scatterInstCount++;
-                        }
+                        mod.lcScatterList[landClassScatterAmount.scatterIndex] +=
+                            landClassScatterAmount.density
+                            * delta
+                            * PQS.cacheVertCountReciprocal
+                            * PQS.Global_ScatterFactor;
+                        mod.scatterInstCount++;
                     }
                 }
             }
@@ -318,9 +317,8 @@ public class LandControl(PQSLandControl mod) : BatchPQSMod<PQSLandControl>(mod)
 
         public void Dispose()
         {
-            if (heightMap is BurstMapSO hMap)
-                hMap.Dispose();
-
+            mod.Dispose();
+            heightMap?.Dispose();
             lcActive.Dispose();
             lcDeltas.Dispose();
             vHeights.Dispose();
