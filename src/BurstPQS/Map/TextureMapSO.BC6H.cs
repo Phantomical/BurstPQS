@@ -14,7 +14,7 @@ public static partial class TextureMapSO
     /// indices. Endpoints are unquantized to 16-bit half-precision floats and interpolated.
     /// Comes in signed (<c>BC6H_SF16</c>) and unsigned (<c>BC6H_UF16</c>) variants.
     /// </summary>
-    // [BurstCompile]
+    [BurstCompile]
     public struct BC6H : IMapSO
     {
         NativeArray<byte> data;

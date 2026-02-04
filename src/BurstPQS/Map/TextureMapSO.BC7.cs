@@ -14,7 +14,7 @@ public static partial class TextureMapSO
     /// per-endpoint p-bits, channel rotation, and separate color/alpha index sets.
     /// Partition tables select which pixels belong to which subset.
     /// </summary>
-    // [BurstCompile]
+    [BurstCompile]
     public struct BC7 : IMapSO
     {
         NativeArray<byte> data;

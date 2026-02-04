@@ -10,7 +10,7 @@ public static partial class TextureMapSO
     /// RGB565 format. Each pixel is a 16-bit value with 5 bits red, 6 bits green,
     /// 5 bits blue (high to low bits). No alpha channel.
     /// </summary>
-    // [BurstCompile]
+    [BurstCompile]
     public struct RGB565 : IMapSO
     {
         NativeArray<ushort> data;
