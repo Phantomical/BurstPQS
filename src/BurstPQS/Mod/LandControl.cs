@@ -194,7 +194,7 @@ public class LandControl(PQSLandControl mod) : BatchPQSMod<PQSLandControl>(mod)
                         latDelta = Math.Max(lc.latitudeDoubleRange.Lerp(vLat), latDelta);
 
                     double delta = altDelta * latDelta * lonDelta;
-                    delta = MathUtil.Lerp(
+                    delta = Lerp(
                         delta,
                         delta * lc.coverageSimplex.noiseNormalized(data.directionFromCenter[i]),
                         lc.coverageBlend
@@ -313,6 +313,11 @@ public class LandControl(PQSLandControl mod) : BatchPQSMod<PQSLandControl>(mod)
                     }
                 }
             }
+        }
+
+        static double Lerp(double v1, double v2, double dt)
+        {
+            return v2 * dt + v1 * (1.0 - dt);
         }
 
         public void Dispose()
