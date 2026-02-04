@@ -7,14 +7,19 @@ using Unity.Collections;
 using Unity.Collections.LowLevel.Unsafe;
 using Unity.Jobs;
 using Unity.Mathematics;
+using Unity.Profiling;
 using UnityEngine;
-using UnityEngine.Rendering;
 using static PQ;
 
 namespace BurstPQS.Jobs;
 
 internal struct BuildQuadJob : IJob
 {
+    static readonly ProfilerMarker InitHeightDataMarker = new("InitHeightData");
+    static readonly ProfilerMarker InitVertexDataMarker = new("InitVertexData");
+    static readonly ProfilerMarker InitMeshDataMarker = new("InitMeshData");
+    static readonly ProfilerMarker BuildMeshMarker = new("BuildMesh");
+
     public Matrix4x4 quadMatrix;
     public Matrix4x4 pqsTransform;
     public Matrix4x4 inverseQuadTransform;
@@ -62,16 +67,21 @@ internal struct BuildQuadJob : IJob
         var pq = this.pq.Target;
 
         var heightData = new BuildHeightsData(sphere, cacheVertexCount);
-        this.InitHeightData(in heightData);
+        using (InitHeightDataMarker.Auto())
+            this.InitHeightData(in heightData);
         jobSet.BuildHeights(in heightData);
 
         var vertexData = new BuildVerticesData(heightData);
-        this.InitVertexData(in vertexData);
+        using (InitVertexDataMarker.Auto())
+            this.InitVertexData(in vertexData);
         jobSet.BuildVertices(in vertexData);
 
         var meshData = new BuildMeshData(vertexData);
-        this.InitMeshData(ref meshData);
+        using (InitMeshDataMarker.Auto())
+            this.InitMeshData(ref meshData);
         jobSet.BuildMesh(in meshData);
+
+        using var guard = BuildMeshMarker.Auto();
 
         fixed (int* pindices = PQS.cacheIndices[0])
         fixed (Vector3* ptan2 = PQS.tan2)
@@ -508,15 +518,15 @@ internal static class BuildQuadJobExt
     internal static void InitMeshData(this ref BuildQuadJob job, ref BuildMeshData data) =>
         InitMeshDataFunc(ref job, ref data);
 
-    // [BurstCompile]
+    [BurstCompile]
     static void InitHeightDataBurst(this ref BuildQuadJob job, in BuildHeightsData data) =>
         job.InitHeightDataImpl(in data);
 
-    // [BurstCompile]
+    [BurstCompile]
     static void InitVertexDataBurst(this ref BuildQuadJob job, in BuildVerticesData data) =>
         job.InitVertexDataImpl(in data);
 
-    // [BurstCompile]
+    [BurstCompile]
     static void InitMeshDataBurst(this ref BuildQuadJob job, ref BuildMeshData data) =>
         job.InitMeshDataImpl(ref data);
 
