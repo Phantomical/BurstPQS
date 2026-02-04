@@ -1,5 +1,6 @@
 using System;
 using System.Runtime.CompilerServices;
+using Unity.Burst;
 using Unity.Jobs.LowLevel.Unsafe;
 using UnityEngine;
 
@@ -98,6 +99,7 @@ internal unsafe struct MapSOExtensions
     internal struct GetPixelFloat_Int<T>
         where T : IMapSO_GetPixelFloat_Int
     {
+        [BurstCompile]
         public static float Execute(void* self, int x, int y) =>
             Unsafe.AsRef<T>(self).GetPixelFloat(x, y);
     }
@@ -105,6 +107,7 @@ internal unsafe struct MapSOExtensions
     internal struct GetPixelFloat_Float<T>
         where T : IMapSO_GetPixelFloat_Float
     {
+        [BurstCompile]
         public static float Execute(void* self, float x, float y) =>
             Unsafe.AsRef<T>(self).GetPixelFloat(x, y);
     }
@@ -112,6 +115,7 @@ internal unsafe struct MapSOExtensions
     internal struct GetPixelFloat_Double<T>
         where T : IMapSO_GetPixelFloat_Double
     {
+        [BurstCompile]
         public static float Execute(void* self, double x, double y) =>
             Unsafe.AsRef<T>(self).GetPixelFloat(x, y);
     }
@@ -119,6 +123,7 @@ internal unsafe struct MapSOExtensions
     internal struct GetPixelColor_Int<T>
         where T : IMapSO_GetPixelColor_Int
     {
+        [BurstCompile]
         public static void Execute(void* self, int x, int y, out Color color) =>
             color = Unsafe.AsRef<T>(self).GetPixelColor(x, y);
     }
@@ -126,6 +131,7 @@ internal unsafe struct MapSOExtensions
     internal struct GetPixelColor_Float<T>
         where T : IMapSO_GetPixelColor_Float
     {
+        [BurstCompile]
         public static void Execute(void* self, float x, float y, out Color color) =>
             color = Unsafe.AsRef<T>(self).GetPixelColor(x, y);
     }
@@ -133,6 +139,7 @@ internal unsafe struct MapSOExtensions
     internal struct GetPixelColor_Double<T>
         where T : IMapSO_GetPixelColor_Double
     {
+        [BurstCompile]
         public static void Execute(void* self, double x, double y, out Color color) =>
             color = Unsafe.AsRef<T>(self).GetPixelColor(x, y);
     }
@@ -140,6 +147,7 @@ internal unsafe struct MapSOExtensions
     internal struct GetPixelColor32_Int<T>
         where T : IMapSO_GetPixelColor32_Int
     {
+        [BurstCompile]
         public static void Execute(void* self, int x, int y, out Color32 color) =>
             color = Unsafe.AsRef<T>(self).GetPixelColor32(x, y);
     }
@@ -147,6 +155,7 @@ internal unsafe struct MapSOExtensions
     internal struct GetPixelColor32_Float<T>
         where T : IMapSO_GetPixelColor32_Float
     {
+        [BurstCompile]
         public static void Execute(void* self, float x, float y, out Color32 color) =>
             color = Unsafe.AsRef<T>(self).GetPixelColor32(x, y);
     }
@@ -154,6 +163,7 @@ internal unsafe struct MapSOExtensions
     internal struct GetPixelColor32_Double<T>
         where T : IMapSO_GetPixelColor32_Double
     {
+        [BurstCompile]
         public static void Execute(void* self, double x, double y, out Color32 color) =>
             color = Unsafe.AsRef<T>(self).GetPixelColor32(x, y);
     }
@@ -161,6 +171,7 @@ internal unsafe struct MapSOExtensions
     internal struct GetPixelHeightAlpha_Int<T>
         where T : IMapSO_GetPixelHeightAlpha_Int
     {
+        [BurstCompile]
         public static void Execute(void* self, int x, int y, out HeightAlpha color) =>
             color = Unsafe.AsRef<T>(self).GetPixelHeightAlpha(x, y);
     }
@@ -168,6 +179,7 @@ internal unsafe struct MapSOExtensions
     internal struct GetPixelHeightAlpha_Float<T>
         where T : IMapSO_GetPixelHeightAlpha_Float
     {
+        [BurstCompile]
         public static void Execute(void* self, float x, float y, out HeightAlpha color) =>
             color = Unsafe.AsRef<T>(self).GetPixelHeightAlpha(x, y);
     }
@@ -175,6 +187,7 @@ internal unsafe struct MapSOExtensions
     internal struct GetPixelHeightAlpha_Double<T>
         where T : IMapSO_GetPixelHeightAlpha_Double
     {
+        [BurstCompile]
         public static void Execute(void* self, double x, double y, out HeightAlpha color) =>
             color = Unsafe.AsRef<T>(self).GetPixelHeightAlpha(x, y);
     }

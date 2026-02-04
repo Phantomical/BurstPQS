@@ -555,6 +555,7 @@ internal static unsafe class IBatchPQSJobExtensions
     internal struct HeightJobStruct<T>
         where T : struct, IBatchPQSHeightJob
     {
+        [BurstCompile]
         public static void Execute(void* self, in BuildHeightsData data)
         {
             Unsafe.AsRef<T>(self).BuildHeights(in data);
@@ -564,6 +565,7 @@ internal static unsafe class IBatchPQSJobExtensions
     internal struct VertexJobStruct<T>
         where T : struct, IBatchPQSVertexJob
     {
+        [BurstCompile]
         public static void Execute(void* self, in BuildVerticesData data)
         {
             Unsafe.AsRef<T>(self).BuildVertices(in data);
@@ -573,6 +575,7 @@ internal static unsafe class IBatchPQSJobExtensions
     internal struct MeshJobStruct<T>
         where T : struct, IBatchPQSMeshJob
     {
+        [BurstCompile]
         public static void Execute(void* self, in BuildMeshData data)
         {
             Unsafe.AsRef<T>(self).BuildMesh(in data);
@@ -582,6 +585,7 @@ internal static unsafe class IBatchPQSJobExtensions
     internal struct OnMeshBuiltStruct<T>
         where T : struct, IBatchPQSMeshBuiltJob
     {
+        [BurstCompile]
         public static void Execute(void* self, PQ quad) => Unsafe.AsRef<T>(self).OnMeshBuilt(quad);
     }
 }

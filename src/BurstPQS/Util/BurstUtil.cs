@@ -36,8 +36,13 @@ public static class BurstUtil
         }
         // If the delegate is not a valid burst-compiled function then we just get
         // a normal function pointer for it.
-        catch (InvalidOperationException)
+        catch (InvalidOperationException e)
         {
+            var method = del.Method;
+            Debug.Log(
+                $"[BurstPQS] Could not get compiled function pointer for {method.DeclaringType?.FullName}.{method.Name}: {e.Message}"
+            );
+
             return new(Marshal.GetFunctionPointerForDelegate(del));
         }
     }

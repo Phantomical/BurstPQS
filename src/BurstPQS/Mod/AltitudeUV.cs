@@ -3,7 +3,7 @@ using Unity.Burst;
 
 namespace BurstPQS.Mod;
 
-// [BurstCompile]
+[BurstCompile]
 [BatchPQSMod(typeof(PQSMod_AltitudeUV))]
 public class AltitudeUV(PQSMod_AltitudeUV mod) : BatchPQSMod<PQSMod_AltitudeUV>(mod)
 {
@@ -22,7 +22,7 @@ public class AltitudeUV(PQSMod_AltitudeUV mod) : BatchPQSMod<PQSMod_AltitudeUV>(
         );
     }
 
-    // [BurstCompile]
+    [BurstCompile]
     struct BuildJob : IBatchPQSVertexJob
     {
         public double radius;
