@@ -29,6 +29,32 @@ internal static class PQS_BuildQuad_Patch
     }
 }
 
+[HarmonyPatch(typeof(PQS), nameof(PQS.DestroyQuad))]
+internal static class PQS_DestroyQuad_Patch
+{
+    static void Postfix(PQS __instance, PQ quad)
+    {
+        var batchPQS = __instance.GetComponent<BatchPQS>();
+        if (batchPQS != null)
+            batchPQS.OnQuadDestroy(quad);
+    }
+}
+
+[HarmonyPatch(typeof(PQS), nameof(PQS.UpdateQuads))]
+[HarmonyPriority(Priority.VeryLow)]
+internal static class PQS_UpdateQuads_Patch
+{
+    static bool Prefix(PQS __instance)
+    {
+        var batchPQS = __instance.GetComponent<BatchPQS>();
+        if (batchPQS is null)
+            return true;
+
+        batchPQS.UpdateQuads();
+        return false;
+    }
+}
+
 [HarmonyPatch]
 [HarmonyPriority(Priority.VeryLow + 1)]
 internal static class PQS_RevPatch

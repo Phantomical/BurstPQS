@@ -20,7 +20,14 @@ public class BatchPQS : MonoBehaviour
 
     // Are there unsupported mods and do we need to fall back to the stock
     // implementation?
-    private bool fallback = false;
+    private bool _fallback = false;
+    private bool Fallback
+    {
+        get => _fallback || ForceFallback;
+        set => _fallback = value;
+    }
+
+    private readonly Dictionary<PQ, PendingBuild> pending = [];
 
     void Awake()
     {
@@ -46,15 +53,171 @@ public class BatchPQS : MonoBehaviour
     {
         using var scope = BuildQuadMarker.Auto();
 
-        if (fallback || ForceFallback)
+        if (pending.TryGetValue(quad, out var build))
+            pending.Remove(quad);
+        else if (Fallback || ForceFallback)
             return PQS_RevPatch.BuildQuad(pqs, quad);
+        else
+        {
+            build = new(this, quad);
 
-        using PendingBuild build = new(this, quad);
-        if (!build.StartBuild())
-            return false;
+            if (!build.StartBuild())
+                return false;
+        }
 
-        build.Complete();
+        using (build)
+            build.Complete();
         return true;
+    }
+
+    #region UpdateQuads
+    static readonly ProfilerMarker UpdateQuadsMarker = new("UpdateQuads");
+    static readonly ProfilerMarker UpdateQuadRelativitiesMarker = new("UpdateQuadRelativities");
+    static readonly ProfilerMarker QueueQuadBuildsMarker = new("QueueQuadBuilds");
+    static readonly ProfilerMarker UpdateSubdivisionMarker = new("UpdateSubdivision");
+    static readonly ProfilerMarker UpdateEdgesMarker = new("UpdateEdges");
+
+    public void UpdateQuads()
+    {
+        if (pqs.quads == null)
+            return;
+
+        using var scope = UpdateQuadsMarker.Auto();
+
+        pqs.isThinking = true;
+        pqs.maxFrameEnd = Time.realtimeSinceStartup + pqs.maxFrameTime;
+
+        SortQuadsByDistance(pqs.quads, pqs.relativeTargetPosition);
+
+        // Update quad relativities first
+        using (UpdateQuadRelativitiesMarker.Auto())
+        {
+            for (int i = 0; i < Mathf.Min(pqs.quads.Length, 5); i++)
+                UpdateQuadRelativities(pqs.quads[i]);
+        }
+
+        // Now queue up all pending quad builds in advance.
+        using (QueueQuadBuildsMarker.Auto())
+        {
+            for (int i = 0; i < Mathf.Min(pqs.quads.Length, 5); i++)
+                QueueQuadBuilds(pqs.quads[i]);
+        }
+
+        // Finally we can actually run the stock update
+        using (UpdateSubdivisionMarker.Auto())
+        {
+            for (int i = 0; i < Mathf.Min(pqs.quads.Length, 5); i++)
+                pqs.quads[i].UpdateSubdivision();
+        }
+
+        if (pqs.reqCustomNormals)
+        {
+            using (UpdateEdgesMarker.Auto())
+                pqs.UpdateEdges();
+        }
+
+        pqs.isThinking = false;
+    }
+
+    void UpdateQuadRelativities(PQ quad)
+    {
+        quad.UpdateTargetRelativity();
+
+        if (quad.isSubdivided)
+        {
+            foreach (var child in quad.subNodes)
+                UpdateQuadRelativities(child);
+        }
+    }
+
+    void QueueQuadBuilds(PQ quad)
+    {
+        if (quad.isSubdivided)
+        {
+            foreach (var child in quad.subNodes)
+                QueueQuadBuilds(child);
+            return;
+        }
+
+        if (quad.isBuilt)
+            return;
+        if (quad.subdivision < pqs.minLevel)
+            return;
+
+        var threshold = pqs.subdivisionThresholds[quad.subdivision] * quad.subdivideThresholdFactor;
+        if (quad.gcDist < threshold && quad.subdivision < pqs.maxLevelAtCurrentTgtSpeed)
+            return;
+
+        if (quad.gcd1 >= pqs.visibleRadius)
+            return;
+
+        if (pending.ContainsKey(quad))
+            return;
+
+        var build = new PendingBuild(this, quad);
+        if (!build.StartBuild())
+            return;
+
+        pending.Add(quad, build);
+    }
+
+    static void SortQuadsByDistance(PQ[] quads, Vector3d relativeTargetPosition)
+    {
+        int num = quads.Length;
+        for (int i = 1; i < num; i++)
+        {
+            PQ pQ = quads[i];
+            int j = i - 1;
+            while (
+                j >= 0
+                && (relativeTargetPosition - quads[j].positionPlanetRelative).sqrMagnitude
+                    > (relativeTargetPosition - pQ.positionPlanetRelative).sqrMagnitude
+            )
+            {
+                quads[j + 1] = quads[j];
+                j--;
+            }
+            quads[j + 1] = pQ;
+        }
+    }
+
+    #endregion
+
+
+    static readonly ProfilerMarker OnQuadSubdividedMarker = new("BatchPQS.OnQuadSubdivided");
+
+    public void OnQuadSubdivided(PQ quad)
+    {
+        using var scope = OnQuadSubdividedMarker.Auto();
+
+        if (!Fallback && pqs.quadAllowBuild)
+        {
+            foreach (var child in quad.subNodes)
+            {
+                if (child.isSubdivided)
+                    continue;
+                if (child.gcd1 >= pqs.visibleRadius)
+                    continue;
+
+                var build = new PendingBuild(this, child);
+                if (!build.StartBuild())
+                    continue;
+
+                pending.Add(child, build);
+            }
+        }
+
+        foreach (var child in quad.subNodes)
+            child.UpdateVisibility();
+    }
+
+    public void OnQuadDestroy(PQ quad)
+    {
+        if (!pending.TryGetValue(quad, out var build))
+            return;
+
+        using var guard = build;
+        pending.Remove(quad);
     }
 
     #region Method Injections
@@ -74,11 +237,11 @@ public class BatchPQS : MonoBehaviour
                 Debug.LogWarning(
                     $"[BurstPQS] PQSMod {mod.GetType().Name} is not supported by BatchPQS"
                 );
-                fallback = true;
+                Fallback = true;
             }
         }
 
-        if (fallback)
+        if (Fallback)
             Debug.LogWarning(
                 $"[BurstPQS] BatchPQS not supported for surface {pqs.name}. Falling back to regular PQS"
             );
@@ -87,7 +250,7 @@ public class BatchPQS : MonoBehaviour
 
         this.mods = [.. batchMods];
 
-        if (!fallback)
+        if (!Fallback)
         {
             foreach (var mod in this.mods)
             {
@@ -100,7 +263,7 @@ public class BatchPQS : MonoBehaviour
                     Debug.LogWarning(
                         $"[BatchPQS] PQSMod {mod.GetType().Name} is not supported by BatchPQS: {e.Message}"
                     );
-                    fallback = true;
+                    Fallback = true;
                 }
             }
         }
