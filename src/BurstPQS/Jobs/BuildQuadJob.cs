@@ -333,58 +333,55 @@ internal struct BuildQuadJob : IJob
         if (reqBuildTangents)
             BuildMeshTangents(in data, tan2);
 
-        var positions = new NativeArray<Vector3>(data.VertexCount, Allocator.TempJob);
+        var positions = new NativeArray<Vector3>(data.VertexCount, Allocator.Persistent);
         mesh.verts = positions;
         CopyToNativeArray(positions, data.verts);
 
-        var positionsD = new NativeArray<Vector3d>(data.VertexCount, Allocator.TempJob);
+        var positionsD = new NativeArray<Vector3d>(data.VertexCount, Allocator.Persistent);
         mesh.vertsD = positionsD;
         CopyToNativeArray(positionsD, data.vertsD);
 
-        var normals = new NativeArray<Vector3>(data.VertexCount, Allocator.TempJob);
+        var normals = new NativeArray<Vector3>(data.VertexCount, Allocator.Persistent);
         mesh.normals = normals;
         normals.CopyFrom(data.normals.AsNativeArray());
 
         if (reqAssignTangents)
         {
-            var tangents = new NativeArray<Vector4>(data.VertexCount, Allocator.TempJob);
+            var tangents = new NativeArray<Vector4>(data.VertexCount, Allocator.Persistent);
             mesh.tangents = tangents;
             tangents.CopyFrom(data.tangents.AsNativeArray());
         }
 
         if (reqColorChannel)
         {
-            var colors = new NativeArray<Color>(data.VertexCount, Allocator.TempJob);
+            var colors = new NativeArray<Color>(data.VertexCount, Allocator.Persistent);
             mesh.colors = colors;
             CopyToNativeArray(colors, data.vertColor);
         }
 
         if (reqSphereUV || reqUVQuad)
         {
-            var uv0 = new NativeArray<Vector2>(data.VertexCount, Allocator.TempJob);
+            var uv0 = new NativeArray<Vector2>(data.VertexCount, Allocator.Persistent);
             mesh.uv0 = uv0;
             CopyToNativeArray(uv0, data.uvs);
         }
 
         if (reqUV2)
         {
-            var uv1 = new NativeArray<Vector2>(data.VertexCount, Allocator.TempJob);
-            mesh.uv1 = uv1;
-            CopyToNativeArray(uv1, data.uv2s);
+            mesh.uv1 = new NativeArray<Vector2>(data.VertexCount, Allocator.Persistent);
+            CopyToNativeArray(mesh.uv1, data.uv2s);
         }
 
         if (reqUV3)
         {
-            var uv2 = new NativeArray<Vector2>(data.VertexCount, Allocator.TempJob);
-            mesh.uv2 = uv2;
-            CopyToNativeArray(uv2, data.uv3s);
+            mesh.uv2 = new NativeArray<Vector2>(data.VertexCount, Allocator.Persistent);
+            CopyToNativeArray(mesh.uv2, data.uv3s);
         }
 
         if (reqUV4)
         {
-            var uv3 = new NativeArray<Vector2>(data.VertexCount, Allocator.TempJob);
-            mesh.uv3 = uv3;
-            CopyToNativeArray(uv3, data.uv4s);
+            mesh.uv3 = new NativeArray<Vector2>(data.VertexCount, Allocator.Persistent);
+            CopyToNativeArray(mesh.uv3, data.uv4s);
         }
     }
 
