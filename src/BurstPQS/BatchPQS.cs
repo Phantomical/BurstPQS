@@ -49,104 +49,11 @@ public class BatchPQS : MonoBehaviour
         if (fallback || ForceFallback)
             return PQS_RevPatch.BuildQuad(pqs, quad);
 
-        if (quad.isBuilt)
-            return false;
-        if (quad.isSubdivided)
-            return false;
-
-        if (quad == null || quad.gameObject == null)
+        using PendingBuild build = new(this, quad);
+        if (!build.StartBuild())
             return false;
 
-        pqs.buildQuad = quad;
-        // pqs.Mod_OnQuadPreBuild(quad);
-
-        using var meshData = new MeshData();
-        using var jobSet = new BatchPQSJobSet();
-        foreach (var mod in mods)
-            mod.OnQuadPreBuild(quad, jobSet);
-
-        var job = new BuildQuadJob
-        {
-            quadMatrix = quad.quadMatrix,
-            pqsTransform = transform.localToWorldMatrix,
-            inverseQuadTransform = quad.transform.worldToLocalMatrix,
-
-            surfaceRelativeQuads = pqs.surfaceRelativeQuads,
-            reqVertexMapCoords = pqs.reqVertexMapCoods,
-            reqCustomNormals = pqs.reqCustomNormals,
-            reqSphereUV = pqs.reqSphereUV,
-            reqUVQuad = pqs.reqUVQuad,
-            reqUV2 = pqs.reqUV2,
-            reqUV3 = pqs.reqUV3,
-            reqUV4 = pqs.reqUV4,
-            reqBuildTangents = pqs.reqBuildTangents,
-            reqAssignTangents = pqs.reqAssignTangents,
-            reqColorChannel = pqs.reqColorChannel,
-
-            uvSW = quad.uvSW,
-            uvDelta = quad.uvDelta,
-
-            cacheVertexCount = PQS.cacheVertCount,
-            cacheSideVertCount = PQS.cacheSideVertCount,
-            cacheMeshSize = PQS.cacheMeshSize,
-            cacheRes = PQS.cacheRes,
-            cacheTriCount = PQS.cacheTriCount,
-
-            sphere = new(pqs),
-
-            jobSet = new(jobSet),
-            meshData = new(meshData),
-            pq = new(quad),
-        };
-        var handle = job.Schedule();
-
-        quad.mesh.Clear(false);
-
-        handle.Complete();
-
-        if (!meshData.verts.IsCreated)
-            throw new Exception("mesh vertex data is empty");
-
-        quad.mesh.SetVertices(meshData.verts);
-        quad.mesh.SetNormals(meshData.normals);
-
-        if (meshData.tangents.IsCreated)
-            quad.mesh.SetTangents(meshData.tangents);
-        if (meshData.colors.IsCreated)
-            quad.mesh.SetColors(meshData.colors);
-        if (meshData.uv0.IsCreated)
-            quad.mesh.SetUVs(0, meshData.uv0);
-        if (meshData.uv1.IsCreated)
-            quad.mesh.SetUVs(1, meshData.uv1);
-        if (meshData.uv2.IsCreated)
-            quad.mesh.SetUVs(2, meshData.uv2);
-        if (meshData.uv3.IsCreated)
-            quad.mesh.SetUVs(3, meshData.uv3);
-
-        // Populate global PQS cache arrays that stock normally fills per-vertex.
-        // These must be populated before OnMeshBuilt since stock PQSMods may read them.
-        meshData.vertsD.CopyTo(PQS.verts);
-        meshData.normals.CopyTo(PQS.normals);
-        if (meshData.colors.IsCreated)
-            meshData.colors.CopyTo(PQS.cacheColors);
-        if (meshData.tangents.IsCreated)
-            meshData.tangents.CopyTo(PQS.cacheTangents);
-        if (meshData.uv1.IsCreated)
-            meshData.uv1.CopyTo(PQS.cacheUV2s);
-        if (meshData.uv2.IsCreated)
-            meshData.uv2.CopyTo(PQS.cacheUV3s);
-        if (meshData.uv3.IsCreated)
-            meshData.uv3.CopyTo(PQS.cacheUV4s);
-
-        quad.mesh.SetTriangles(PQS.cacheIndices[0], 0);
-        quad.mesh.RecalculateBounds();
-        quad.edgeState = PQS.EdgeState.Reset;
-
-        jobSet.OnMeshBuilt(quad);
-
-        foreach (var mod in mods)
-            mod.OnQuadBuilt(quad);
-        pqs.buildQuad = null;
+        build.Complete();
         return true;
     }
 
@@ -199,4 +106,137 @@ public class BatchPQS : MonoBehaviour
         }
     }
     #endregion
+
+    struct PendingBuild(BatchPQS batchPQS, PQ quad) : IDisposable
+    {
+        readonly PQ quad = quad;
+        readonly BatchPQS batchPQS = batchPQS;
+        readonly PQS pqs => batchPQS.pqs;
+        MeshData meshData;
+        BatchPQSJobSet jobSet;
+        JobHandle handle;
+
+        public bool IsCompleted => handle.IsCompleted;
+
+        public bool StartBuild()
+        {
+            if (quad.isBuilt)
+                return false;
+            if (quad.isSubdivided)
+                return false;
+
+            if (quad == null || quad.gameObject == null)
+                return false;
+
+            pqs.buildQuad = quad;
+
+            meshData = new MeshData();
+            jobSet = new BatchPQSJobSet();
+            foreach (var mod in batchPQS.mods)
+                mod.OnQuadPreBuild(quad, jobSet);
+
+            var job = new BuildQuadJob
+            {
+                quadMatrix = quad.quadMatrix,
+                pqsTransform = pqs.transform.localToWorldMatrix,
+                inverseQuadTransform = quad.transform.worldToLocalMatrix,
+
+                surfaceRelativeQuads = pqs.surfaceRelativeQuads,
+                reqVertexMapCoords = pqs.reqVertexMapCoods,
+                reqCustomNormals = pqs.reqCustomNormals,
+                reqSphereUV = pqs.reqSphereUV,
+                reqUVQuad = pqs.reqUVQuad,
+                reqUV2 = pqs.reqUV2,
+                reqUV3 = pqs.reqUV3,
+                reqUV4 = pqs.reqUV4,
+                reqBuildTangents = pqs.reqBuildTangents,
+                reqAssignTangents = pqs.reqAssignTangents,
+                reqColorChannel = pqs.reqColorChannel,
+
+                uvSW = quad.uvSW,
+                uvDelta = quad.uvDelta,
+
+                cacheVertexCount = PQS.cacheVertCount,
+                cacheSideVertCount = PQS.cacheSideVertCount,
+                cacheMeshSize = PQS.cacheMeshSize,
+                cacheRes = PQS.cacheRes,
+                cacheTriCount = PQS.cacheTriCount,
+
+                sphere = new(pqs),
+
+                jobSet = new(jobSet),
+                meshData = new(meshData),
+                pq = new(quad),
+            };
+
+            handle = job.Schedule();
+
+            return true;
+        }
+
+        public void Complete()
+        {
+            quad.mesh.Clear(false);
+            handle.Complete();
+
+            if (!meshData.verts.IsCreated)
+                throw new Exception("mesh vertex data is empty");
+
+            pqs.buildQuad = quad;
+
+            quad.mesh.SetVertices(meshData.verts);
+            quad.mesh.SetNormals(meshData.normals);
+
+            if (meshData.tangents.IsCreated)
+                quad.mesh.SetTangents(meshData.tangents);
+            if (meshData.colors.IsCreated)
+                quad.mesh.SetColors(meshData.colors);
+            if (meshData.uv0.IsCreated)
+                quad.mesh.SetUVs(0, meshData.uv0);
+            if (meshData.uv1.IsCreated)
+                quad.mesh.SetUVs(1, meshData.uv1);
+            if (meshData.uv2.IsCreated)
+                quad.mesh.SetUVs(2, meshData.uv2);
+            if (meshData.uv3.IsCreated)
+                quad.mesh.SetUVs(3, meshData.uv3);
+
+            // Populate global PQS cache arrays that stock normally fills per-vertex.
+            // These must be populated before OnMeshBuilt since stock PQSMods may read them.
+            meshData.vertsD.CopyTo(PQS.verts);
+            meshData.normals.CopyTo(PQS.normals);
+            if (meshData.colors.IsCreated)
+                meshData.colors.CopyTo(PQS.cacheColors);
+            if (meshData.tangents.IsCreated)
+                meshData.tangents.CopyTo(PQS.cacheTangents);
+            if (meshData.uv1.IsCreated)
+                meshData.uv1.CopyTo(PQS.cacheUV2s);
+            if (meshData.uv2.IsCreated)
+                meshData.uv2.CopyTo(PQS.cacheUV3s);
+            if (meshData.uv3.IsCreated)
+                meshData.uv3.CopyTo(PQS.cacheUV4s);
+
+            quad.mesh.SetTriangles(PQS.cacheIndices[0], 0);
+            quad.mesh.RecalculateBounds();
+            quad.edgeState = PQS.EdgeState.Reset;
+
+            jobSet.OnMeshBuilt(quad);
+
+            foreach (var mod in batchPQS.mods)
+                mod.OnQuadBuilt(quad);
+            pqs.buildQuad = null;
+        }
+
+        public void Dispose()
+        {
+            try
+            {
+                handle.Complete();
+            }
+            finally
+            {
+                meshData?.Dispose();
+                jobSet?.Dispose();
+            }
+        }
+    }
 }
