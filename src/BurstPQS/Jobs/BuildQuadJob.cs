@@ -59,6 +59,7 @@ internal struct BuildQuadJob : IJob
         BuildQuadJobExt.Init();
     }
 
+    #region Execute
     public unsafe void Execute()
     {
         using var jsguard = this.jobSet;
@@ -84,41 +85,38 @@ internal struct BuildQuadJob : IJob
             this.InitMeshData(ref meshData);
         jobSet.BuildMesh(in meshData);
 
-        using var guard = BuildMeshMarker.Auto();
-
-        fixed (int* pindices = PQS.cacheIndices[0])
-        fixed (Vector3* ptan2 = PQS.tan2)
+        using (BuildMeshMarker.Auto())
         {
-            var indices = NativeArrayUnsafeUtility.ConvertExistingDataToNativeArray<int>(
-                pindices,
-                PQS.cacheIndices[0].Length,
-                Allocator.Invalid
-            );
-            var tan2 = NativeArrayUnsafeUtility.ConvertExistingDataToNativeArray<Vector3>(
-                ptan2,
-                PQS.tan2.Length,
-                Allocator.Invalid
-            );
+            fixed (int* pindices = PQS.cacheIndices[0])
+            fixed (Vector3* ptan2 = PQS.tan2)
+            {
+                var indices = NativeArrayUnsafeUtility.ConvertExistingDataToNativeArray<int>(
+                    pindices,
+                    PQS.cacheIndices[0].Length,
+                    Allocator.Invalid
+                );
+                var tan2 = NativeArrayUnsafeUtility.ConvertExistingDataToNativeArray<Vector3>(
+                    ptan2,
+                    PQS.tan2.Length,
+                    Allocator.Invalid
+                );
 
-            if (reqCustomNormals)
-                BuildMeshNormals(in meshData, indices);
+                this.BuildMesh(ref meshData, ref meshOutputData.data, tan2, indices);
+            }
 
-            if (reqBuildTangents)
-                BuildMeshTangents(in meshData, tan2);
+            // Populate shared quad arrays that stock PQS normally fills
+            meshData.verts.AsNativeArray().CopyTo(pq.verts);
+            meshData.normals.AsNativeArray().CopyTo(pq.vertNormals);
         }
-
-        BuildMesh(ref meshData, meshOutputData);
-
-        // Populate shared quad arrays that stock PQS normally fills
-        meshData.verts.AsNativeArray().CopyTo(pq.verts);
-        meshData.normals.AsNativeArray().CopyTo(pq.vertNormals);
 
         // Backup edge normals after the normals have been copied to pq.vertNormals
         if (reqCustomNormals)
             BackupEdgeNormals();
     }
+    #endregion
 
-    internal readonly unsafe void InitHeightDataImpl(ref BuildHeightsData data)
+    #region InitHeightData
+    internal readonly void InitHeightDataImpl(ref BuildHeightsData data)
     {
         ref readonly var self = ref this;
 
@@ -181,7 +179,9 @@ internal struct BuildQuadJob : IJob
             data.sy[i] = data.v[i];
         }
     }
+    #endregion
 
+    #region InitVertexData
     internal readonly void InitVertexDataImpl(ref BuildVerticesData data)
     {
         data.vertColor.Clear();
@@ -192,7 +192,9 @@ internal struct BuildQuadJob : IJob
         data.u4.Clear();
         data.v4.Clear();
     }
+    #endregion
 
+    #region InitMeshData
     internal readonly void InitMeshDataImpl(ref BuildMeshData data)
     {
         if (cacheSideVertCount * cacheSideVertCount != data.VertexCount)
@@ -243,72 +245,6 @@ internal struct BuildQuadJob : IJob
 
         data.VertMax = vertMax;
         data.VertMin = vertMin;
-    }
-
-    internal readonly void BuildMesh(ref BuildMeshData data, MeshData mesh)
-    {
-        var positions = new NativeArray<Vector3>(data.VertexCount, Allocator.TempJob);
-        mesh.verts = positions;
-        CopyToNativeArray(positions, data.verts);
-
-        var positionsD = new NativeArray<Vector3d>(data.VertexCount, Allocator.TempJob);
-        mesh.vertsD = positionsD;
-        CopyToNativeArray(positionsD, data.vertsD);
-
-        var normals = new NativeArray<Vector3>(data.VertexCount, Allocator.TempJob);
-        mesh.normals = normals;
-        normals.CopyFrom(data.normals.AsNativeArray());
-
-        if (reqAssignTangents)
-        {
-            var tangents = new NativeArray<Vector4>(data.VertexCount, Allocator.TempJob);
-            mesh.tangents = tangents;
-            tangents.CopyFrom(data.tangents.AsNativeArray());
-        }
-
-        if (reqColorChannel)
-        {
-            var colors = new NativeArray<Color>(data.VertexCount, Allocator.TempJob);
-            mesh.colors = colors;
-            CopyToNativeArray(colors, data.vertColor);
-        }
-
-        if (reqSphereUV || reqUVQuad)
-        {
-            var uv0 = new NativeArray<Vector2>(data.VertexCount, Allocator.TempJob);
-            mesh.uv0 = uv0;
-            CopyToNativeArray(uv0, data.uvs);
-        }
-
-        if (reqUV2)
-        {
-            var uv1 = new NativeArray<Vector2>(data.VertexCount, Allocator.TempJob);
-            mesh.uv1 = uv1;
-            CopyToNativeArray(uv1, data.uv2s);
-        }
-
-        if (reqUV3)
-        {
-            var uv2 = new NativeArray<Vector2>(data.VertexCount, Allocator.TempJob);
-            mesh.uv2 = uv2;
-            CopyToNativeArray(uv2, data.uv3s);
-        }
-
-        if (reqUV4)
-        {
-            var uv3 = new NativeArray<Vector2>(data.VertexCount, Allocator.TempJob);
-            mesh.uv3 = uv3;
-            CopyToNativeArray(uv3, data.uv4s);
-        }
-    }
-
-    static unsafe void CopyToNativeArray<T>(NativeArray<T> dest, MemorySpan<T> src)
-        where T : unmanaged
-    {
-        if (dest.Length != src.Length)
-            ThrowArraySizeMismatch();
-
-        UnsafeUtility.MemCpy(dest.GetUnsafePtr(), src.GetDataPtr(), sizeof(T) * src.Length);
     }
 
     readonly void BuildVertexHeight(in BuildMeshData data)
@@ -381,21 +317,74 @@ internal struct BuildQuadJob : IJob
         for (int i = 0; i < data.VertexCount; ++i)
             uvs[i] = new((float)u[i], (float)v[i]);
     }
+    #endregion
 
-    readonly void BuildMeshTangents(in BuildMeshData data, NativeArray<Vector3> tan2)
+    #region BuildMesh
+    internal readonly void BuildMeshImpl(
+        ref BuildMeshData data,
+        ref MeshDataStruct mesh,
+        NativeArray<Vector3> tan2,
+        NativeArray<int> indices
+    )
     {
-        for (int i = 0; i < data.VertexCount; ++i)
-        {
-            var normal = data.normals[i];
-            var tangent = Vector3.zero;
-            Vector3.OrthoNormalize(ref normal, ref tangent);
+        if (reqCustomNormals)
+            BuildMeshNormals(in data, indices);
 
-            data.tangents[i] = new Vector4(
-                tangent.x,
-                tangent.y,
-                tangent.z,
-                (Vector3.Dot(Vector3.Cross(normal, tangent), tan2[i]) < 0f) ? -1f : 1f
-            );
+        if (reqBuildTangents)
+            BuildMeshTangents(in data, tan2);
+
+        var positions = new NativeArray<Vector3>(data.VertexCount, Allocator.TempJob);
+        mesh.verts = positions;
+        CopyToNativeArray(positions, data.verts);
+
+        var positionsD = new NativeArray<Vector3d>(data.VertexCount, Allocator.TempJob);
+        mesh.vertsD = positionsD;
+        CopyToNativeArray(positionsD, data.vertsD);
+
+        var normals = new NativeArray<Vector3>(data.VertexCount, Allocator.TempJob);
+        mesh.normals = normals;
+        normals.CopyFrom(data.normals.AsNativeArray());
+
+        if (reqAssignTangents)
+        {
+            var tangents = new NativeArray<Vector4>(data.VertexCount, Allocator.TempJob);
+            mesh.tangents = tangents;
+            tangents.CopyFrom(data.tangents.AsNativeArray());
+        }
+
+        if (reqColorChannel)
+        {
+            var colors = new NativeArray<Color>(data.VertexCount, Allocator.TempJob);
+            mesh.colors = colors;
+            CopyToNativeArray(colors, data.vertColor);
+        }
+
+        if (reqSphereUV || reqUVQuad)
+        {
+            var uv0 = new NativeArray<Vector2>(data.VertexCount, Allocator.TempJob);
+            mesh.uv0 = uv0;
+            CopyToNativeArray(uv0, data.uvs);
+        }
+
+        if (reqUV2)
+        {
+            var uv1 = new NativeArray<Vector2>(data.VertexCount, Allocator.TempJob);
+            mesh.uv1 = uv1;
+            CopyToNativeArray(uv1, data.uv2s);
+        }
+
+        if (reqUV3)
+        {
+            var uv2 = new NativeArray<Vector2>(data.VertexCount, Allocator.TempJob);
+            mesh.uv2 = uv2;
+            CopyToNativeArray(uv2, data.uv3s);
+        }
+
+        if (reqUV4)
+        {
+            var uv3 = new NativeArray<Vector2>(data.VertexCount, Allocator.TempJob);
+            mesh.uv3 = uv3;
+            CopyToNativeArray(uv3, data.uv4s);
         }
     }
 
@@ -427,6 +416,33 @@ internal struct BuildQuadJob : IJob
 
         for (int i = 0; i < data.VertexCount; ++i)
             vertNormals[i] = vertNormals[i].normalized;
+    }
+
+    readonly void BuildMeshTangents(in BuildMeshData data, NativeArray<Vector3> tan2)
+    {
+        for (int i = 0; i < data.VertexCount; ++i)
+        {
+            var normal = data.normals[i];
+            var tangent = Vector3.zero;
+            Vector3.OrthoNormalize(ref normal, ref tangent);
+
+            data.tangents[i] = new Vector4(
+                tangent.x,
+                tangent.y,
+                tangent.z,
+                (Vector3.Dot(Vector3.Cross(normal, tangent), tan2[i]) < 0f) ? -1f : 1f
+            );
+        }
+    }
+    #endregion
+
+    static unsafe void CopyToNativeArray<T>(NativeArray<T> dest, MemorySpan<T> src)
+        where T : unmanaged
+    {
+        if (dest.Length != src.Length)
+            ThrowArraySizeMismatch();
+
+        UnsafeUtility.MemCpy(dest.GetUnsafePtr(), src.GetDataPtr(), sizeof(T) * src.Length);
     }
 
     readonly void BackupEdgeNormals()
@@ -504,10 +520,18 @@ internal static unsafe class BuildQuadJobExt
     delegate void InitHeightDataDelegate(BuildQuadJob* job, BuildHeightsData* data);
     delegate void InitVertexDataDelegate(BuildQuadJob* job, BuildVerticesData* data);
     delegate void InitMeshDataDelegate(BuildQuadJob* job, BuildMeshData* data);
+    delegate void BuildMeshDelegate(
+        BuildQuadJob* job,
+        BuildMeshData* data,
+        MeshDataStruct* mesh,
+        NativeArray<Vector3>* tan2,
+        NativeArray<int>* indices
+    );
 
     static readonly InitHeightDataDelegate InitHeightDataFunc;
     static readonly InitVertexDataDelegate InitVertexDataFunc;
     static readonly InitMeshDataDelegate InitMeshDataFunc;
+    static readonly BuildMeshDelegate BuildMeshFunc;
 
     static BuildQuadJobExt()
     {
@@ -521,6 +545,10 @@ internal static unsafe class BuildQuadJobExt
 
         InitMeshDataFunc = BurstUtil
             .MaybeCompileFunctionPointer<InitMeshDataDelegate>(InitMeshDataBurst)
+            .Invoke;
+
+        BuildMeshFunc = BurstUtil
+            .MaybeCompileFunctionPointer<BuildMeshDelegate>(BuildMeshBurst)
             .Invoke;
     }
 
@@ -554,6 +582,22 @@ internal static unsafe class BuildQuadJobExt
         }
     }
 
+    internal static void BuildMesh(
+        this ref BuildQuadJob job,
+        ref BuildMeshData data,
+        ref MeshDataStruct mesh,
+        NativeArray<Vector3> tan2,
+        NativeArray<int> indices
+    )
+    {
+        fixed (BuildQuadJob* pjob = &job)
+        fixed (BuildMeshData* pdata = &data)
+        fixed (MeshDataStruct* pmesh = &mesh)
+        {
+            BuildMeshFunc(pjob, pdata, pmesh, &tan2, &indices);
+        }
+    }
+
     [BurstCompile]
     static void InitHeightDataBurst(BuildQuadJob* job, BuildHeightsData* data) =>
         Unsafe
@@ -569,6 +613,23 @@ internal static unsafe class BuildQuadJobExt
     [BurstCompile]
     static void InitMeshDataBurst(BuildQuadJob* job, BuildMeshData* data) =>
         Unsafe.AsRef<BuildQuadJob>(job).InitMeshDataImpl(ref Unsafe.AsRef<BuildMeshData>(data));
+
+    [BurstCompile]
+    static void BuildMeshBurst(
+        BuildQuadJob* job,
+        BuildMeshData* data,
+        MeshDataStruct* mesh,
+        NativeArray<Vector3>* tan2,
+        NativeArray<int>* indices
+    ) =>
+        Unsafe
+            .AsRef<BuildQuadJob>(job)
+            .BuildMeshImpl(
+                ref Unsafe.AsRef<BuildMeshData>(data),
+                ref Unsafe.AsRef<MeshDataStruct>(mesh),
+                *tan2,
+                *indices
+            );
 
     // This is a no-op, it just makes sure that the static ctor is called on the main thread.
     internal static void Init() { }
