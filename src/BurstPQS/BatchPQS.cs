@@ -99,8 +99,10 @@ public class BatchPQS : MonoBehaviour
         // Now queue up all pending quad builds in advance.
         using (QueueQuadBuildsMarker.Auto())
         {
+            int count = 0;
             for (int i = 0; i < Mathf.Min(pqs.quads.Length, 5); i++)
-                QueueQuadBuilds(pqs.quads[i]);
+                QueueQuadBuilds(pqs.quads[i], ref count);
+            JobHandle.ScheduleBatchedJobs();
         }
 
         // Finally we can actually run the stock update
@@ -130,12 +132,12 @@ public class BatchPQS : MonoBehaviour
         }
     }
 
-    void QueueQuadBuilds(PQ quad)
+    void QueueQuadBuilds(PQ quad, ref int count)
     {
         if (quad.isSubdivided)
         {
             foreach (var child in quad.subNodes)
-                QueueQuadBuilds(child);
+                QueueQuadBuilds(child, ref count);
             return;
         }
 
@@ -157,6 +159,13 @@ public class BatchPQS : MonoBehaviour
         var build = new PendingBuild(this, quad);
         if (!build.StartBuild())
             return;
+
+        count += 1;
+        if (count > 10)
+        {
+            JobHandle.ScheduleBatchedJobs();
+            count = 0;
+        }
 
         pending.Add(quad, build);
     }
