@@ -1,8 +1,10 @@
 using System;
 using System.Runtime.CompilerServices;
+using System.Runtime.InteropServices;
 using BurstPQS.Collections;
 using BurstPQS.Util;
 using Unity.Burst;
+using Unity.Burst.CompilerServices;
 using Unity.Collections;
 using Unity.Collections.LowLevel.Unsafe;
 using Unity.Jobs;
@@ -13,6 +15,7 @@ using static PQ;
 
 namespace BurstPQS.Jobs;
 
+[StructLayout(LayoutKind.Sequential)]
 internal struct BuildQuadJob : IJob
 {
     static readonly ProfilerMarker InitHeightDataMarker = new("InitHeightData");
@@ -68,12 +71,12 @@ internal struct BuildQuadJob : IJob
 
         var heightData = new BuildHeightsData(sphere, cacheVertexCount);
         using (InitHeightDataMarker.Auto())
-            this.InitHeightData(in heightData);
+            this.InitHeightData(ref heightData);
         jobSet.BuildHeights(in heightData);
 
         var vertexData = new BuildVerticesData(heightData);
         using (InitVertexDataMarker.Auto())
-            this.InitVertexData(in vertexData);
+            this.InitVertexData(ref vertexData);
         jobSet.BuildVertices(in vertexData);
 
         var meshData = new BuildMeshData(vertexData);
@@ -115,10 +118,15 @@ internal struct BuildQuadJob : IJob
             BackupEdgeNormals();
     }
 
-    internal readonly void InitHeightDataImpl(in BuildHeightsData data)
+    internal readonly unsafe void InitHeightDataImpl(ref BuildHeightsData data)
     {
+        ref readonly var self = ref this;
+
         if (cacheSideVertCount * cacheSideVertCount != data.VertexCount)
-            throw new Exception("CacheVerts length was not equal to data vertex count");
+        {
+            ThrowMismatchedCacheVerts();
+            Hint.Assume(false);
+        }
 
         float spacing = cacheMeshSize / (cacheSideVertCount - 1);
         float halfSize = cacheMeshSize * 0.5f;
@@ -174,7 +182,7 @@ internal struct BuildQuadJob : IJob
         }
     }
 
-    internal readonly void InitVertexDataImpl(in BuildVerticesData data)
+    internal readonly void InitVertexDataImpl(ref BuildVerticesData data)
     {
         data.vertColor.Clear();
         data.u2.Clear();
@@ -188,7 +196,10 @@ internal struct BuildQuadJob : IJob
     internal readonly void InitMeshDataImpl(ref BuildMeshData data)
     {
         if (cacheSideVertCount * cacheSideVertCount != data.VertexCount)
+        {
             ThrowMismatchedVertexCount();
+            Hint.Assume(false);
+        }
 
         if (surfaceRelativeQuads)
             BuildVertexSurfaceRelative(in data);
@@ -481,14 +492,18 @@ internal struct BuildQuadJob : IJob
     [MethodImpl(MethodImplOptions.NoInlining)]
     static void ThrowMismatchedVertexCount() =>
         throw new Exception("InitMeshData: side vertex count does not match total vertex count");
+
+    [MethodImpl(MethodImplOptions.NoInlining)]
+    static void ThrowMismatchedCacheVerts() =>
+        throw new Exception("CacheVerts length was not equal to data vertex count");
 }
 
-// [BurstCompile]
-internal static class BuildQuadJobExt
+[BurstCompile]
+internal static unsafe class BuildQuadJobExt
 {
-    delegate void InitHeightDataDelegate(ref BuildQuadJob job, in BuildHeightsData data);
-    delegate void InitVertexDataDelegate(ref BuildQuadJob job, in BuildVerticesData data);
-    delegate void InitMeshDataDelegate(ref BuildQuadJob job, ref BuildMeshData data);
+    delegate void InitHeightDataDelegate(BuildQuadJob* job, BuildHeightsData* data);
+    delegate void InitVertexDataDelegate(BuildQuadJob* job, BuildVerticesData* data);
+    delegate void InitMeshDataDelegate(BuildQuadJob* job, BuildMeshData* data);
 
     static readonly InitHeightDataDelegate InitHeightDataFunc;
     static readonly InitVertexDataDelegate InitVertexDataFunc;
@@ -509,26 +524,51 @@ internal static class BuildQuadJobExt
             .Invoke;
     }
 
-    internal static void InitHeightData(this ref BuildQuadJob job, in BuildHeightsData data) =>
-        InitHeightDataFunc(ref job, in data);
+    // We need to use the Unsafe.AsRef/fixed dance below as otherwise the proper address
+    // can change out from underneath us before the method gets a chance to run.
 
-    internal static void InitVertexData(this ref BuildQuadJob job, in BuildVerticesData data) =>
-        InitVertexDataFunc(ref job, in data);
+    internal static void InitHeightData(this ref BuildQuadJob job, ref BuildHeightsData data)
+    {
+        fixed (BuildQuadJob* pjob = &job)
+        fixed (BuildHeightsData* pdata = &data)
+        {
+            InitHeightDataFunc(pjob, pdata);
+        }
+    }
 
-    internal static void InitMeshData(this ref BuildQuadJob job, ref BuildMeshData data) =>
-        InitMeshDataFunc(ref job, ref data);
+    internal static void InitVertexData(this ref BuildQuadJob job, ref BuildVerticesData data)
+    {
+        fixed (BuildQuadJob* pjob = &job)
+        fixed (BuildVerticesData* pdata = &data)
+        {
+            InitVertexDataFunc(pjob, pdata);
+        }
+    }
+
+    internal static void InitMeshData(this ref BuildQuadJob job, ref BuildMeshData data)
+    {
+        fixed (BuildQuadJob* pjob = &job)
+        fixed (BuildMeshData* pdata = &data)
+        {
+            InitMeshDataFunc(pjob, pdata);
+        }
+    }
 
     [BurstCompile]
-    static void InitHeightDataBurst(this ref BuildQuadJob job, in BuildHeightsData data) =>
-        job.InitHeightDataImpl(in data);
+    static void InitHeightDataBurst(BuildQuadJob* job, BuildHeightsData* data) =>
+        Unsafe
+            .AsRef<BuildQuadJob>(job)
+            .InitHeightDataImpl(ref Unsafe.AsRef<BuildHeightsData>(data));
 
     [BurstCompile]
-    static void InitVertexDataBurst(this ref BuildQuadJob job, in BuildVerticesData data) =>
-        job.InitVertexDataImpl(in data);
+    static void InitVertexDataBurst(BuildQuadJob* job, BuildVerticesData* data) =>
+        Unsafe
+            .AsRef<BuildQuadJob>(job)
+            .InitVertexDataImpl(ref Unsafe.AsRef<BuildVerticesData>(data));
 
     [BurstCompile]
-    static void InitMeshDataBurst(this ref BuildQuadJob job, ref BuildMeshData data) =>
-        job.InitMeshDataImpl(ref data);
+    static void InitMeshDataBurst(BuildQuadJob* job, BuildMeshData* data) =>
+        Unsafe.AsRef<BuildQuadJob>(job).InitMeshDataImpl(ref Unsafe.AsRef<BuildMeshData>(data));
 
     // This is a no-op, it just makes sure that the static ctor is called on the main thread.
     internal static void Init() { }

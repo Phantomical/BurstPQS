@@ -61,7 +61,8 @@ public class VertexRidgedAltitudeCurve(PQSMod_VertexRidgedAltitudeCurve mod)
                     continue;
 
                 double r = MathUtil.Clamp(
-                    Math.Max(ridgedMinimum, ridgedAdd.GetValue(data.directionFromCenter[i])) * Math.Max(s, 0.0),
+                    Math.Max(ridgedMinimum, ridgedAdd.GetValue(data.directionFromCenter[i]))
+                        * Math.Max(s, 0.0),
                     -1.0,
                     1.0
                 );
