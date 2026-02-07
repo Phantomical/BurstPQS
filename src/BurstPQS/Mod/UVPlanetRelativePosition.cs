@@ -15,10 +15,8 @@ public class UVPlanetRelativePosition(PQSMod_UVPlanetRelativePosition mod)
     {
         var pqs = mod.sphere;
 
-        // This is a bit messy since there isn't a clean way to request this
-        if (!pqs.reqSphereUV && !pqs.reqUVQuad)
-            pqs.reqUVQuad = true;
-        pqs.reqUV2 = true;
+        pqs.modRequirements |= PQS.ModiferRequirements.MeshUV2;
+        pqs.modRequirements |= PQS.ModiferRequirements.UVQuadCoords;
     }
 
     public override void OnQuadPreBuild(PQ quad, BatchPQSJobSet jobSet)
