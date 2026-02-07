@@ -2,6 +2,9 @@ using System;
 using System.Collections.Generic;
 using BurstPQS.Jobs;
 using BurstPQS.Patches;
+using BurstPQS.Util;
+using HarmonyLib;
+using Steamworks;
 using Unity.Collections;
 using Unity.Jobs;
 using Unity.Profiling;
@@ -28,6 +31,7 @@ public class BatchPQS : MonoBehaviour
     }
 
     private readonly Dictionary<PQ, PendingBuild> pending = [];
+    private readonly Queue<PQ> buildQueue = [];
 
     void Awake()
     {
@@ -71,10 +75,18 @@ public class BatchPQS : MonoBehaviour
     }
 
     #region UpdateQuads
+    enum QuadAction : byte
+    {
+        None,
+        Subdivide,
+        Collapse,
+        PendingCollapse,
+        UpdateVisibility,
+    }
+
     static readonly ProfilerMarker UpdateQuadsMarker = new("UpdateQuads");
-    static readonly ProfilerMarker UpdateQuadRelativitiesMarker = new("UpdateQuadRelativities");
-    static readonly ProfilerMarker QueueQuadBuildsMarker = new("QueueQuadBuilds");
     static readonly ProfilerMarker UpdateSubdivisionMarker = new("UpdateSubdivision");
+    static readonly ProfilerMarker CompleteQueuedBuildsMarker = new("CompleteQueuedBuilds");
     static readonly ProfilerMarker UpdateEdgesMarker = new("UpdateEdges");
 
     public void UpdateQuads()
@@ -89,28 +101,14 @@ public class BatchPQS : MonoBehaviour
 
         SortQuadsByDistance(pqs.quads, pqs.relativeTargetPosition);
 
-        // Update quad relativities first
-        using (UpdateQuadRelativitiesMarker.Auto())
-        {
-            for (int i = 0; i < Mathf.Min(pqs.quads.Length, 5); i++)
-                UpdateQuadRelativities(pqs.quads[i]);
-        }
-
-        // Now queue up all pending quad builds in advance.
-        using (QueueQuadBuildsMarker.Auto())
-        {
-            int count = 0;
-            for (int i = 0; i < Mathf.Min(pqs.quads.Length, 5); i++)
-                QueueQuadBuilds(pqs.quads[i], ref count);
-            JobHandle.ScheduleBatchedJobs();
-        }
-
-        // Finally we can actually run the stock update
         using (UpdateSubdivisionMarker.Auto())
         {
             for (int i = 0; i < Mathf.Min(pqs.quads.Length, 5); i++)
                 pqs.quads[i].UpdateSubdivision();
         }
+
+        using (CompleteQueuedBuildsMarker.Auto())
+            CompleteQueuedBuilds();
 
         if (pqs.reqCustomNormals)
         {
@@ -121,53 +119,31 @@ public class BatchPQS : MonoBehaviour
         pqs.isThinking = false;
     }
 
-    void UpdateQuadRelativities(PQ quad)
+    void CompleteQueuedBuilds()
     {
-        quad.UpdateTargetRelativity();
-
-        if (quad.isSubdivided)
+        while (buildQueue.TryDequeue(out var quad))
         {
-            foreach (var child in quad.subNodes)
-                UpdateQuadRelativities(child);
+            if (!pending.TryGetValue(quad, out var build))
+            {
+                Debug.LogWarning(
+                    $"[BurstPQS] Build queue entry for quad {quad.name} did not have a corresponding pending build"
+                );
+                continue;
+            }
+
+            pending.Remove(quad);
+
+            try
+            {
+                build.Complete();
+                quad.isBuilt = true;
+                quad.QueueForNormalUpdate();
+            }
+            finally
+            {
+                build.Dispose();
+            }
         }
-    }
-
-    void QueueQuadBuilds(PQ quad, ref int count)
-    {
-        if (quad.isSubdivided)
-        {
-            foreach (var child in quad.subNodes)
-                QueueQuadBuilds(child, ref count);
-            return;
-        }
-
-        if (quad.isBuilt)
-            return;
-        if (quad.subdivision < pqs.minLevel)
-            return;
-
-        var threshold = pqs.subdivisionThresholds[quad.subdivision] * quad.subdivideThresholdFactor;
-        if (quad.gcDist < threshold && quad.subdivision < pqs.maxLevelAtCurrentTgtSpeed)
-            return;
-
-        if (quad.gcd1 >= pqs.visibleRadius)
-            return;
-
-        if (pending.ContainsKey(quad))
-            return;
-
-        var build = new PendingBuild(this, quad);
-        if (!build.StartBuild())
-            return;
-
-        count += 1;
-        if (count > 10)
-        {
-            JobHandle.ScheduleBatchedJobs();
-            count = 0;
-        }
-
-        pending.Add(quad, build);
     }
 
     static void SortQuadsByDistance(PQ[] quads, Vector3d relativeTargetPosition)
@@ -192,6 +168,30 @@ public class BatchPQS : MonoBehaviour
 
     #endregion
 
+    internal void BuildDeferred(PQ quad)
+    {
+        if (quad.isBuilt || !quad.isActive || !pqs.quadAllowBuild || quad.isCached)
+            return;
+
+        if (quad.isSubdivided)
+        {
+            foreach (var subnode in quad.subNodes)
+                BuildDeferred(subnode);
+        }
+        else
+        {
+            if (pending.ContainsKey(quad))
+                return;
+
+            var build = new PendingBuild(this, quad);
+            if (!build.StartBuild())
+                return;
+
+            buildQueue.Enqueue(quad);
+            pending.Add(quad, build);
+            JobHandle.ScheduleBatchedJobs();
+        }
+    }
 
     static readonly ProfilerMarker OnQuadSubdividedMarker = new("BatchPQS.OnQuadSubdivided");
 
@@ -288,7 +288,8 @@ public class BatchPQS : MonoBehaviour
         BatchPQSJobSet jobSet;
         JobHandle handle;
 
-        public bool IsCompleted => handle.IsCompleted;
+        public readonly bool IsCompleted => handle.IsCompleted;
+        public readonly PQ Quad => quad;
 
         public bool StartBuild()
         {

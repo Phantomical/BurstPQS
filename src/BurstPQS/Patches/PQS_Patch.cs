@@ -62,12 +62,4 @@ internal static class PQS_RevPatch
     [HarmonyReversePatch(HarmonyReversePatchType.Snapshot)]
     [HarmonyPatch(typeof(PQS), nameof(PQS.BuildQuad))]
     public static bool BuildQuad(PQS pqs, PQ quad) => throw new NotImplementedException();
-
-    [HarmonyReversePatch(HarmonyReversePatchType.Snapshot)]
-    [HarmonyPatch(typeof(PQS), nameof(PQS.UpdateQuadsInit))]
-    public static void UpdateQuadsInit(PQS pqs) => throw new NotImplementedException();
-
-    [HarmonyReversePatch(HarmonyReversePatchType.Snapshot)]
-    [HarmonyPatch(typeof(PQS), nameof(PQS.UpdateQuads))]
-    public static void UpdateQuads(PQS pqs) => throw new NotImplementedException();
 }
