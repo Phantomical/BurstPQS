@@ -80,29 +80,27 @@ internal struct BuildQuadJob : IJob
             this.InitVertexData(ref vertexData);
         jobSet.BuildVertices(in vertexData);
 
-        var meshData = new BuildMeshData(vertexData);
-        using (InitMeshDataMarker.Auto())
-            this.InitMeshData(ref meshData);
-        jobSet.BuildMesh(in meshData);
-
-        using (BuildMeshMarker.Auto())
+        fixed (int* pindices = PQS.cacheIndices[0])
+        fixed (Vector3* ptan2 = PQS.tan2)
         {
-            fixed (int* pindices = PQS.cacheIndices[0])
-            fixed (Vector3* ptan2 = PQS.tan2)
-            {
-                var indices = NativeArrayUnsafeUtility.ConvertExistingDataToNativeArray<int>(
-                    pindices,
-                    PQS.cacheIndices[0].Length,
-                    Allocator.Invalid
-                );
-                var tan2 = NativeArrayUnsafeUtility.ConvertExistingDataToNativeArray<Vector3>(
-                    ptan2,
-                    PQS.tan2.Length,
-                    Allocator.Invalid
-                );
+            var indices = NativeArrayUnsafeUtility.ConvertExistingDataToNativeArray<int>(
+                pindices,
+                PQS.cacheIndices[0].Length,
+                Allocator.Invalid
+            );
+            var tan2 = NativeArrayUnsafeUtility.ConvertExistingDataToNativeArray<Vector3>(
+                ptan2,
+                PQS.tan2.Length,
+                Allocator.Invalid
+            );
 
-                this.BuildMesh(ref meshData, ref meshOutputData.data, tan2, indices);
-            }
+            var meshData = new BuildMeshData(vertexData);
+            using (InitMeshDataMarker.Auto())
+                this.InitMeshData(ref meshData, tan2, indices);
+            jobSet.BuildMesh(in meshData);
+
+            using (BuildMeshMarker.Auto())
+                this.BuildMesh(ref meshData, ref meshOutputData.data);
 
             // Populate shared quad arrays that stock PQS normally fills
             meshData.verts.AsNativeArray().CopyTo(pq.verts);
@@ -195,7 +193,11 @@ internal struct BuildQuadJob : IJob
     #endregion
 
     #region InitMeshData
-    internal readonly void InitMeshDataImpl(ref BuildMeshData data)
+    internal readonly void InitMeshDataImpl(
+        ref BuildMeshData data,
+        NativeArray<Vector3> tan2,
+        NativeArray<int> indices
+    )
     {
         if (cacheSideVertCount * cacheSideVertCount != data.VertexCount)
         {
@@ -231,6 +233,12 @@ internal struct BuildQuadJob : IJob
             BuildUVs(in data, data.uv4s, data.u4, data.v4);
         else
             data.uv4s.Clear();
+
+        if (reqCustomNormals)
+            BuildMeshNormals(in data, indices);
+
+        if (reqBuildTangents)
+            BuildMeshTangents(in data, tan2);
 
         var vertMax = double.MinValue;
         var vertMin = double.MaxValue;
@@ -320,19 +328,8 @@ internal struct BuildQuadJob : IJob
     #endregion
 
     #region BuildMesh
-    internal readonly void BuildMeshImpl(
-        ref BuildMeshData data,
-        ref MeshDataStruct mesh,
-        NativeArray<Vector3> tan2,
-        NativeArray<int> indices
-    )
+    internal readonly void BuildMeshImpl(ref BuildMeshData data, ref MeshDataStruct mesh)
     {
-        if (reqCustomNormals)
-            BuildMeshNormals(in data, indices);
-
-        if (reqBuildTangents)
-            BuildMeshTangents(in data, tan2);
-
         var positions = new NativeArray<Vector3>(data.VertexCount, Allocator.Persistent);
         mesh.verts = positions;
         CopyToNativeArray(positions, data.verts);
@@ -516,14 +513,13 @@ internal static unsafe class BuildQuadJobExt
 {
     delegate void InitHeightDataDelegate(BuildQuadJob* job, BuildHeightsData* data);
     delegate void InitVertexDataDelegate(BuildQuadJob* job, BuildVerticesData* data);
-    delegate void InitMeshDataDelegate(BuildQuadJob* job, BuildMeshData* data);
-    delegate void BuildMeshDelegate(
+    delegate void InitMeshDataDelegate(
         BuildQuadJob* job,
         BuildMeshData* data,
-        MeshDataStruct* mesh,
         NativeArray<Vector3>* tan2,
         NativeArray<int>* indices
     );
+    delegate void BuildMeshDelegate(BuildQuadJob* job, BuildMeshData* data, MeshDataStruct* mesh);
 
     static readonly InitHeightDataDelegate InitHeightDataFunc;
     static readonly InitVertexDataDelegate InitVertexDataFunc;
@@ -570,28 +566,31 @@ internal static unsafe class BuildQuadJobExt
         }
     }
 
-    internal static void InitMeshData(this ref BuildQuadJob job, ref BuildMeshData data)
-    {
-        fixed (BuildQuadJob* pjob = &job)
-        fixed (BuildMeshData* pdata = &data)
-        {
-            InitMeshDataFunc(pjob, pdata);
-        }
-    }
-
-    internal static void BuildMesh(
+    internal static void InitMeshData(
         this ref BuildQuadJob job,
         ref BuildMeshData data,
-        ref MeshDataStruct mesh,
         NativeArray<Vector3> tan2,
         NativeArray<int> indices
     )
     {
         fixed (BuildQuadJob* pjob = &job)
         fixed (BuildMeshData* pdata = &data)
+        {
+            InitMeshDataFunc(pjob, pdata, &tan2, &indices);
+        }
+    }
+
+    internal static void BuildMesh(
+        this ref BuildQuadJob job,
+        ref BuildMeshData data,
+        ref MeshDataStruct mesh
+    )
+    {
+        fixed (BuildQuadJob* pjob = &job)
+        fixed (BuildMeshData* pdata = &data)
         fixed (MeshDataStruct* pmesh = &mesh)
         {
-            BuildMeshFunc(pjob, pdata, pmesh, &tan2, &indices);
+            BuildMeshFunc(pjob, pdata, pmesh);
         }
     }
 
@@ -608,24 +607,23 @@ internal static unsafe class BuildQuadJobExt
             .InitVertexDataImpl(ref Unsafe.AsRef<BuildVerticesData>(data));
 
     [BurstCompile]
-    static void InitMeshDataBurst(BuildQuadJob* job, BuildMeshData* data) =>
-        Unsafe.AsRef<BuildQuadJob>(job).InitMeshDataImpl(ref Unsafe.AsRef<BuildMeshData>(data));
-
-    [BurstCompile]
-    static void BuildMeshBurst(
+    static void InitMeshDataBurst(
         BuildQuadJob* job,
         BuildMeshData* data,
-        MeshDataStruct* mesh,
         NativeArray<Vector3>* tan2,
         NativeArray<int>* indices
     ) =>
         Unsafe
             .AsRef<BuildQuadJob>(job)
+            .InitMeshDataImpl(ref Unsafe.AsRef<BuildMeshData>(data), *tan2, *indices);
+
+    [BurstCompile]
+    static void BuildMeshBurst(BuildQuadJob* job, BuildMeshData* data, MeshDataStruct* mesh) =>
+        Unsafe
+            .AsRef<BuildQuadJob>(job)
             .BuildMeshImpl(
                 ref Unsafe.AsRef<BuildMeshData>(data),
-                ref Unsafe.AsRef<MeshDataStruct>(mesh),
-                *tan2,
-                *indices
+                ref Unsafe.AsRef<MeshDataStruct>(mesh)
             );
 
     // This is a no-op, it just makes sure that the static ctor is called on the main thread.

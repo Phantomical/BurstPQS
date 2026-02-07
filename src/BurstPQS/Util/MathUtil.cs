@@ -1,5 +1,6 @@
 using System;
 using System.Runtime.CompilerServices;
+using Unity.Mathematics;
 using static Unity.Burst.Intrinsics.X86.Bmi1;
 using static Unity.Burst.Intrinsics.X86.Popcnt;
 
@@ -72,4 +73,15 @@ public static class MathUtil
 
         return c;
     }
+
+    /// <summary>
+    /// An equivalent to <see cref="Vector3d.normalized"/> that can be used in
+    /// burst-compiled code. KSP's obfuscation makes it so that burst is unable
+    /// to compile <see cref="Vector3d.Normalize(Vector3d)"/>, so you will need
+    /// to use this instead.
+    /// </summary>
+    /// <param name="v"></param>
+    /// <returns></returns>
+    public static Vector3d Normalized(this Vector3d v) =>
+        BurstUtil.ConvertVector(math.normalize(BurstUtil.ConvertVector(v)));
 }
