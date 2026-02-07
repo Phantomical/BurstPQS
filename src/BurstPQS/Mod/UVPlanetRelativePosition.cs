@@ -7,7 +7,7 @@ using UnityEngine;
 namespace BurstPQS.Mod;
 
 [BurstCompile]
-// [BatchPQSMod(typeof(PQSMod_UVPlanetRelativePosition))]
+[BatchPQSMod(typeof(PQSMod_UVPlanetRelativePosition))]
 public class UVPlanetRelativePosition(PQSMod_UVPlanetRelativePosition mod)
     : BatchPQSMod<PQSMod_UVPlanetRelativePosition>(mod)
 {
