@@ -414,15 +414,22 @@ internal struct BuildQuadJob : IJob
             vertNormals[i] = vertNormals[i].normalized;
     }
 
-    readonly void BuildMeshTangents(in BuildMeshData data, NativeArray<Vector3> tan2)
+    readonly void BuildMeshTangents(in BuildMeshData data, NativeArray<Vector3> tan2) =>
+        BuildTangents(data.normals.AsNativeArray(), data.tangents.AsNativeArray(), tan2);
+
+    internal static void BuildTangents(
+        [NoAlias] NativeArray<Vector3> normals,
+        [NoAlias] NativeArray<Vector4> tangents,
+        [NoAlias] NativeArray<Vector3> tan2
+    )
     {
-        for (int i = 0; i < data.VertexCount; ++i)
+        for (int i = 0; i < tangents.Length; ++i)
         {
-            var normal = data.normals[i];
+            var normal = normals[i];
             var tangent = Vector3.zero;
             Vector3.OrthoNormalize(ref normal, ref tangent);
 
-            data.tangents[i] = new Vector4(
+            tangents[i] = new Vector4(
                 tangent.x,
                 tangent.y,
                 tangent.z,
