@@ -20,6 +20,8 @@ internal struct ObjectHandle<T>(T value) : IDisposable
         get => (T)handle.Target;
     }
 
+    public bool IsAllocated => handle.IsAllocated;
+
     public void Dispose() => handle.Free();
 
     public void Dispose(JobHandle job)

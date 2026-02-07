@@ -4,6 +4,7 @@ using System.Runtime.CompilerServices;
 using BurstPQS.Map.Detail;
 using BurstPQS.Util;
 using Unity.Burst;
+using Unity.Collections;
 using Unity.Collections.LowLevel.Unsafe;
 using UnityEngine;
 
@@ -632,24 +633,48 @@ public unsafe struct BurstMapSO : IMapSO, IDisposable
     {
         var width = mapSO.Width;
         var height = mapSO.Height;
-        var container = new MapSOVTable<T>.Container(mapSO);
 
         // This is probably wildly unsafe, but mono never moves static readonly fields
         // so it is ok
         var vtable = (MapSOVTable*)Unsafe.AsPointer(ref Unsafe.AsRef(in MapSOVTable<T>.VTable));
         var managed = new ObjectHandle<MapSOVTableManaged>(MapSOVTable<T>.VTableManaged);
-        var obj = UnsafeUtility.PinGCObjectAndGetAddress(container, out var gchandle);
-        var data = Unsafe.Add<byte>(obj, MapSOVTable<T>.FieldOffset);
 
-        return new()
+        // Avoid creating a managed allocation if we can.
+        if (UnsafeUtility.IsUnmanaged<T>())
         {
-            data = data,
-            vtable = vtable,
-            managed = managed,
-            gchandle = gchandle,
-            width = width,
-            height = height,
-        };
+            var data = UnsafeUtility.Malloc(
+                UnsafeUtility.SizeOf<T>(),
+                UnsafeUtility.AlignOf<T>(),
+                Allocator.Persistent
+            );
+            Unsafe.AsRef<T>(data) = mapSO;
+
+            return new()
+            {
+                data = data,
+                vtable = vtable,
+                managed = managed,
+                width = width,
+                height = height,
+            };
+        }
+        else
+        {
+            var container = new MapSOVTable<T>.Container(mapSO);
+
+            var obj = UnsafeUtility.PinGCObjectAndGetAddress(container, out var gchandle);
+            var data = Unsafe.Add<byte>(obj, MapSOVTable<T>.FieldOffset);
+
+            return new()
+            {
+                data = data,
+                vtable = vtable,
+                managed = managed,
+                gchandle = gchandle,
+                width = width,
+                height = height,
+            };
+        }
     }
 
     public static BurstMapSO Create(MapSO mapSO)
@@ -666,16 +691,24 @@ public unsafe struct BurstMapSO : IMapSO, IDisposable
 
     public void Dispose()
     {
-        managed.Dispose();
-        managed = default;
+        try
+        {
+            managed.Dispose();
 
-        if (data is null)
-            return;
+            if (data is null)
+                return;
 
-        vtable->Dispose(data);
+            vtable->Dispose(data);
 
-        UnsafeUtility.ReleaseGCObject(gchandle);
-        this = default;
+            if (gchandle != 0)
+                UnsafeUtility.ReleaseGCObject(gchandle);
+            else if (data is not null)
+                UnsafeUtility.Free(data, Allocator.Persistent);
+        }
+        finally
+        {
+            this = default;
+        }
     }
 
     public float GetPixelFloat(int x, int y)
