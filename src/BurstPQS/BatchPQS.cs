@@ -2,6 +2,7 @@ using System;
 using System.Collections.Generic;
 using BurstPQS.Jobs;
 using BurstPQS.Patches;
+using BurstPQS.Util;
 using Unity.Collections;
 using Unity.Jobs;
 using Unity.Profiling;
@@ -56,7 +57,7 @@ public class BatchPQS : MonoBehaviour
 
         if (pending.TryGetValue(quad, out var build))
             pending.Remove(quad);
-        else if (Fallback || ForceFallback)
+        else if (Fallback)
             return PQS_RevPatch.BuildQuad(pqs, quad);
         else
         {
@@ -102,6 +103,7 @@ public class BatchPQS : MonoBehaviour
 
         if (pqs.reqCustomNormals)
         {
+            QueueEdgeBuilds();
             using (UpdateEdgesMarker.Auto())
                 pqs.UpdateEdges();
         }
@@ -131,6 +133,73 @@ public class BatchPQS : MonoBehaviour
                 build.Dispose();
             }
         }
+    }
+
+    static readonly ProfilerMarker QueueEdgeBuildsMarker = new("QueueEdgeBuilds");
+
+    void QueueEdgeBuilds()
+    {
+        if (Fallback)
+            return;
+
+        using var scope = QueueEdgeBuildsMarker.Auto();
+
+        var list = pqs.normalUpdateList;
+        for (int i = 0; i < list.Count; i++)
+        {
+            var q = list[i];
+            if (q == null || q.isSubdivided || !q.isVisible)
+                continue;
+            if (!q.isActive || !q.isBuilt)
+                continue;
+            if (q.parent.IsNullOrDestroyed() || !q.parent.isSubdivided)
+                continue;
+
+            QueueNeighborBuild(q, q.north);
+            QueueNeighborBuild(q, q.south);
+            QueueNeighborBuild(q, q.east);
+            QueueNeighborBuild(q, q.west);
+
+            QueueCornerBuild(q, q.north);
+            QueueCornerBuild(q, q.west);
+            QueueCornerBuild(q, q.south);
+            QueueCornerBuild(q, q.east);
+        }
+
+        JobHandle.ScheduleBatchedJobs();
+    }
+
+    void QueueNeighborBuild(PQ q, PQ neighbor)
+    {
+        if (neighbor.subdivision == q.subdivision)
+        {
+            if (neighbor.isSubdivided)
+            {
+                neighbor.GetEdgeQuads(q, out var left, out var right);
+                if (left.IsNotNullOrDestroyed())
+                    BuildDeferred(left);
+                if (right.IsNotNullOrDestroyed())
+                    BuildDeferred(right);
+            }
+            else
+            {
+                BuildDeferred(neighbor);
+            }
+        }
+        else if (neighbor.subdivision < q.subdivision)
+        {
+            BuildDeferred(neighbor);
+        }
+    }
+
+    void QueueCornerBuild(PQ q, PQ neighbor)
+    {
+        // GetRightmostCornerPQ internally calls BuildDeferred (transpiled)
+        // on intermediate quads. We also BuildDeferred the result to cover
+        // the Build() call in GetRightmostCornerNormal.
+        var cornerPQ = q.GetRightmostCornerPQ(neighbor);
+        if (cornerPQ.IsNotNullOrDestroyed())
+            BuildDeferred(cornerPQ);
     }
 
     static void SortQuadsByDistance(PQ[] quads, Vector3d relativeTargetPosition)
