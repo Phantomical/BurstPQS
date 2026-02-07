@@ -373,8 +373,8 @@ public class BatchPQS : MonoBehaviour
                 meshData.colors.CopyTo(PQS.cacheColors);
             if (meshData.tangents.IsCreated)
                 meshData.tangents.CopyTo(PQS.cacheTangents);
-            if (meshData.uv1.IsCreated)
-                meshData.uv1.CopyTo(PQS.cacheUV2s);
+            meshData.uv0.CopyTo(PQS.cacheUVs);
+            meshData.uv1.CopyTo(PQS.cacheUV2s);
             if (meshData.uv2.IsCreated)
                 meshData.uv2.CopyTo(PQS.cacheUV3s);
             if (meshData.uv3.IsCreated)

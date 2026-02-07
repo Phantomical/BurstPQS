@@ -356,14 +356,12 @@ internal struct BuildQuadJob : IJob
             CopyToNativeArray(colors, data.vertColor);
         }
 
-        if (reqSphereUV || reqUVQuad)
         {
             var uv0 = new NativeArray<Vector2>(data.VertexCount, Allocator.Persistent);
             mesh.uv0 = uv0;
             CopyToNativeArray(uv0, data.uvs);
         }
 
-        if (reqUV2)
         {
             mesh.uv1 = new NativeArray<Vector2>(data.VertexCount, Allocator.Persistent);
             CopyToNativeArray(mesh.uv1, data.uv2s);
