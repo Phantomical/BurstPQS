@@ -897,10 +897,10 @@ public unsafe struct BurstMapSO : IMapSO, IDisposable
 
 internal class BurstMapSORegistry
 {
-    static readonly Dictionary<Type, Func<global::MapSO, BurstMapSO>> Registry = [];
+    static readonly Dictionary<Type, Func<MapSO, BurstMapSO>> Registry = [];
 
     internal static void RegisterFunc<TMapSO>(Func<TMapSO, BurstMapSO> func)
-        where TMapSO : global::MapSO
+        where TMapSO : MapSO
     {
         if (Registry.ContainsKey(typeof(TMapSO)))
             throw new Exception(
@@ -910,7 +910,7 @@ internal class BurstMapSORegistry
         Registry.Add(typeof(TMapSO), mapSO => func((TMapSO)mapSO));
     }
 
-    internal static Func<global::MapSO, BurstMapSO> GetFactoryFunc(global::MapSO mapSO)
+    internal static Func<MapSO, BurstMapSO> GetFactoryFunc(MapSO mapSO)
     {
         if (!Registry.TryGetValue(mapSO.GetType(), out var func))
         {
@@ -923,5 +923,5 @@ internal class BurstMapSORegistry
         return func;
     }
 
-    static BurstMapSO CreateEmptyMapSO(global::MapSO _) => new();
+    static BurstMapSO CreateEmptyMapSO(MapSO _) => new();
 }
