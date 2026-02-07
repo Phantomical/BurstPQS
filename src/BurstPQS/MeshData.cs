@@ -1,6 +1,8 @@
 using System;
 using System.Collections.Generic;
+using KSP.UI.Screens.DebugToolbar.Screens.Cheats;
 using Unity.Collections;
+using Unity.Jobs;
 using UnityEngine;
 
 #pragma warning disable IDE1006 // Naming Styles
@@ -31,6 +33,19 @@ internal struct MeshDataStruct : IDisposable
         uv2.Dispose();
         uv3.Dispose();
     }
+
+    struct DisposeJob(MeshDataStruct data) : IJob
+    {
+        MeshDataStruct data = data;
+
+        public void Execute() => data.Dispose();
+    }
+
+    public void Dispose(JobHandle dependsOn)
+    {
+        new DisposeJob(this).Schedule(dependsOn);
+        this = default;
+    }
 }
 
 internal class MeshData : IDisposable
@@ -59,8 +74,7 @@ internal class MeshData : IDisposable
 
     public void Dispose()
     {
-        data.Dispose();
-        data = default;
+        data.Dispose(default);
 
         if (Pool.Count < MaxPoolItems)
             Pool.Push(this);
