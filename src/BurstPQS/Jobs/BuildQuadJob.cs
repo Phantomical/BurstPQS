@@ -309,8 +309,8 @@ internal struct BuildQuadJob : IJob
         for (int i = 0; i < data.VertexCount; ++i)
         {
             data.uvs[i] = new(
-                (float)(data.latitude[i] / Math.PI + 0.5),
-                (float)(data.longitude[i] / Math.PI * 0.5)
+                (float)(data.longitude[i] / Math.PI * 0.5),
+                (float)(data.latitude[i] / Math.PI + 0.5)
             );
         }
     }
@@ -393,8 +393,10 @@ internal struct BuildQuadJob : IJob
 
         for (int i = 0, j = 0; i < cacheTriCount; i++, j += 3)
         {
-            var ba = data.verts[indices[j + 1]] - data.verts[indices[j]];
-            var ca = data.verts[indices[j + 2]] - data.verts[indices[j]];
+            // Use planet-relative positions (vertsD) to match stock PQS.BuildNormals,
+            // which computes face normals from PQS.verts (planet-relative).
+            var ba = (Vector3)(data.vertsD[indices[j + 1]] - data.vertsD[indices[j]]);
+            var ca = (Vector3)(data.vertsD[indices[j + 2]] - data.vertsD[indices[j]]);
 
             triNormals[i] = Vector3.Cross(ba, ca).normalized;
         }
