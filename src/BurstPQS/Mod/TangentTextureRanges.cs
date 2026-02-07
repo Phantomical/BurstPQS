@@ -1,10 +1,11 @@
 using System;
 using BurstPQS.Util;
 using Unity.Burst;
+using Unity.Collections;
 
 namespace BurstPQS.Mod;
 
-// [BurstCompile]
+[BurstCompile]
 [BatchPQSMod(typeof(PQSMod_TangentTextureRanges))]
 public class TangentTextureRanges(PQSMod_TangentTextureRanges mod)
     : BatchPQSMod<PQSMod_TangentTextureRanges>(mod)
@@ -16,7 +17,6 @@ public class TangentTextureRanges(PQSMod_TangentTextureRanges mod)
         jobSet.Add(
             new BuildJob
             {
-                tangentX = PQSMod_TangentTextureRanges.tangentX,
                 modulo = mod.modulo,
                 lowStart = mod.lowStart,
                 lowEnd = mod.lowEnd,
@@ -26,17 +26,21 @@ public class TangentTextureRanges(PQSMod_TangentTextureRanges mod)
         );
     }
 
-    struct BuildJob : IBatchPQSVertexJob
+    [BurstCompile]
+    struct BuildJob : IBatchPQSVertexJob, IBatchPQSMeshJob
     {
-        public float[] tangentX;
         public double modulo;
         public double lowStart;
         public double lowEnd;
         public double highStart;
         public double highEnd;
 
-        public readonly void BuildVertices(in BuildVerticesData data)
+        NativeArray<float> tangentX;
+
+        public void BuildVertices(in BuildVerticesData data)
         {
+            tangentX = new NativeArray<float>(data.VertexCount, Allocator.Temp);
+
             for (int i = 0; i < data.VertexCount; ++i)
             {
                 var height = data.vertHeight[i];
@@ -50,6 +54,12 @@ public class TangentTextureRanges(PQSMod_TangentTextureRanges mod)
 
                 tangentX[i] = (float)(high + med + low);
             }
+        }
+
+        public void BuildMesh(in BuildMeshData data)
+        {
+            for (int i = 0; i < data.VertexCount; ++i)
+                data.tangents[i].x = tangentX[i];
         }
 
         static double SmoothStep(double a, double b, double x)
