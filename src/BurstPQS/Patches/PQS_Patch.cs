@@ -1,5 +1,7 @@
 using System;
+using System.Security.Cryptography;
 using HarmonyLib;
+using Unity.Profiling;
 
 namespace BurstPQS.Patches;
 
@@ -41,7 +43,6 @@ internal static class PQS_DestroyQuad_Patch
 }
 
 [HarmonyPatch(typeof(PQS), nameof(PQS.UpdateQuads))]
-[HarmonyPriority(Priority.VeryLow)]
 internal static class PQS_UpdateQuads_Patch
 {
     static bool Prefix(PQS __instance)
@@ -55,8 +56,17 @@ internal static class PQS_UpdateQuads_Patch
     }
 }
 
+[HarmonyPatch(typeof(PQS), nameof(PQS.UpdateQuadsInit))]
+internal static class PQS_UpdateQuadsInit_Patch
+{
+    static readonly ProfilerMarker Marker = new(nameof(PQS.UpdateQuadsInit));
+
+    static void Prefix(out ProfilerMarker.AutoScope __state) => __state = Marker.Auto();
+
+    static void Postfix(ProfilerMarker.AutoScope __state) => __state.Dispose();
+}
+
 [HarmonyPatch]
-[HarmonyPriority(Priority.VeryLow + 1)]
 internal static class PQS_RevPatch
 {
     [HarmonyReversePatch(HarmonyReversePatchType.Snapshot)]
