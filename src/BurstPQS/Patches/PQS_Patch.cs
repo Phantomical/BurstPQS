@@ -1,7 +1,13 @@
 using System;
 using System.Security.Cryptography;
+using BurstPQS.Jobs;
+using BurstPQS.Util;
 using HarmonyLib;
+using Unity.Burst;
+using Unity.Collections;
+using Unity.Collections.LowLevel.Unsafe;
 using Unity.Profiling;
+using UnityEngine;
 
 namespace BurstPQS.Patches;
 
@@ -64,6 +70,60 @@ internal static class PQS_UpdateQuadsInit_Patch
     static void Prefix(out ProfilerMarker.AutoScope __state) => __state = Marker.Auto();
 
     static void Postfix(ProfilerMarker.AutoScope __state) => __state.Dispose();
+}
+
+[BurstCompile]
+[HarmonyPatch(typeof(PQS), nameof(PQS.BuildTangents))]
+internal static class PQS_BuildTangents_Patch
+{
+    static unsafe bool Prefix(PQ quad)
+    {
+        BuildTangentsFunc ??= BurstUtil.MaybeCompileDelegate<BuildTangentsDelegate>(BuildTangents);
+
+        var normals = quad.mesh.normals;
+        fixed (Vector3* pnormals = normals)
+        fixed (Vector4* ptangents = PQS.cacheTangents)
+        fixed (Vector3* ptan2 = PQS.tan2)
+        {
+            BuildTangentsFunc(
+                NativeArrayUnsafeUtility.ConvertExistingDataToNativeArray<Vector3>(
+                    pnormals,
+                    normals.Length,
+                    Allocator.Invalid
+                ),
+                NativeArrayUnsafeUtility.ConvertExistingDataToNativeArray<Vector4>(
+                    ptangents,
+                    PQS.cacheTangents.Length,
+                    Allocator.Invalid
+                ),
+                NativeArrayUnsafeUtility.ConvertExistingDataToNativeArray<Vector3>(
+                    ptan2,
+                    PQS.tan2.Length,
+                    Allocator.Invalid
+                )
+            );
+        }
+
+        return false;
+    }
+
+    delegate void BuildTangentsDelegate(
+        in NativeArray<Vector3> normals,
+        in NativeArray<Vector4> tangents,
+        in NativeArray<Vector3> tan2
+    );
+
+    static BuildTangentsDelegate BuildTangentsFunc;
+
+    [BurstCompile]
+    static void BuildTangents(
+        in NativeArray<Vector3> normals,
+        in NativeArray<Vector4> tangents,
+        in NativeArray<Vector3> tan2
+    )
+    {
+        BuildQuadJob.BuildTangents(normals, tangents, tan2);
+    }
 }
 
 [HarmonyPatch]

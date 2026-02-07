@@ -47,6 +47,19 @@ public static class BurstUtil
         }
     }
 
+    internal static F MaybeCompileDelegate<F>(F del)
+        where F : Delegate
+    {
+        try
+        {
+            return BurstCompiler.CompileFunctionPointer(del).Invoke;
+        }
+        catch (InvalidOperationException)
+        {
+            return del;
+        }
+    }
+
     public static unsafe T* Alloc<T>(T value, Allocator alloc = Allocator.Temp)
         where T : unmanaged
     {
