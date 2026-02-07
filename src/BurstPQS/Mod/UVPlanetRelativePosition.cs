@@ -11,6 +11,16 @@ namespace BurstPQS.Mod;
 public class UVPlanetRelativePosition(PQSMod_UVPlanetRelativePosition mod)
     : BatchPQSMod<PQSMod_UVPlanetRelativePosition>(mod)
 {
+    public override void OnSetup()
+    {
+        var pqs = mod.sphere;
+
+        // This is a bit messy since there isn't a clean way to request this
+        if (!pqs.reqSphereUV && !pqs.reqUVQuad)
+            pqs.reqUVQuad = true;
+        pqs.reqUV2 = true;
+    }
+
     public override void OnQuadPreBuild(PQ quad, BatchPQSJobSet jobSet)
     {
         base.OnQuadPreBuild(quad, jobSet);
