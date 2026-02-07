@@ -57,7 +57,7 @@ public struct BurstAnimationCurve : IDisposable
             return 0f;
 
         // TODO: This isn't technically correct, since animations can have lots of
-        //       different wrap modes. KSP doens't seem to use them though.
+        //       different wrap modes. KSP doesn't seem to use them though.
         if (time < keys[0].time)
             return keys[0].value;
 
