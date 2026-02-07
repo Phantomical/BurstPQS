@@ -75,15 +75,6 @@ public class BatchPQS : MonoBehaviour
     }
 
     #region UpdateQuads
-    enum QuadAction : byte
-    {
-        None,
-        Subdivide,
-        Collapse,
-        PendingCollapse,
-        UpdateVisibility,
-    }
-
     static readonly ProfilerMarker UpdateQuadsMarker = new("UpdateQuads");
     static readonly ProfilerMarker UpdateSubdivisionMarker = new("UpdateSubdivision");
     static readonly ProfilerMarker CompleteQueuedBuildsMarker = new("CompleteQueuedBuilds");
@@ -107,8 +98,7 @@ public class BatchPQS : MonoBehaviour
                 pqs.quads[i].UpdateSubdivision();
         }
 
-        using (CompleteQueuedBuildsMarker.Auto())
-            CompleteQueuedBuilds();
+        CompleteQueuedBuilds();
 
         if (pqs.reqCustomNormals)
         {
@@ -121,6 +111,8 @@ public class BatchPQS : MonoBehaviour
 
     void CompleteQueuedBuilds()
     {
+        using var scope = CompleteQueuedBuildsMarker.Auto();
+
         while (buildQueue.TryDequeue(out var quad))
         {
             if (!pending.TryGetValue(quad, out var build))
@@ -165,7 +157,6 @@ public class BatchPQS : MonoBehaviour
             quads[j + 1] = pQ;
         }
     }
-
     #endregion
 
     internal void BuildDeferred(PQ quad)
@@ -303,8 +294,8 @@ public class BatchPQS : MonoBehaviour
 
             pqs.buildQuad = quad;
 
-            meshData = new MeshData();
-            jobSet = new BatchPQSJobSet();
+            meshData = MeshData.Acquire();
+            jobSet = BatchPQSJobSet.Acquire();
             foreach (var mod in batchPQS.mods)
                 mod.OnQuadPreBuild(quad, jobSet);
 

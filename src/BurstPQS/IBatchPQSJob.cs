@@ -522,6 +522,20 @@ internal sealed unsafe class JobData<T>(in T job) : JobData
         return lambda.Compile();
     }
 
+    const int MaxPoolItems = 128;
+    static readonly Stack<JobData<T>> Pool = [];
+
+    public static JobData<T> Create(in T job)
+    {
+        if (Pool.TryPop(out var data))
+        {
+            data.job = job;
+            return data;
+        }
+
+        return new(job);
+    }
+
     T job = job;
 
     public override void BuildHeights(in BuildHeightsData data)
@@ -565,9 +579,20 @@ internal sealed unsafe class JobData<T>(in T job) : JobData
 
     public override void Dispose()
     {
-        using var guard = new PinGuard(this);
-        DisposeFunc?.Invoke(Unsafe.AsPointer(ref job));
-        AutoDisposeFunc?.Invoke(job);
+        try
+        {
+            using var guard = new PinGuard(this);
+            DisposeFunc?.Invoke(Unsafe.AsPointer(ref job));
+            AutoDisposeFunc?.Invoke(job);
+        }
+        finally
+        {
+            if (Pool.Count < MaxPoolItems)
+            {
+                job = default;
+                Pool.Push(this);
+            }
+        }
     }
 }
 

@@ -1,4 +1,5 @@
 using System;
+using System.Collections.Generic;
 using Unity.Collections;
 using UnityEngine;
 
@@ -46,8 +47,22 @@ internal class MeshData : IDisposable
     public NativeArray<Vector2> uv2 => data.uv2;
     public NativeArray<Vector2> uv3 => data.uv3;
 
+    private const int MaxPoolItems = 256;
+    private static readonly Stack<MeshData> Pool = [];
+
+    public static MeshData Acquire()
+    {
+        if (Pool.TryPop(out var data))
+            return data;
+        return new();
+    }
+
     public void Dispose()
     {
         data.Dispose();
+        data = default;
+
+        if (Pool.Count < MaxPoolItems)
+            Pool.Push(this);
     }
 }

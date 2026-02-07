@@ -5,12 +5,24 @@ namespace BurstPQS;
 
 public class BatchPQSJobSet : IDisposable
 {
+    private const int MaxPoolItems = 128;
+    private static readonly Stack<BatchPQSJobSet> Pool = [];
+
+    internal static BatchPQSJobSet Acquire()
+    {
+        if (Pool.TryPop(out var jobSet))
+            return jobSet;
+        return new();
+    }
+
     readonly List<JobData> jobs = [];
+
+    internal BatchPQSJobSet() { }
 
     public void Add<T>(in T job)
         where T : struct
     {
-        jobs.Add(new JobData<T>(job));
+        jobs.Add(JobData<T>.Create(job));
     }
 
     internal void BuildHeights(in BuildHeightsData data)
@@ -39,26 +51,37 @@ public class BatchPQSJobSet : IDisposable
 
     public void Dispose()
     {
-        List<Exception> exceptions = null;
-
-        foreach (var job in jobs)
+        try
         {
-            try
+            List<Exception> exceptions = null;
+
+            foreach (var job in jobs)
             {
-                job.Dispose();
+                try
+                {
+                    job.Dispose();
+                }
+                catch (Exception e)
+                {
+                    exceptions ??= [];
+                    exceptions.Add(e);
+                }
             }
-            catch (Exception e)
+
+            if (exceptions is null)
+                return;
+            else if (exceptions.Count == 1)
+                throw exceptions[0];
+            else
+                throw new AggregateException(exceptions);
+        }
+        finally
+        {
+            if (Pool.Count < MaxPoolItems)
             {
-                exceptions ??= [];
-                exceptions.Add(e);
+                jobs.Clear();
+                Pool.Push(this);
             }
         }
-
-        if (exceptions is null)
-            return;
-        if (exceptions.Count == 1)
-            throw exceptions[0];
-
-        throw new AggregateException(exceptions);
     }
 }
