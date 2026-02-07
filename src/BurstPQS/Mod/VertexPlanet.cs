@@ -4,12 +4,13 @@ using BurstPQS.Noise;
 using BurstPQS.Util;
 using Unity.Burst;
 using Unity.Collections;
-using Unity.Collections.LowLevel.Unsafe;
 using UnityEngine;
 
 namespace BurstPQS.Mod;
 
-[BurstCompile]
+// Burst compilation seems to break this. Instead of trying to figure it out we
+// just avoid burst compiling it altogether.
+// [BurstCompile]
 [BatchPQSMod(typeof(PQSMod_VertexPlanet))]
 public class VertexPlanet(PQSMod_VertexPlanet mod) : BatchPQSMod<PQSMod_VertexPlanet>(mod)
 {
