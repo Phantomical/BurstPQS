@@ -380,16 +380,6 @@ internal abstract unsafe class JobData : IDisposable
     public abstract void OnMeshBuilt(PQ quad);
     public abstract void Dispose();
 
-    protected struct PinGuard(object obj) : IDisposable
-    {
-        GCHandle handle = GCHandle.Alloc(obj, GCHandleType.Pinned);
-
-        public void Dispose()
-        {
-            handle.Free();
-        }
-    }
-
     protected static void DoDispose<T>(void* job)
         where T : IDisposable
     {
@@ -397,6 +387,7 @@ internal abstract unsafe class JobData : IDisposable
     }
 }
 
+#pragma warning disable CS8500 // This takes the address of, gets the size of, or declares a pointer to a managed type
 internal sealed unsafe class JobData<T>(in T job) : JobData
     where T : struct
 {
@@ -544,9 +535,10 @@ internal sealed unsafe class JobData<T>(in T job) : JobData
             return;
 
         using var scope = BuildHeightsMarker.Auto();
-        using var guard = new PinGuard(this);
-
-        BuildHeightsFunc(Unsafe.AsPointer(ref job), in data);
+        fixed (T* pjob = &job)
+        {
+            BuildHeightsFunc(Unsafe.AsPointer(ref job), in data);
+        }
     }
 
     public override void BuildVertices(in BuildVerticesData data)
@@ -555,9 +547,10 @@ internal sealed unsafe class JobData<T>(in T job) : JobData
             return;
 
         using var scope = BuildVerticesMarker.Auto();
-        using var guard = new PinGuard(this);
-
-        BuildVerticesFunc(Unsafe.AsPointer(ref job), in data);
+        fixed (T* pjob = &job)
+        {
+            BuildVerticesFunc(Unsafe.AsPointer(ref job), in data);
+        }
     }
 
     public override void BuildMesh(in BuildMeshData data)
@@ -566,24 +559,29 @@ internal sealed unsafe class JobData<T>(in T job) : JobData
             return;
 
         using var scope = BuildMeshMarker.Auto();
-        using var guard = new PinGuard(this);
-
-        BuildMeshFunc(Unsafe.AsPointer(ref job), in data);
+        fixed (T* pjob = &job)
+        {
+            BuildMeshFunc(Unsafe.AsPointer(ref job), in data);
+        }
     }
 
     public override void OnMeshBuilt(PQ quad)
     {
-        using var guard = new PinGuard(this);
-        OnMeshBuiltFunc?.Invoke(Unsafe.AsPointer(ref job), quad);
+        fixed (T* pjob = &job)
+        {
+            OnMeshBuiltFunc?.Invoke(Unsafe.AsPointer(ref job), quad);
+        }
     }
 
     public override void Dispose()
     {
         try
         {
-            using var guard = new PinGuard(this);
-            DisposeFunc?.Invoke(Unsafe.AsPointer(ref job));
-            AutoDisposeFunc?.Invoke(job);
+            fixed (T* pjob = &job)
+            {
+                DisposeFunc?.Invoke(Unsafe.AsPointer(ref job));
+                AutoDisposeFunc?.Invoke(job);
+            }
         }
         finally
         {
@@ -595,6 +593,7 @@ internal sealed unsafe class JobData<T>(in T job) : JobData
         }
     }
 }
+#pragma warning restore CS8500 // This takes the address of, gets the size of, or declares a pointer to a managed type
 
 internal static unsafe class IBatchPQSJobExtensions
 {
