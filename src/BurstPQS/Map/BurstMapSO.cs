@@ -693,12 +693,12 @@ public unsafe struct BurstMapSO : IMapSO, IDisposable
     {
         try
         {
-            managed.Dispose();
+            using var guard = managed;
 
             if (data is null)
                 return;
 
-            vtable->Dispose(data);
+            managed.Target.Dispose(data);
 
             if (gchandle != 0)
                 UnsafeUtility.ReleaseGCObject(gchandle);
