@@ -99,6 +99,7 @@ public class BatchPQS : MonoBehaviour
         }
 
         CompleteQueuedBuilds();
+        JobHandle.ScheduleBatchedJobs();
 
         if (pqs.reqCustomNormals)
         {
@@ -117,9 +118,9 @@ public class BatchPQS : MonoBehaviour
         {
             if (!pending.TryGetValue(quad, out var build))
             {
-                Debug.LogWarning(
-                    $"[BurstPQS] Build queue entry for quad {quad.name} did not have a corresponding pending build"
-                );
+                // Debug.LogWarning(
+                //     $"[BurstPQS] Build queue entry for quad {quad.name} did not have a corresponding pending build"
+                // );
                 continue;
             }
 
