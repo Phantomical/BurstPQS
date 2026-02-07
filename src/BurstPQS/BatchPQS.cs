@@ -98,6 +98,8 @@ public class BatchPQS : MonoBehaviour
                 pqs.quads[i].UpdateSubdivision();
         }
 
+        JobHandle.ScheduleBatchedJobs();
+
         CompleteQueuedBuilds();
         JobHandle.ScheduleBatchedJobs();
 
@@ -117,12 +119,7 @@ public class BatchPQS : MonoBehaviour
         while (buildQueue.TryDequeue(out var quad))
         {
             if (!pending.TryGetValue(quad, out var build))
-            {
-                // Debug.LogWarning(
-                //     $"[BurstPQS] Build queue entry for quad {quad.name} did not have a corresponding pending build"
-                // );
                 continue;
-            }
 
             pending.Remove(quad);
 
@@ -164,6 +161,12 @@ public class BatchPQS : MonoBehaviour
     {
         if (quad.isBuilt || !quad.isActive || !pqs.quadAllowBuild || quad.isCached)
             return;
+
+        if (Fallback)
+        {
+            quad.Build();
+            return;
+        }
 
         if (quad.isSubdivided)
         {
