@@ -17,6 +17,12 @@ public class UVPlanetRelativePosition(PQSMod_UVPlanetRelativePosition mod)
         jobSet.Add(new BuildJob());
     }
 
+    public override void OnQuadBuilt(PQ quad)
+    {
+        // don't call into the default OnQuadBuilt since it is already handled
+        // by BuildJob.BuildMesh.
+    }
+
     [BurstCompile]
     struct BuildJob : IBatchPQSMeshJob
     {
