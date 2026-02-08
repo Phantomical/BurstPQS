@@ -26,6 +26,10 @@ public abstract class BatchPQSMod : IDisposable
     /// <param name="jobSet"></param>
     public virtual void OnQuadPreBuild(PQ quad, BatchPQSJobSet jobSet) { }
 
+    /// <summary>
+    /// Called once the quad has finished being built.
+    /// </summary>
+    /// <param name="quad"></param>
     public virtual void OnQuadBuilt(PQ quad) { }
 
     /// <summary>
@@ -38,10 +42,10 @@ public abstract class BatchPQSMod : IDisposable
     static readonly HashSet<Type> ModShims = [];
 
     /// <summary>
-    /// Register a <see cref="BatchPQSModV1"/> adapter for a <see cref="PQSMod"/>
+    /// Register a <see cref="BatchPQSMod"/> adapter for a <see cref="PQSMod"/>
     /// type.
     /// </summary>
-    /// <param name="batchMod">The type of the <see cref="BatchPQSModV1"/> adapter.</param>
+    /// <param name="batchMod">The type of the <see cref="BatchPQSMod"/> adapter.</param>
     /// <param name="mod">The type of the <see cref="PQSMod"/>.</param>
     /// <exception cref="ArgumentException"></exception>
     public static void RegisterBatchPQSMod(Type batchMod, Type mod)
