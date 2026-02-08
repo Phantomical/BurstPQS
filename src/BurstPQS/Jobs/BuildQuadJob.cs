@@ -105,6 +105,9 @@ internal struct BuildQuadJob : IJob
             // Populate shared quad arrays that stock PQS normally fills
             meshData.verts.AsNativeArray().CopyTo(pq.verts);
             meshData.normals.AsNativeArray().CopyTo(pq.vertNormals);
+
+            pq.meshVertMax = meshData.VertMax;
+            pq.meshVertMin = meshData.VertMin;
         }
 
         // Backup edge normals after the normals have been copied to pq.vertNormals
@@ -189,6 +192,8 @@ internal struct BuildQuadJob : IJob
         data.v3.Clear();
         data.u4.Clear();
         data.v4.Clear();
+
+        data.allowScatter.Fill(true);
     }
     #endregion
 

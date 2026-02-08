@@ -146,9 +146,9 @@ public class LandControl(PQSLandControl mod) : BatchPQSMod<PQSLandControl>(mod)
             int lcActiveCount = data.VertexCount * landClasses.Length;
             int lcActiveUlongCount = (lcActiveCount + 63) / 64;
 
-            lcActive = new(lcActiveUlongCount, Allocator.TempJob);
-            lcDeltas = new(lcActiveCount, Allocator.TempJob);
-            vHeights = new(data.VertexCount, Allocator.TempJob);
+            lcActive = new(lcActiveUlongCount, Allocator.Persistent);
+            lcDeltas = new(lcActiveCount, Allocator.Persistent);
+            vHeights = new(data.VertexCount, Allocator.Persistent);
 
             var lcActiveBits = new BitSpan(new MemorySpan<ulong>(lcActive));
             var lcDeltasSpan = new MemorySpan<double>(lcDeltas);
@@ -268,7 +268,7 @@ public class LandControl(PQSLandControl mod) : BatchPQSMod<PQSLandControl>(mod)
             // Copy allowScatter for use in OnMeshBuilt
             if (scatterActive)
             {
-                allowScatterCopy = new(data.VertexCount, Allocator.TempJob);
+                allowScatterCopy = new(data.VertexCount, Allocator.Persistent);
                 for (int i = 0; i < data.VertexCount; ++i)
                     allowScatterCopy[i] = data.allowScatter[i];
             }
