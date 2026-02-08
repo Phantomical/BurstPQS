@@ -11,7 +11,8 @@
     "kind": "metapackage",
     "depends": [
         { "name": "Harmony2" },
-        { "name": "KSPBurst-Lite" }
+        { "name": "KSPBurst-Lite" },
+        { "name": "ParallaxContinued" }
     ],
     "recommends": [
         { "name": "KSPCommunityFixes" },
