@@ -7,6 +7,8 @@ Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "src", "src", "{827E0CD3-B72
 EndProject
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "BurstPQS", "src\BurstPQS\BurstPQS.csproj", "{BD381523-5761-8720-4F34-80C99D5C11E1}"
 EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "BurstPQS.ParallaxContinued", "src\BurstPQS.ParallaxContinued\BurstPQS.ParallaxContinued.csproj", "{CADF8807-D500-43A2-9D23-FFD28D3D819A}"
+EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
 		Debug|Any CPU = Debug|Any CPU
@@ -29,12 +31,25 @@ Global
 		{BD381523-5761-8720-4F34-80C99D5C11E1}.Release|x64.Build.0 = Release|Any CPU
 		{BD381523-5761-8720-4F34-80C99D5C11E1}.Release|x86.ActiveCfg = Release|Any CPU
 		{BD381523-5761-8720-4F34-80C99D5C11E1}.Release|x86.Build.0 = Release|Any CPU
+		{CADF8807-D500-43A2-9D23-FFD28D3D819A}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{CADF8807-D500-43A2-9D23-FFD28D3D819A}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{CADF8807-D500-43A2-9D23-FFD28D3D819A}.Debug|x64.ActiveCfg = Debug|Any CPU
+		{CADF8807-D500-43A2-9D23-FFD28D3D819A}.Debug|x64.Build.0 = Debug|Any CPU
+		{CADF8807-D500-43A2-9D23-FFD28D3D819A}.Debug|x86.ActiveCfg = Debug|Any CPU
+		{CADF8807-D500-43A2-9D23-FFD28D3D819A}.Debug|x86.Build.0 = Debug|Any CPU
+		{CADF8807-D500-43A2-9D23-FFD28D3D819A}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{CADF8807-D500-43A2-9D23-FFD28D3D819A}.Release|Any CPU.Build.0 = Release|Any CPU
+		{CADF8807-D500-43A2-9D23-FFD28D3D819A}.Release|x64.ActiveCfg = Release|Any CPU
+		{CADF8807-D500-43A2-9D23-FFD28D3D819A}.Release|x64.Build.0 = Release|Any CPU
+		{CADF8807-D500-43A2-9D23-FFD28D3D819A}.Release|x86.ActiveCfg = Release|Any CPU
+		{CADF8807-D500-43A2-9D23-FFD28D3D819A}.Release|x86.Build.0 = Release|Any CPU
 	EndGlobalSection
 	GlobalSection(SolutionProperties) = preSolution
 		HideSolutionNode = FALSE
 	EndGlobalSection
 	GlobalSection(NestedProjects) = preSolution
 		{BD381523-5761-8720-4F34-80C99D5C11E1} = {827E0CD3-B72D-47B6-A68D-7590B98EB39B}
+		{CADF8807-D500-43A2-9D23-FFD28D3D819A} = {827E0CD3-B72D-47B6-A68D-7590B98EB39B}
 	EndGlobalSection
 	GlobalSection(ExtensibilityGlobals) = postSolution
 		SolutionGuid = {D9B233F0-AFF7-419E-A4EE-04E26A75F140}

@@ -31,6 +31,7 @@ public struct SphereData(PQS sphere)
     public double radius = sphere.radius;
     public double radiusMin = sphere.radiusMin;
     public double radiusMax = sphere.radiusMax;
+    public bool isBuildingMaps = sphere.isBuildingMaps;
 
     public readonly double radiusDelta => radiusMax - radiusMin;
 }

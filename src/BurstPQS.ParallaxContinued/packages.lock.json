@@ -1,0 +1,34 @@
+{
+  "version": 1,
+  "dependencies": {
+    ".NETFramework,Version=v4.8.1": {
+      "Krafs.Publicizer": {
+        "type": "Direct",
+        "requested": "[2.3.0, )",
+        "resolved": "2.3.0",
+        "contentHash": "DjktTgctwxUMhMkWKrRECer3LR1lHzanCOlE4mpinAiY8SfWJq4DG/QitP5h1A+WBjyWHzQSOG+204i3VpO1FA=="
+      },
+      "KSPBuildTools": {
+        "type": "Direct",
+        "requested": "[1.1.0, )",
+        "resolved": "1.1.0",
+        "contentHash": "4XMSjeUmlAXAw/uy34Ov2HzcQG4jIGWwyHdxoDYoqQ0UIUVUSOAignAcJbKL88XK539/921IRUq/HPTjKfkt6A==",
+        "dependencies": {
+          "JsonPoke": "1.2.0"
+        }
+      },
+      "JsonPoke": {
+        "type": "Transitive",
+        "resolved": "1.2.0",
+        "contentHash": "AW7iyzudTA4VzW3pYjTzy+MucrF+wUWKQulqx/EnqvlqLwVseNk2nqlWpTRySItQCgBv0w7o/dqTN4wj0tWJhA=="
+      },
+      "burstpqs": {
+        "type": "Project",
+        "dependencies": {
+          "JsonPoke": "[1.2.0, )",
+          "KSPBuildTools": "[1.1.0, )"
+        }
+      }
+    }
+  }
+}

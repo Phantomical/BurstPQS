@@ -27,4 +27,11 @@
         <GameDataOutDir>$(ProjectRootDir)\GameData\$(GameDataSubDir)</GameDataOutDir>
         <BinariesOutputRelativePath>GameData\$(GameDataSubDir)\Plugins</BinariesOutputRelativePath>
     </PropertyGroup>
+
+    <!--
+        Paths to GameData folders in the dependency set installs.
+    -->
+    <PropertyGroup>
+        <DepSet1>$(ProjectRootDir)/deps/installs/depset1/GameData</DepSet1>
+    </PropertyGroup>
 </Project>
