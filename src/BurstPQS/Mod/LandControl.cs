@@ -313,6 +313,13 @@ public class LandControl(PQSLandControl mod) : BatchPQSMod<PQSLandControl>(mod)
                     }
                 }
             }
+
+            // Restore scatterActive so stock OnQuadBuilt sees it as true.
+            // When multiple quads are pre-built before completion (e.g. in
+            // OnQuadSubdivided), the first completed quad's stock OnQuadBuilt
+            // resets scatterActive to false, causing subsequent quads to skip
+            // scatter spawning.
+            mod.scatterActive = true;
         }
 
         static double Lerp(double v1, double v2, double dt)
