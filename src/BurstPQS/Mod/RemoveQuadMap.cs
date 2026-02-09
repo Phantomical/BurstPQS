@@ -40,7 +40,7 @@ public class RemoveQuadMap(PQSMod_RemoveQuadMap mod) : BatchPQSMod<PQSMod_Remove
 
             for (int i = 0; i < data.VertexCount; ++i)
             {
-                var height = map.GetPixelFloat((float)data.u[i], (float)data.v[i]);
+                var height = map.GetPixelFloat(data.u[i], data.v[i]);
                 if (height >= minHeight && height <= maxHeight)
                 {
                     quadVisible = true;
