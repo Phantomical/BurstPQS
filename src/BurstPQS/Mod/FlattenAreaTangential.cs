@@ -20,6 +20,7 @@ public class FlattenAreaTangential(PQSMod_FlattenAreaTangential mod)
         jobSet.Add(
             new BuildJob
             {
+                DEBUG_showColors = mod.DEBUG_showColors,
                 flattenToRadius = mod.flattenToRadius,
                 smoothStart = mod.smoothStart,
                 smoothEnd = mod.smoothEnd,
@@ -32,8 +33,9 @@ public class FlattenAreaTangential(PQSMod_FlattenAreaTangential mod)
     }
 
     [BurstCompile(FloatMode = FloatMode.Fast)]
-    struct BuildJob : IBatchPQSHeightJob
+    struct BuildJob : IBatchPQSVertexJob
     {
+        public bool DEBUG_showColors;
         public double flattenToRadius;
         public double smoothStart;
         public double smoothEnd;
@@ -42,10 +44,13 @@ public class FlattenAreaTangential(PQSMod_FlattenAreaTangential mod)
         public double angleDelta;
         public Vector3d posNorm;
 
-        public readonly void BuildHeights(in BuildHeightsData data)
+        public readonly void BuildVertices(in BuildVerticesData data)
         {
             for (int i = 0; i < data.VertexCount; ++i)
             {
+                if (DEBUG_showColors)
+                    data.vertColor[i] = Color.green;
+
                 double testAngle = Math.Acos(Vector3d.Dot(data.directionFromCenter[i], posNorm));
                 double vHeight = flattenToRadius / Math.Cos(testAngle);
                 if (!(testAngle < angleOuter))
@@ -54,6 +59,8 @@ public class FlattenAreaTangential(PQSMod_FlattenAreaTangential mod)
                 if (testAngle < angleInner)
                 {
                     data.vertHeight[i] = vHeight;
+                    if (DEBUG_showColors)
+                        data.vertColor[i] = Color.yellow;
                 }
                 else
                 {
@@ -65,6 +72,12 @@ public class FlattenAreaTangential(PQSMod_FlattenAreaTangential mod)
                         smoothEnd,
                         aDelta
                     );
+                    if (DEBUG_showColors)
+                        data.vertColor[i] = Color.Lerp(
+                            Color.blue,
+                            Color.yellow,
+                            (float)(1.0 - aDelta)
+                        );
                 }
             }
         }
