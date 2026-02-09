@@ -225,10 +225,10 @@ public class VertexPlanet(PQSMod_VertexPlanet mod) : BatchPQSMod<PQSMod_VertexPl
             for (int i = 0; i < data.VertexCount; ++i)
             {
                 var dir = data.directionFromCenter[i];
-                double h = (data.vertHeight[i] - data.sphere.radius) / colorDeformity;
+                float h = (float)((data.vertHeight[i] - data.sphere.radius) / colorDeformity);
                 double d1 = terrainType.noiseNormalized(dir);
-                double tHeight = MathUtil.Clamp01(
-                    (preSmoothHeights[i] + d1 * terrainTypeDeformity) * h
+                double tHeight = Mathf.Clamp01(
+                    (float)((preSmoothHeights[i] + d1 * terrainTypeDeformity) * (double)h)
                 );
 
                 int lcSelectedIndex = SelectLandClassByHeight(new(landClasses), tHeight);
