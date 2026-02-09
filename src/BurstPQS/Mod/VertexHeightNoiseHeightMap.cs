@@ -20,7 +20,7 @@ public class VertexHeightNoiseHeightMap(PQSMod_VertexHeightNoiseHeightMap mod)
                 jobSet.Add(
                     new BuildJobPerlin
                     {
-                        heightMap = TextureMapSO.Create(mod.heightMap, MapSO.MapDepth.Greyscale),
+                        heightMap = TextureMapSO.Create(mod.heightMap, MapSO.MapDepth.RGB),
                         noise = new(perlin),
                         heightStart = mod.heightStart,
                         heightEnd = mod.heightEnd,
@@ -34,7 +34,7 @@ public class VertexHeightNoiseHeightMap(PQSMod_VertexHeightNoiseHeightMap mod)
                 jobSet.Add(
                     new BuildJobRidgedMultifractal
                     {
-                        heightMap = TextureMapSO.Create(mod.heightMap, MapSO.MapDepth.Greyscale),
+                        heightMap = TextureMapSO.Create(mod.heightMap, MapSO.MapDepth.RGB),
                         noise = new(multi),
                         heightStart = mod.heightStart,
                         heightEnd = mod.heightEnd,
@@ -48,7 +48,7 @@ public class VertexHeightNoiseHeightMap(PQSMod_VertexHeightNoiseHeightMap mod)
                 jobSet.Add(
                     new BuildJobBillow
                     {
-                        heightMap = TextureMapSO.Create(mod.heightMap, MapSO.MapDepth.Greyscale),
+                        heightMap = TextureMapSO.Create(mod.heightMap, MapSO.MapDepth.RGB),
                         noise = new(billow),
                         heightStart = mod.heightStart,
                         heightEnd = mod.heightEnd,
@@ -62,7 +62,7 @@ public class VertexHeightNoiseHeightMap(PQSMod_VertexHeightNoiseHeightMap mod)
                 jobSet.Add(
                     new BuildJobFallback
                     {
-                        heightMap = TextureMapSO.Create(mod.heightMap, MapSO.MapDepth.Greyscale),
+                        heightMap = TextureMapSO.Create(mod.heightMap, MapSO.MapDepth.RGB),
                         noiseMap = mod.noiseMap,
                         heightStart = mod.heightStart,
                         heightEnd = mod.heightEnd,
@@ -87,7 +87,8 @@ public class VertexHeightNoiseHeightMap(PQSMod_VertexHeightNoiseHeightMap mod)
     {
         for (int i = 0; i < data.VertexCount; ++i)
         {
-            double h = heightMap.GetPixelFloat((float)data.sx[i], (float)data.sy[i]);
+            var c = heightMap.GetPixelColor((float)data.sx[i], (float)data.sy[i]);
+            double h = c.r * 0.299f + c.g * 0.587f + c.b * 0.114f;
             if (h < heightStart || h > heightEnd)
                 continue;
 
