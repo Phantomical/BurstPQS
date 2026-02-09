@@ -43,8 +43,8 @@ public class VoronoiCraters(PQSMod_VoronoiCraters mod) : BatchPQSMod<PQSMod_Voro
         public BurstAnimationCurve jitterCurve = new(mod.jitterCurve);
         public BurstAnimationCurve craterCurve = new(mod.craterCurve);
         public BurstGradient craterColorRamp = new(mod.craterColourRamp);
-        public double jitter = mod.jitter;
-        public double jitterHeight = mod.jitterHeight;
+        public float jitter = mod.jitter;
+        public float jitterHeight = mod.jitterHeight;
         public double deformation = mod.deformation;
         public float rFactor = mod.rFactor;
         public float rOffset = mod.rOffset;
@@ -59,14 +59,14 @@ public class VoronoiCraters(PQSMod_VoronoiCraters mod) : BatchPQSMod<PQSMod_Voro
 
             for (int i = 0; i < data.VertexCount; ++i)
             {
-                double vorH = voronoi.GetValue(data.directionFromCenter[i]);
-                double spxH = simplex.noise(data.directionFromCenter[i]);
-                double jtt = spxH * jitter * jitterCurve.Evaluate((float)vorH);
-                double r = vorH + jtt;
-                double h = craterCurve.Evaluate((float)r);
+                float vorH = (float)voronoi.GetValue(data.directionFromCenter[i]);
+                float spxH = (float)simplex.noise(data.directionFromCenter[i]);
+                float jtt = spxH * jitter * jitterCurve.Evaluate(vorH);
+                float r = vorH + jtt;
+                float h = craterCurve.Evaluate(r);
 
-                rs[i] = (float)r;
-                data.vertHeight[i] += (h + jitterHeight * jtt * h) * deformation;
+                rs[i] = r;
+                data.vertHeight[i] += ((double)h + (double)(jitterHeight * jtt * h)) * deformation;
             }
         }
 
