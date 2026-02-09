@@ -104,6 +104,7 @@ internal static class PQS_BuildTangents_Patch
             );
         }
 
+        quad.mesh.tangents = PQS.cacheTangents;
         return false;
     }
 
