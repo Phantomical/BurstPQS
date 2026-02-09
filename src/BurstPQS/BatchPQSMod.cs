@@ -39,8 +39,6 @@ public abstract class BatchPQSMod : IDisposable
 
     #region Registry
     static readonly Dictionary<Type, Type> ModTypes = [];
-    static readonly HashSet<Type> ModShims = [];
-
     /// <summary>
     /// Register a <see cref="BatchPQSMod"/> adapter for a <see cref="PQSMod"/>
     /// type.
@@ -78,17 +76,9 @@ public abstract class BatchPQSMod : IDisposable
         ModTypes.Add(mod, batchMod);
     }
 
-    public static void RegisterShimmedPQSMod(Type mod)
-    {
-        ModShims.Add(mod);
-    }
-
     public static BatchPQSMod Create(PQSMod mod)
     {
         var type = mod.GetType();
-
-        if (ModShims.Contains(type))
-            return new Mod.Shim(mod);
 
         if (ModTypes.TryGetValue(type, out var batchMod))
             return (BatchPQSMod)Activator.CreateInstance(batchMod, [mod]);
