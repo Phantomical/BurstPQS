@@ -4,6 +4,9 @@
 
     <KSPBT_ModRoot>$(GameDataOutDir)</KSPBT_ModRoot>
     <KSPBT_ModPluginFolder>Plugins</KSPBT_ModPluginFolder>
+
+    <!-- Nothing we can do about this warning -->
+    <ResolveAssemblyWarnOrErrorOnTargetArchitectureMismatch>None</ResolveAssemblyWarnOrErrorOnTargetArchitectureMismatch>
   </PropertyGroup>
 
   <ItemGroup>
