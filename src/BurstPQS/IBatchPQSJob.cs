@@ -71,6 +71,9 @@ public unsafe struct BuildHeightsData
     [NoAlias]
     readonly double* _height;
 
+    [NoAlias]
+    internal Color* _vertColor;
+
     internal BuildHeightsData(SphereData sphere, int vertexCount)
     {
         this.sphere = sphere;
@@ -84,6 +87,7 @@ public unsafe struct BuildHeightsData
         _longitude = AllocVertexArray<double>();
         _latitude = AllocVertexArray<double>();
         _height = AllocVertexArray<double>();
+        _vertColor = AllocVertexArray<Color>();
     }
 
     internal readonly T* AllocVertexArray<T>()
@@ -104,6 +108,7 @@ public unsafe struct BuildHeightsData
         CreateNativeArray(_directionFromCenter);
 
     public readonly MemorySpan<double> vertHeight => CreateNativeArray(_height);
+    public readonly MemorySpan<Color> vertColor => CreateNativeArray(_vertColor);
 
     public readonly MemorySpan<double> u => CreateNativeArray(_u);
     public readonly MemorySpan<double> v => CreateNativeArray(_v);
@@ -134,6 +139,7 @@ public unsafe struct BuildVerticesData
     public readonly MemorySpan<Vector3d> directionFromCenter => data.directionFromCenter;
 
     public readonly MemorySpan<double> vertHeight => data.vertHeight;
+    public readonly MemorySpan<Color> vertColor => data.vertColor;
 
     public readonly MemorySpan<double> u => data.u;
     public readonly MemorySpan<double> v => data.v;
@@ -146,9 +152,6 @@ public unsafe struct BuildVerticesData
     #endregion
 
     #region BuildVerticesData
-    [NoAlias]
-    internal Color* _vertColor;
-
     [NoAlias]
     internal double* _u2;
 
@@ -174,7 +177,6 @@ public unsafe struct BuildVerticesData
     {
         this.data = data;
 
-        _vertColor = AllocVertexArray<Color>();
         _u2 = AllocVertexArray<double>();
         _v2 = AllocVertexArray<double>();
         _u3 = AllocVertexArray<double>();
@@ -190,7 +192,6 @@ public unsafe struct BuildVerticesData
         return data.AllocVertexArray<T>();
     }
 
-    public readonly MemorySpan<Color> vertColor => CreateNativeArray(_vertColor);
     public readonly MemorySpan<double> u2 => CreateNativeArray(_u2);
     public readonly MemorySpan<double> u3 => CreateNativeArray(_u3);
     public readonly MemorySpan<double> u4 => CreateNativeArray(_u4);
@@ -223,6 +224,7 @@ public unsafe struct BuildMeshData
     public readonly MemorySpan<Vector3d> directionFromCenter => data.directionFromCenter;
 
     public readonly MemorySpan<double> vertHeight => data.vertHeight;
+    public readonly MemorySpan<Color> vertColor => data.vertColor;
 
     public readonly MemorySpan<double> u => data.u;
     public readonly MemorySpan<double> v => data.v;
@@ -235,7 +237,6 @@ public unsafe struct BuildMeshData
     #endregion
 
     #region BuildVerticesData
-    public readonly MemorySpan<Color> vertColor => data.vertColor;
     public readonly MemorySpan<double> u2 => data.u2;
     public readonly MemorySpan<double> u3 => data.u3;
     public readonly MemorySpan<double> u4 => data.u4;

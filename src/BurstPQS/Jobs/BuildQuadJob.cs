@@ -143,6 +143,7 @@ internal struct BuildQuadJob : IJob
 
         // Set other fields individually so that they can be vectorized
         data.vertHeight.Fill(data.sphere.radius);
+        data.vertColor.Clear();
 
         if (!reqVertexMapCoords)
         {
@@ -185,7 +186,6 @@ internal struct BuildQuadJob : IJob
     #region InitVertexData
     internal readonly void InitVertexDataImpl(ref BuildVerticesData data)
     {
-        data.vertColor.Clear();
         data.u2.Clear();
         data.v2.Clear();
         data.u3.Clear();

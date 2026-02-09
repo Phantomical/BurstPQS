@@ -160,6 +160,8 @@ public class LandControl(PQSLandControl mod) : BatchPQSMod<PQSLandControl>(mod)
 
             double sphereRadius = data.sphere.radius;
 
+            data.vertColor.Fill(Color.black);
+
             for (int i = 0; i < data.VertexCount; ++i)
             {
                 double totalDelta = 0.0;
@@ -232,9 +234,6 @@ public class LandControl(PQSLandControl mod) : BatchPQSMod<PQSLandControl>(mod)
         {
             int landClassCount = landClasses.Length;
             var lcActiveBits = new BitSpan(new MemorySpan<ulong>(lcActive));
-
-            for (int i = 0; i < data.VertexCount; ++i)
-                data.vertColor[i] = Color.black;
 
             if (createColors)
             {
