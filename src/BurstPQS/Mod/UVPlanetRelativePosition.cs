@@ -44,7 +44,9 @@ public class UVPlanetRelativePosition(PQSMod_UVPlanetRelativePosition mod)
                 data.uvs[i].x = (float)v.x;
                 data.uvs[i].y = (float)v.y;
                 data.uv2s[i].x = (float)v.z;
-                data.uv2s[i].y = (float)(1.0 - Vector3d.Dot(v.Normalized(), n));
+                double mag = Math.Sqrt(v.x * v.x + v.y * v.y + v.z * v.z);
+                var vn = mag > 0.0 ? v / mag : Vector3d.zero;
+                data.uv2s[i].y = (float)(1.0 - Vector3d.Dot(vn, n));
             }
         }
     }
