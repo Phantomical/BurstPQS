@@ -75,6 +75,8 @@ public class UVPlanetRelativePosition(PQSMod_UVPlanetRelativePosition mod)
                 new(uv2s, PQS.cacheUV2s.Length)
             );
         }
+
+        quad.mesh.uv2 = PQS.cacheUV2s;
     }
 
     delegate void UpdateQuadNormalsDelegate(
