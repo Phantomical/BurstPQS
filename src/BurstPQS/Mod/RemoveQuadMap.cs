@@ -13,7 +13,6 @@ public class RemoveQuadMap(PQSMod_RemoveQuadMap mod) : BatchPQSMod<PQSMod_Remove
     public override void OnQuadPreBuild(PQ quad, BatchPQSJobSet jobSet)
     {
         base.OnQuadPreBuild(quad, jobSet);
-        mod.OnQuadBuilt(quad);
 
         jobSet.Add(
             new BuildJob
