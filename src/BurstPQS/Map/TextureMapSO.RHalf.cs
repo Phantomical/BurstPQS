@@ -1,3 +1,4 @@
+using System;
 using Unity.Burst;
 using Unity.Collections;
 using Unity.Mathematics;
@@ -19,9 +20,25 @@ public static partial class TextureMapSO
         public RHalf(Texture2D texture, MapSO.MapDepth depth)
         {
             ValidateFormat(texture, TextureFormat.RHalf);
-            data = texture.GetRawTextureData<half>();
-            Width = texture.width;
-            Height = texture.height;
+            this = new RHalf(
+                texture.GetRawTextureData<half>(),
+                texture.width,
+                texture.height,
+                depth
+            );
+        }
+
+        public RHalf(NativeArray<half> data, int width, int height, MapSO.MapDepth depth)
+        {
+            int required = width * height;
+            if (data.Length < required)
+                throw new ArgumentException(
+                    $"Data length {data.Length} is too small for {width}x{height} RHalf texture (need at least {required})",
+                    nameof(data)
+                );
+            this.data = data;
+            Width = width;
+            Height = height;
             this.depth = depth;
         }
 

@@ -1,3 +1,4 @@
+using System;
 using Unity.Burst;
 using Unity.Collections;
 using UnityEngine;
@@ -22,9 +23,25 @@ public static partial class TextureMapSO
         public RGB565(Texture2D texture, MapSO.MapDepth depth)
         {
             ValidateFormat(texture, TextureFormat.RGB565);
-            data = texture.GetRawTextureData<ushort>();
-            Width = texture.width;
-            Height = texture.height;
+            this = new RGB565(
+                texture.GetRawTextureData<ushort>(),
+                texture.width,
+                texture.height,
+                depth
+            );
+        }
+
+        public RGB565(NativeArray<ushort> data, int width, int height, MapSO.MapDepth depth)
+        {
+            int required = width * height;
+            if (data.Length < required)
+                throw new ArgumentException(
+                    $"Data length {data.Length} is too small for {width}x{height} RGB565 texture (need at least {required})",
+                    nameof(data)
+                );
+            this.data = data;
+            Width = width;
+            Height = height;
             this.depth = depth;
         }
 

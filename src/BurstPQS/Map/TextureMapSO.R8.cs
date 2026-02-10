@@ -1,3 +1,4 @@
+using System;
 using Unity.Burst;
 using Unity.Collections;
 using UnityEngine;
@@ -18,9 +19,20 @@ public static partial class TextureMapSO
         public R8(Texture2D texture, MapSO.MapDepth depth)
         {
             ValidateFormat(texture, TextureFormat.R8);
-            data = texture.GetRawTextureData<byte>();
-            Width = texture.width;
-            Height = texture.height;
+            this = new R8(texture.GetRawTextureData<byte>(), texture.width, texture.height, depth);
+        }
+
+        public R8(NativeArray<byte> data, int width, int height, MapSO.MapDepth depth)
+        {
+            int required = width * height;
+            if (data.Length < required)
+                throw new ArgumentException(
+                    $"Data length {data.Length} is too small for {width}x{height} R8 texture (need at least {required})",
+                    nameof(data)
+                );
+            this.data = data;
+            Width = width;
+            Height = height;
             this.depth = depth;
         }
 

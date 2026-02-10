@@ -1,3 +1,4 @@
+using System;
 using Unity.Burst;
 using Unity.Collections;
 using UnityEngine;
@@ -18,9 +19,25 @@ public static partial class TextureMapSO
         public RGB24(Texture2D texture, MapSO.MapDepth depth)
         {
             ValidateFormat(texture, TextureFormat.RGB24);
-            data = texture.GetRawTextureData<byte>();
-            Width = texture.width;
-            Height = texture.height;
+            this = new RGB24(
+                texture.GetRawTextureData<byte>(),
+                texture.width,
+                texture.height,
+                depth
+            );
+        }
+
+        public RGB24(NativeArray<byte> data, int width, int height, MapSO.MapDepth depth)
+        {
+            int required = width * height * 3;
+            if (data.Length < required)
+                throw new ArgumentException(
+                    $"Data length {data.Length} is too small for {width}x{height} RGB24 texture (need at least {required})",
+                    nameof(data)
+                );
+            this.data = data;
+            Width = width;
+            Height = height;
             this.depth = depth;
         }
 

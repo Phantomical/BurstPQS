@@ -1,3 +1,4 @@
+using System;
 using Unity.Burst;
 using Unity.Collections;
 using Unity.Mathematics;
@@ -26,9 +27,20 @@ public static partial class TextureMapSO
         public BC7(Texture2D texture, MapSO.MapDepth depth)
         {
             ValidateFormat(texture, TextureFormat.BC7);
-            data = texture.GetRawTextureData<byte>();
-            Width = texture.width;
-            Height = texture.height;
+            this = new BC7(texture.GetRawTextureData<byte>(), texture.width, texture.height, depth);
+        }
+
+        public BC7(NativeArray<byte> data, int width, int height, MapSO.MapDepth depth)
+        {
+            int required = ((width + 3) / 4) * ((height + 3) / 4) * 16;
+            if (data.Length < required)
+                throw new ArgumentException(
+                    $"Data length {data.Length} is too small for {width}x{height} BC7 texture (need at least {required})",
+                    nameof(data)
+                );
+            this.data = data;
+            Width = width;
+            Height = height;
             this.depth = depth;
         }
 

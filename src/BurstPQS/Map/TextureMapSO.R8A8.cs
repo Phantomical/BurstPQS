@@ -27,9 +27,25 @@ public static partial class TextureMapSO
                     $"Expected texture format R16 or RG16 but got {texture.format}",
                     nameof(texture)
                 );
-            data = texture.GetRawTextureData<byte>();
-            Width = texture.width;
-            Height = texture.height;
+            this = new R8A8(
+                texture.GetRawTextureData<byte>(),
+                texture.width,
+                texture.height,
+                depth
+            );
+        }
+
+        public R8A8(NativeArray<byte> data, int width, int height, MapSO.MapDepth depth)
+        {
+            int required = width * height * 2;
+            if (data.Length < required)
+                throw new ArgumentException(
+                    $"Data length {data.Length} is too small for {width}x{height} R8A8 texture (need at least {required})",
+                    nameof(data)
+                );
+            this.data = data;
+            Width = width;
+            Height = height;
             this.depth = depth;
         }
 

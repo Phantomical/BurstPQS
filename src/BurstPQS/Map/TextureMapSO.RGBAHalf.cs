@@ -1,3 +1,4 @@
+using System;
 using Unity.Burst;
 using Unity.Collections;
 using Unity.Mathematics;
@@ -19,9 +20,25 @@ public static partial class TextureMapSO
         public RGBAHalf(Texture2D texture, MapSO.MapDepth depth)
         {
             ValidateFormat(texture, TextureFormat.RGBAHalf);
-            data = texture.GetRawTextureData<half>();
-            Width = texture.width;
-            Height = texture.height;
+            this = new RGBAHalf(
+                texture.GetRawTextureData<half>(),
+                texture.width,
+                texture.height,
+                depth
+            );
+        }
+
+        public RGBAHalf(NativeArray<half> data, int width, int height, MapSO.MapDepth depth)
+        {
+            int required = width * height * 4;
+            if (data.Length < required)
+                throw new ArgumentException(
+                    $"Data length {data.Length} is too small for {width}x{height} RGBAHalf texture (need at least {required})",
+                    nameof(data)
+                );
+            this.data = data;
+            Width = width;
+            Height = height;
             this.depth = depth;
         }
 

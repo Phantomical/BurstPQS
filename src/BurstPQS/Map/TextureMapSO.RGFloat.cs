@@ -1,3 +1,4 @@
+using System;
 using Unity.Burst;
 using Unity.Collections;
 using UnityEngine;
@@ -18,9 +19,25 @@ public static partial class TextureMapSO
         public RGFloat(Texture2D texture, MapSO.MapDepth depth)
         {
             ValidateFormat(texture, TextureFormat.RGFloat);
-            data = texture.GetRawTextureData<float>();
-            Width = texture.width;
-            Height = texture.height;
+            this = new RGFloat(
+                texture.GetRawTextureData<float>(),
+                texture.width,
+                texture.height,
+                depth
+            );
+        }
+
+        public RGFloat(NativeArray<float> data, int width, int height, MapSO.MapDepth depth)
+        {
+            int required = width * height * 2;
+            if (data.Length < required)
+                throw new ArgumentException(
+                    $"Data length {data.Length} is too small for {width}x{height} RGFloat texture (need at least {required})",
+                    nameof(data)
+                );
+            this.data = data;
+            Width = width;
+            Height = height;
             this.depth = depth;
         }
 
