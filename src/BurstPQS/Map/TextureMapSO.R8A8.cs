@@ -50,25 +50,25 @@ public static partial class TextureMapSO
         public readonly float GetPixelFloat(int x, int y)
         {
             GetComponents(x, y, out float r, out float a);
-            return DepthToFloat(r, 0f, 0f, a, depth);
+            return DepthToFloat(r, 1f, 1f, a, depth);
         }
 
         public readonly Color GetPixelColor(int x, int y)
         {
             GetComponents(x, y, out float r, out float a);
-            return DepthToColor(r, 0f, 0f, a, depth);
+            return DepthToColor(r, 1f, 1f, a, depth);
         }
 
         public readonly Color32 GetPixelColor32(int x, int y)
         {
             GetByteComponents(x, y, out byte r, out byte a);
-            return DepthToColor32(r, 0, 0, a, depth);
+            return DepthToColor32(r, 255, 255, a, depth);
         }
 
         public readonly HeightAlpha GetPixelHeightAlpha(int x, int y)
         {
             GetComponents(x, y, out float r, out float a);
-            return DepthToHeightAlpha(r, 0f, 0f, a, depth);
+            return DepthToHeightAlpha(r, 1f, 1f, a, depth);
         }
 
         public float GetPixelFloat(float x, float y) => MapSODefaults.GetPixelFloat(ref this, x, y);
