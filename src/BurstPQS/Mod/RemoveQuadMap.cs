@@ -2,11 +2,10 @@ using System;
 using BurstPQS.Map;
 using BurstPQS.Util;
 using Unity.Burst;
-using UnityEngine;
 
 namespace BurstPQS.Mod;
 
-// [BurstCompile]
+[BurstCompile]
 [BatchPQSMod(typeof(PQSMod_RemoveQuadMap))]
 public class RemoveQuadMap(PQSMod_RemoveQuadMap mod) : BatchPQSMod<PQSMod_RemoveQuadMap>(mod)
 {
@@ -17,7 +16,7 @@ public class RemoveQuadMap(PQSMod_RemoveQuadMap mod) : BatchPQSMod<PQSMod_Remove
         jobSet.Add(
             new BuildJob
             {
-                mod = mod,
+                mod = new(mod),
                 map = BurstMapSO.Create(mod.map),
                 minHeight = mod.minHeight,
                 maxHeight = mod.maxHeight,
@@ -25,9 +24,10 @@ public class RemoveQuadMap(PQSMod_RemoveQuadMap mod) : BatchPQSMod<PQSMod_Remove
         );
     }
 
+    [BurstCompile]
     struct BuildJob : IBatchPQSVertexJob, IBatchPQSMeshBuiltJob, IDisposable
     {
-        public PQSMod_RemoveQuadMap mod;
+        public ObjectHandle<PQSMod_RemoveQuadMap> mod;
         public BurstMapSO map;
         public float minHeight;
         public float maxHeight;
@@ -50,12 +50,13 @@ public class RemoveQuadMap(PQSMod_RemoveQuadMap mod) : BatchPQSMod<PQSMod_Remove
 
         public void OnMeshBuilt(PQ quad)
         {
-            mod.quadVisible = quadVisible;
+            mod.Target.quadVisible = quadVisible;
         }
 
         public void Dispose()
         {
             map.Dispose();
+            mod.Dispose();
         }
     }
 }
