@@ -107,6 +107,7 @@ public static partial class TextureMapSO
         };
     }
 
+    [MethodImpl(MethodImplOptions.AggressiveInlining)]
     static Color32 DepthToColor32(byte r, byte g, byte b, byte a, MapSO.MapDepth depth)
     {
         return depth switch

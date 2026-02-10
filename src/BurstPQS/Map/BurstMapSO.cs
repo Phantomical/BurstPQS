@@ -145,6 +145,12 @@ public static class MapSODefaults
         return GetPixelColor(ref mapSO, (float)x, (float)y);
     }
 
+    public static Color32 GetPixelColor32<T>(ref T mapSO, int x, int y)
+        where T : IMapSO
+    {
+        return GetPixelColor(ref mapSO, x, y);
+    }
+
     public static Color32 GetPixelColor32<T>(ref T mapSO, float x, float y)
         where T : IMapSO
     {
