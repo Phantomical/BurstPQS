@@ -39,6 +39,7 @@ public abstract class BatchPQSMod : IDisposable
 
     #region Registry
     static readonly Dictionary<Type, Type> ModTypes = [];
+
     /// <summary>
     /// Register a <see cref="BatchPQSMod"/> adapter for a <see cref="PQSMod"/>
     /// type.
