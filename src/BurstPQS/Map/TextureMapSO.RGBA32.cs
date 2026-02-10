@@ -66,7 +66,7 @@ public static partial class TextureMapSO
             out byte a
         )
         {
-            int i = PixelIndex(x, y, Width, Height) * 3;
+            int i = PixelIndex(x, y, Width, Height) * 4;
             r = data[i];
             g = data[i + 1];
             b = data[i + 2];

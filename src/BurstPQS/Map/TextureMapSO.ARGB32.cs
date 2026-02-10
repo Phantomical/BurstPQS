@@ -57,6 +57,22 @@ public static partial class TextureMapSO
             b = data[i + 3] * Byte2Float;
         }
 
+        readonly void GetByteComponents(
+            int x,
+            int y,
+            out byte r,
+            out byte g,
+            out byte b,
+            out byte a
+        )
+        {
+            int i = PixelIndex(x, y, Width, Height) * 4;
+            a = data[i];
+            r = data[i + 1];
+            g = data[i + 2];
+            b = data[i + 3];
+        }
+
         public readonly float GetPixelFloat(int x, int y)
         {
             GetComponents(x, y, out float r, out float g, out float b, out float a);
@@ -71,7 +87,7 @@ public static partial class TextureMapSO
 
         public readonly Color32 GetPixelColor32(int x, int y)
         {
-            GetComponents(x, y, out float r, out float g, out float b, out float a);
+            GetByteComponents(x, y, out byte r, out byte g, out byte b, out byte a);
             return DepthToColor32(r, g, b, a, depth);
         }
 

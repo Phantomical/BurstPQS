@@ -55,7 +55,7 @@ public static partial class TextureMapSO
 
         public readonly Color32 GetPixelColor32(int x, int y)
         {
-            float v = data[PixelIndex(x, y, Width, Height)];
+            byte v = data[PixelIndex(x, y, Width, Height)];
             return DepthToColor32(255, 255, 255, v, depth);
         }
 
