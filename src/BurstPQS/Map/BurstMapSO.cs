@@ -72,7 +72,7 @@ public static class MapSODefaults
     {
         BilinearCoords<float> coords;
         x = Mathf.Abs(x - Mathf.Floor(x));
-        y = Mathf.Abs(y - Mathf.Floor(y));
+        y = Mathf.Clamp(y, 0f, 0.99999f);
 
         coords.centerX = x * mapSO.Width;
         coords.centerY = y * mapSO.Height;
@@ -86,10 +86,8 @@ public static class MapSODefaults
         coords.midX = coords.centerX - coords.minX;
         coords.midY = coords.centerY - coords.minY;
 
-        if (coords.maxX == mapSO.Width)
-            coords.maxX = 0;
-        if (coords.maxY == mapSO.Height)
-            coords.maxY = 0;
+        coords.maxX %= mapSO.Width;
+        coords.maxY = MathUtil.Clamp(coords.maxY, 0, mapSO.Height - 1);
 
         return coords;
     }

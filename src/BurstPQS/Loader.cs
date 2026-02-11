@@ -42,9 +42,7 @@ internal class BurstLoader : MonoBehaviour
     {
         RegisterBatchPQSMods();
 
-        BurstMapSO.RegisterMapSOFactoryFunc<MapSO>(mapSO =>
-            BurstMapSO.Create(new StockBurstMapSO(mapSO))
-        );
+        BurstMapSO.RegisterMapSOFactoryFunc<MapSO>(CreateStockMapSO);
     }
 
     #region BatchPQSMod Registration
@@ -77,4 +75,7 @@ internal class BurstLoader : MonoBehaviour
         }
     }
     #endregion
+
+    static BurstMapSO CreateStockMapSO(MapSO mapSO) =>
+        BurstMapSO.Create(new StockBurstMapSO(mapSO));
 }
