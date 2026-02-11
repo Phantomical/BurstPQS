@@ -12,7 +12,8 @@
     "depends": [
         { "name": "Harmony2" },
         { "name": "KSPBurst-Lite" },
-        { "name": "ParallaxContinued" }
+        { "name": "ParallaxContinued" },
+        { "name": "Kopernicus" }
     ],
     "recommends": [
         { "name": "KSPCommunityFixes" },

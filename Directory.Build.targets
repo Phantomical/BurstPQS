@@ -48,8 +48,7 @@
         Otherwise CKANVersion is used.
         Otherwise 0.0.0 is used (no minimum version)
     -->
-    <Target Name="GenerateKSPAssemblyDependencyAttributes" BeforeTargets="CoreGenerateAssemblyInfo"
-        Condition="'$(GenerateKSPAssemblyDependencyAttributes)' == 'true'">
+    <!-- <Target Name="GenerateKSPAssemblyDependencyAttributes" BeforeTargets="CoreGenerateAssemblyInfo">
         <ItemGroup>
             <Reference Update="%(Reference.identity)"
                 Condition="'%(Reference.KSPAssemblyName)' != ''">
@@ -71,7 +70,7 @@
                 <_Parameter4_TypeName>System.Int32</_Parameter4_TypeName>
             </AssemblyAttribute>
         </ItemGroup>
-    </Target>
+    </Target> -->
 
     <!--
         It's really easy for old binaries to stick around in GameData and bin
