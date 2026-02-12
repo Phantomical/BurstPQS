@@ -1,0 +1,22 @@
+using BurstPQS.Kopernicus.Map;
+using BurstPQS.Map;
+using HarmonyLib;
+using Kopernicus.OnDemand;
+using UnityEngine;
+
+namespace BurstPQS.Kopernicus;
+
+[KSPAddon(KSPAddon.Startup.Instantly, once: true)]
+internal class Loader : MonoBehaviour
+{
+    void Awake()
+    {
+        var harmony = new Harmony("BurstPQS.Kopernicus");
+        harmony.PatchAll();
+    }
+
+    void Start()
+    {
+        BurstMapSO.RegisterMapSOFactoryFunc<MapSODemand>(BurstMapSODemand.Create);
+    }
+}
