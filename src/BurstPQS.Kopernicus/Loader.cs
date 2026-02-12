@@ -1,6 +1,7 @@
 using BurstPQS.Kopernicus.Map;
 using BurstPQS.Map;
 using HarmonyLib;
+using Kopernicus.Components;
 using Kopernicus.OnDemand;
 using UnityEngine;
 
@@ -18,5 +19,8 @@ internal class Loader : MonoBehaviour
     void Start()
     {
         BurstMapSO.RegisterMapSOFactoryFunc<MapSODemand>(BurstMapSODemand.Create);
+        BurstMapSO.RegisterMapSOFactoryFunc<KopernicusCBAttributeMapSO>(mapSO =>
+            BurstMapSO.Create(new BurstCBAttributeMapSO(mapSO))
+        );
     }
 }
