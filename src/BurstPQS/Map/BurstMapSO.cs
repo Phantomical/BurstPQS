@@ -72,7 +72,13 @@ public static class MapSODefaults
     {
         BilinearCoords<float> coords;
         x = Mathf.Abs(x - Mathf.Floor(x));
-        y = Mathf.Clamp(y, 0f, 0.99999f);
+
+        // In stock, this is Mathf.Abs(y - Mathf.Floor(y)), Kopernicus patches
+        // this to prevent incorrect wrapping at the poles.
+        //
+        // We depend on Kopernicus, so we use the patched version and let the
+        // compat layer take care of preserving the mohole.
+        y = Mathf.Clamp(y, 0f, 1f);
 
         coords.centerX = x * mapSO.Width;
         coords.centerY = y * mapSO.Height;
