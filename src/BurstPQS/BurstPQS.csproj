@@ -18,7 +18,7 @@
     <Reference Include="HarmonyKSP">
       <HintPath>$(DepSet1)/000_Harmony/0Harmony.dll</HintPath>
       <Private>false</Private>
-      <KSPAssemblyName>Harmony2</KSPAssemblyName>
+      <KSPAssemblyName>HarmonyKSP</KSPAssemblyName>
       <KSPAssemblyVersion>0.0.0</KSPAssemblyVersion>
       <GenerateDependencyAttribute>true</GenerateDependencyAttribute>
     </Reference>
