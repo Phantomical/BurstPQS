@@ -61,7 +61,7 @@ public static partial class TextureMapSO
             y = math.clamp(y, 0, Height - 1);
             BlockCoords(x, y, Width, out int blockOffset, out int lx, out int ly, 16);
             a = DecodeBC4Block(data, blockOffset, lx, ly);
-            DecodeDXT1Pixel(data, blockOffset + 8, lx, ly, out r, out g, out b, out _);
+            DecodeDXT1Pixel(data, blockOffset + 8, lx, ly, out r, out g, out b, out _, opaque: true);
         }
 
         public readonly float GetPixelFloat(int x, int y)

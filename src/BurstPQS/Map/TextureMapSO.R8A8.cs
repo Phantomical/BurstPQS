@@ -12,7 +12,7 @@ public static partial class TextureMapSO
     /// Used by some KSP mods.
     /// </summary>
     [BurstCompile]
-    public struct R8A8 : IMapSO
+    public struct RA16 : IMapSO
     {
         NativeArray<byte> data;
         MapSO.MapDepth depth;
@@ -20,14 +20,14 @@ public static partial class TextureMapSO
         public int Width { get; private set; }
         public int Height { get; private set; }
 
-        public R8A8(Texture2D texture, MapSO.MapDepth depth)
+        public RA16(Texture2D texture, MapSO.MapDepth depth)
         {
             if (texture.format != TextureFormat.R16 && texture.format != TextureFormat.RG16)
                 throw new ArgumentException(
                     $"Expected texture format R16 or RG16 but got {texture.format}",
                     nameof(texture)
                 );
-            this = new R8A8(
+            this = new RA16(
                 texture.GetRawTextureData<byte>(),
                 texture.width,
                 texture.height,
@@ -35,7 +35,7 @@ public static partial class TextureMapSO
             );
         }
 
-        public R8A8(NativeArray<byte> data, int width, int height, MapSO.MapDepth depth)
+        public RA16(NativeArray<byte> data, int width, int height, MapSO.MapDepth depth)
         {
             int required = width * height * 2;
             if (data.Length < required)

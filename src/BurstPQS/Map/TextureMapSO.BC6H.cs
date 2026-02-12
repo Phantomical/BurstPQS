@@ -461,27 +461,13 @@ public static partial class TextureMapSO
         }
 
         var modeInfo = BC6HModes[mode];
-        var reader = new BC7BitReader(data, blockOffset);
 
-        // Skip mode bits
-        if (mode <= 1)
-            reader.SkipBits(2);
-        else
-            reader.SkipBits(5);
-
-        // For BC6H, endpoint extraction is highly mode-dependent.
-        // We use a simplified approach: read all endpoint bits according to the mode descriptor.
-        // The bit layout differs per mode, so we handle the common cases.
         int3 e0 = 0,
             e1 = 0,
             e2 = 0,
             e3 = 0; // endpoints: [subset0_lo, subset0_hi, subset1_lo, subset1_hi]
         int partition = 0;
 
-        // Due to the extreme complexity of BC6H bit layouts (scattered bits across the block),
-        // we implement a full per-mode decoder using a bit extraction approach.
-        // Each mode has its endpoints packed in a specific non-contiguous layout.
-        // For correctness, we re-read from the raw block data.
         DecodeBC6HEndpoints(
             data,
             blockOffset,
@@ -606,8 +592,23 @@ public static partial class TextureMapSO
         b = FinishUnquantizeBC6H(finalB, signed);
     }
 
-    // BC6H has extremely complex per-mode bit layouts. Each mode scatters endpoint bits
-    // across the block in a unique way. This implements the full extraction.
+    // Reverse the bit order of a value read from the bitstream.
+    // Used by BC6H modes 12 and 13 where high base endpoint bits are stored in reversed order.
+    static int ReverseBits(int val, int numBits)
+    {
+        int result = 0;
+        for (int i = 0; i < numBits; i++)
+        {
+            result = (result << 1) | (val & 1);
+            val >>= 1;
+        }
+        return result;
+    }
+
+    // BC6H endpoint extraction using sequential bitstream reads per the BC6H specification.
+    // Each mode has a unique bit layout where endpoint fields are interleaved in a specific order.
+    // Bit sequences are from the bcdec reference decoder (https://github.com/iOrange/bcdec).
+    // e0 = endpt[0].A (base), e1 = endpt[0].B, e2 = endpt[1].A, e3 = endpt[1].B
     static void DecodeBC6HEndpoints(
         NativeArray<byte> data,
         int offset,
@@ -623,448 +624,331 @@ public static partial class TextureMapSO
         e0 = e1 = e2 = e3 = 0;
         partition = 0;
 
-        // Helper to extract a single bit from the block
-        int GetBit(int pos)
-        {
-            return (data[offset + (pos >> 3)] >> (pos & 7)) & 1;
-        }
+        var r = new BC7BitReader(data, offset);
 
-        int GetBits(int start, int count)
-        {
-            int val = 0;
-            for (int i = 0; i < count; i++)
-                val |= GetBit(start + i) << i;
-            return val;
-        }
+        // Skip mode bits
+        if (mode <= 1)
+            r.SkipBits(2);
+        else
+            r.SkipBits(5);
 
-        // The bit layouts below are from the BC6H specification.
-        // Each mode has a unique arrangement.
         switch (mode)
         {
-            case 0: // Mode 0: m[1:0]=00, 10-bit base, 5-bit deltas
+            case 0: // 10-bit base, 5/5/5 delta
             {
-                // gy[4], by[4], bz[4], rw[9:0], gw[9:0], bw[9:0], rx[4:0], gz[3:0], ry[4:0], gy[3:0], gx[4:0], bz[0], gz[4], by[3:0], bx[4:0], bz[3:1], partition[4:0]
-                int gy4 = GetBit(2);
-                int by4 = GetBit(3);
-                int bz4 = GetBit(4);
-                e0.x = GetBits(5, 10); // rw
-                e0.y = GetBits(15, 10); // gw
-                e0.z = GetBits(25, 10); // bw
-                e1.x = GetBits(35, 5); // rx
-                int gz30 = GetBits(40, 4);
-                e1.y = GetBits(45, 5); // ry (delta)
-                int gy30 = GetBits(50, 4);
-                e2.x = GetBits(55, 5); // gx (delta)  -- actually this is the second subset endpoint delta
-                // Wait - the naming is confusing. Let me use the MS spec naming:
-                // e0 = (rw, gw, bw), e1 = (rx, gx, bx), e2 = (ry, gy, by), e3 = (rz, gz, bz)
-                // where x=subset0_hi, y=subset1_lo, z=subset1_hi
-                // Let me re-read more carefully:
-                // Actually for 2-subset modes:
-                // endpoints are: subset0_lo(rw,gw,bw), subset0_hi(rx,gx,bx), subset1_lo(ry,gy,by), subset1_hi(rz,gz,bz)
-                // Mode 0 bit layout (128 bits, from MS spec):
-                // Bit 0-1: mode (00)
-                // Bit 2: gy[4], 3: by[4], 4: bz[4]
-                // Bit 5-14: rw[9:0]
-                // Bit 15-24: gw[9:0]
-                // Bit 25-34: bw[9:0]
-                // Bit 35-39: rx[4:0]
-                // Bit 40-43: gz[3:0]
-                // Bit 44-48: ry[4:0]
-                // Bit 49-52: gy[3:0]
-                // Bit 53-57: gx[4:0]  -- subset0_hi green delta
-                // Bit 58: bz[0]
-                // Bit 59: gz[4]
-                // Bit 60-63: by[3:0]
-                // Bit 64-68: bx[4:0]
-                // Bit 69-71: bz[3:1]
-                // Bit 72-76: partition[4:0]
-                e1.x = GetBits(35, 5);
-                e2.x = GetBits(44, 5); // ry
-                e3.x = 0; // rz - wait, mode 0 has 5-bit deltas for all
-
-                // This is getting complex. Let me just implement the full bit extraction per the spec.
-                // I'll re-do this properly.
-                e0.x = GetBits(5, 10);
-                e0.y = GetBits(15, 10);
-                e0.z = GetBits(25, 10);
-
-                e1.x = GetBits(35, 5); // rx
-                e1.y = GetBits(53, 5); // gx
-                e1.z = GetBits(64, 5); // bx
-
-                e2.x = GetBits(44, 5); // ry
-                e2.y = (GetBits(49, 4)) | (gy4 << 4); // gy
-                e2.z = (GetBits(60, 4)) | (by4 << 4); // by
-
-                int gz4 = GetBit(59);
-                e3.x = 0; // rz - not present in mode 0 as separate bits?
-                // Actually wait - in mode 0, there are 4 endpoints with R,G,B.
-                // rw=10, rx=5, ry=5, rz=5: total 25 bits for R
-                // But where is rz?
-                // Let me look at this differently. The deltas are 5 bits each.
-                // Total endpoint bits: 10*3 (base) + 5*3*3 (deltas) = 75 bits for endpoints
-                // Plus 5 bits partition, 2 bits mode = 82 bits. Indices = 46 bits. Total = 128. OK.
-
-                // From the D3D spec more carefully for mode 0:
-                // rw[9:0] = bits 5-14
-                // gw[9:0] = bits 15-24
-                // bw[9:0] = bits 25-34
-                // rx[4:0] = bits 35-39
-                // gy[4]   = bit 2
-                // gz[3:0] = bits 40-43
-                // ry[4:0] = bits 44-48
-                // gy[3:0] = bits 49-52
-                // gx[4:0] = bits 53-57 -- this is subset0 high green
-                // bz[0]   = bit 58
-                // gz[4]   = bit 59
-                // by[3:0] = bits 60-63
-                // bx[4:0] = bits 64-68
-                // bz[3:1] = bits 69-71
-                // bz[4]   = bit 4
-                // by[4]   = bit 3
-                // rz[4:0] = ?? -- hmm, rz is not listed separately
-                // Actually, I think the naming is wrong. Let me re-check.
-                // In mode 0, we have 10-bit base and 5-bit deltas.
-                // For R: rw(10), rx(5), ry(5) - that's only 3 values but we need 4 for 2 subsets.
-                // Wait no - for a 2-subset mode with transformed endpoints:
-                // e0 = base, e1 = base+delta1, e2 = base+delta2, e3 = base+delta3
-                // So we need base(10) + 3 deltas(5 each) = 25 bits per channel.
-                // 25*3 = 75 endpoint bits + 5 partition + 2 mode + 46 indices = 128. Correct.
-                // So rx, ry, rz are the 3 R deltas. Where is rz?
-                // Looking at other references for mode 0:
-                // rz is probably scattered. Let me use a different reference.
-
-                // From Khronos/Microsoft reference implementation:
-                // Mode 0: {M, 2}, {GY, 1, 4}, {BY, 1, 4}, {BZ, 1, 4},
-                // {RW, 10}, {GW, 10}, {BW, 10}, {RX, 5}, {GZ, 4},
-                // {RY, 5}, {GY, 4}, {GX, 5}, {BZ, 1, 0}, {GZ, 1, 4},
-                // {BY, 4}, {BX, 5}, {BZ, 3, 1}, {RZ, 5}, {D, 5}
-                // So: rz[4:0] = bits 72-76, partition = bits 77-81
-                // Wait that gives us 82 bits before indices. 128-82 = 46. Correct!
-
-                // Let me redo:
-                e3.x = GetBits(72, 5); // rz
-                e3.y = gz30 | (gz4 << 4); // gz
-                int bz0 = GetBit(58);
-                int bz31 = GetBits(69, 3);
-                e3.z = bz0 | (bz31 << 1) | (bz4 << 4); // bz
-
-                partition = GetBits(77, 5);
+                e2.y |= r.ReadBits(1) << 4; // gy[4]
+                e2.z |= r.ReadBits(1) << 4; // by[4]
+                e3.z |= r.ReadBits(1) << 4; // bz[4]
+                e0.x |= r.ReadBits(10); // rw[9:0]
+                e0.y |= r.ReadBits(10); // gw[9:0]
+                e0.z |= r.ReadBits(10); // bw[9:0]
+                e1.x |= r.ReadBits(5); // rx[4:0]
+                e3.y |= r.ReadBits(1) << 4; // gz[4]
+                e2.y |= r.ReadBits(4); // gy[3:0]
+                e1.y |= r.ReadBits(5); // gx[4:0]
+                e3.z |= r.ReadBits(1); // bz[0]
+                e3.y |= r.ReadBits(4); // gz[3:0]
+                e1.z |= r.ReadBits(5); // bx[4:0]
+                e3.z |= r.ReadBits(1) << 1; // bz[1]
+                e2.z |= r.ReadBits(4); // by[3:0]
+                e2.x |= r.ReadBits(5); // ry[4:0]
+                e3.z |= r.ReadBits(1) << 2; // bz[2]
+                e3.x |= r.ReadBits(5); // rz[4:0]
+                e3.z |= r.ReadBits(1) << 3; // bz[3]
+                partition = r.ReadBits(5);
                 break;
             }
 
-            case 1: // Mode 1: m[1:0]=01, 7-bit base, 6-bit deltas
+            case 1: // 7-bit base, 6/6/6 delta
             {
-                // gy[5], gz[4:5], rw[6:0], bz[1:0], by[4], gw[6:0], by[5], bz[2], bw[6:0], bz[3], bz[5], bz[4],
-                // rx[5:0], gy[4], ry[5:0], gx[5:0], gz[3:0], bx[5:0], by[3:0], rz[5:0], partition
-                int gy5 = GetBit(2);
-                int gz45 = GetBits(3, 2); // gz[4], gz[5] -- actually this is gz[4] and another bit
-                e0.x = GetBits(5, 7);
-                int bz10 = GetBits(12, 2);
-                int by4 = GetBit(14);
-                e0.y = GetBits(15, 7);
-                int by5 = GetBit(22);
-                int bz2 = GetBit(23);
-                e0.z = GetBits(24, 7);
-                int bz3 = GetBit(31);
-                int bz5 = GetBit(32);
-                int bz4 = GetBit(33);
-                e1.x = GetBits(34, 6); // rx
-                int gy4 = GetBit(40);
-                e2.x = GetBits(41, 6); // ry
-                e1.y = GetBits(47, 6); // gx
-                int gz30 = GetBits(53, 4); // gz[3:0]
-                e1.z = GetBits(57, 6); // bx
-                int by30 = GetBits(63, 4); // by[3:0]
-                e3.x = GetBits(67, 6); // rz
-                partition = GetBits(73, 5);
-
-                e2.y = by30 | (by4 << 4) | (by5 << 5); // gy -> actually this is by
-                // Wait - I'm confusing gy and by. Let me re-check the spec for mode 1.
-                // Actually for mode 1 the endpoint naming is:
-                // rw,gw,bw = base; rx,gx,bx = delta0; ry,gy,by = delta1; rz,gz,bz = delta2
-
-                e2.y = GetBits(49, 4) | (gy4 << 4) | (gy5 << 5); // gy -- wait
-                // I need to be much more careful. Let me just read bit positions from the spec table.
-
-                // Mode 1 bit layout (from D3D11 spec):
-                // [1:0] mode (01)
-                // [2] gy[5]
-                // [3] gz[4]
-                // [4] gz[5]
-                // [11:5] rw[6:0]
-                // [12] bz[0]
-                // [13] bz[1]
-                // [14] by[4]
-                // [21:15] gw[6:0]
-                // [22] by[5]
-                // [23] bz[2]
-                // [30:24] bw[6:0]
-                // [31] bz[3]
-                // [32] bz[5]
-                // [33] bz[4]
-                // [39:34] rx[5:0]
-                // [40] gy[4]
-                // [46:41] ry[5:0]
-                // [52:47] gx[5:0]
-                // [56:53] gz[3:0]
-                // [62:57] bx[5:0]
-                // [66:63] by[3:0]
-                // [72:67] rz[5:0]
-                // [77:73] partition[4:0]
-
-                e0.x = GetBits(5, 7);
-                e0.y = GetBits(15, 7);
-                e0.z = GetBits(24, 7);
-
-                e1.x = GetBits(34, 6);
-                e1.y = GetBits(47, 6);
-                e1.z = GetBits(57, 6);
-
-                e2.x = GetBits(41, 6);
-                e2.y = GetBits(63, 4) | (GetBit(14) << 4) | (GetBit(22) << 5); // by[3:0], by[4], by[5] -- this is by not gy!
-
-                // I'm mixing up. gy and by are both endpoint components.
-                // gy = subset1_lo green, by = subset1_lo blue
-                // From the bit layout, gy pieces: gy[4]=bit40, gy[5]=bit2, gy[3:0]=?
-                // Hmm, gy[3:0] doesn't appear in the list. That means gy for subset1_lo is scattered.
-                // Actually looking at the spec more carefully:
-                // The endpoint values for mode 1 are:
-                // R: rw(7), rx(6), ry(6), rz(6) = 25 bits
-                // G: gw(7), gx(6), gy(6), gz(6) = 25 bits
-                // B: bw(7), bx(6), by(6), bz(6) = 25 bits
-                // Total: 75 bits endpoints + 5 partition + 2 mode = 82 bits. 128-82 = 46 index bits. OK.
-
-                // So we need all of gy[5:0]:
-                // gy[5] = bit 2
-                // gy[4] = bit 40
-                // gy[3:0] = ??? This is not listed in my bit layout.
-                // I think I may have the bit layout wrong. Let me use a simpler approach.
-
-                // Given the extreme complexity and error-prone nature of manually extracting
-                // scattered bits for each of 14 BC6H modes, let me use a table-driven approach.
-                // However, for now let me provide a reasonable fallback.
-
-                // For mode 1, looking at references more carefully:
-                // After the endpoint color bits, the remaining pattern for gy:
-                // gy[3:0] come from bits that I may have mislabeled above.
-                // From another reference: gy[3:0] = bits 49-52? No, those are part of gx.
-
-                // Let me try a different reference layout for mode 1:
-                // Bits 47-52 = gx[5:0]
-                // Then gy must come from elsewhere.
-                // Actually I think the issue is that in the original spec listing:
-                // the "GY, 4" after "RY, 6" means gy[3:0].
-                // Let me re-parse the mode 1 descriptor:
-                // {M, 2}, {GY, 1, 5}, {GZ, 1, 4}, {GZ, 1, 5},
-                // {RW, 7}, {BZ, 1, 0}, {BZ, 1, 1}, {BY, 1, 4}, {GW, 7}, {BY, 1, 5}, {BZ, 1, 2},
-                // {BW, 7}, {BZ, 1, 3}, {BZ, 1, 5}, {BZ, 1, 4},
-                // {RX, 6}, {GY, 1, 4}, {RY, 6}, {GX, 6}, {GZ, 4}, {BX, 6}, {BY, 4}, {RZ, 6}, {D, 5}
-
-                // So: GY bits are scattered: GY[5]=bit2, GY[4]=bit40, GY[3:0] come from somewhere
-                // Actually reading the descriptor more carefully:
-                // After {RZ, 6}, {D, 5} = partition
-                // The sequence in bit order:
-                // bit 0-1: Mode
-                // bit 2: GY[5]
-                // bit 3: GZ[4]
-                // bit 4: GZ[5]
-                // bit 5-11: RW[6:0]
-                // bit 12: BZ[0]
-                // bit 13: BZ[1]
-                // bit 14: BY[4]
-                // bit 15-21: GW[6:0]
-                // bit 22: BY[5]
-                // bit 23: BZ[2]
-                // bit 24-30: BW[6:0]
-                // bit 31: BZ[3]
-                // bit 32: BZ[5]
-                // bit 33: BZ[4]
-                // bit 34-39: RX[5:0]
-                // bit 40: GY[4]
-                // bit 41-46: RY[5:0]
-                // bit 47-52: GX[5:0]
-                // bit 53-56: GZ[3:0]
-                // bit 57-62: BX[5:0]
-                // bit 63-66: BY[3:0]
-                // bit 67-72: RZ[5:0]
-                // bit 73-77: D[4:0] = partition
-
-                // So GY[3:0] is NOT in the list! That means there's no gy[3:0] for mode 1?
-                // That can't be right - gy should be 6 bits.
-                // Hmm wait - maybe I miscounted. Let me count the bits:
-                // 2 (mode) + 1+1+1 (scattered) + 7+1+1+1+7+1+1+7+1+1+1 (=30) + 6+1+6+6+4+6+4+6+5 = 44+2+3+30+44 = ...
-                // Let me count differently:
-                // 2+1+1+1+7+1+1+1+7+1+1+7+1+1+1+6+1+6+6+4+6+4+6+5 =
-                // 2+3+7+3+7+2+7+3+6+1+6+6+4+6+4+6+5 = 78. 128-78 = 50. But we need 46 index bits.
-                // That means I'm off by 4 bits somewhere.
-                // The issue is likely that "GZ, 4" means gz[3:0] which is 4 bits, and "BY, 4" means by[3:0] which is 4 bits.
-                // Let me recount: 2+1+1+1+7+1+1+1+7+1+1+7+1+1+1+6+1+6+6+4+6+4+6+5 = 76 bits before indices.
-                // 128 - 76 = 52. Hmm still wrong. We need 46.
-
-                // I think the problem is that I'm not accounting correctly for gy.
-                // gy is 6 bits total: gy[5]=bit2, gy[4]=bit40, and gy[3:0] must be somewhere.
-                // Looking at other implementations, I see that some modes DON'T have a contiguous gy field.
-                // Perhaps gy[3:0] are the same bits as what I've been calling something else.
-
-                // At this point, rather than spending more time on per-mode bit extraction
-                // (which is a well-known pain point of BC6H), I'll implement a simpler
-                // fallback that reads the block correctly for the most common modes
-                // and returns reasonable results.
-
-                // For a robust implementation, we'd use a full bit-field table.
-                // For now, let me zero-out the scattered bits issue and provide
-                // a best-effort decode.
-
-                // Re-reading the spec one more time: I think the GY and BY in the
-                // descriptor refer to endpoint gy and by (green/blue of third endpoint = subset1_lo).
-                // Mode 1 has 7-bit base + 6-bit deltas. 7+6*3 = 25 per channel. 75 total.
-                // 75 + 5 (partition) + 2 (mode) = 82. 128-82 = 46. That's correct.
-
-                // So let me recount bits in the descriptor:
-                // 2 (M) + 1(GY5) + 1(GZ4) + 1(GZ5) = 5
-                // + 7(RW) + 1(BZ0) + 1(BZ1) + 1(BY4) = 15
-                // + 7(GW) + 1(BY5) + 1(BZ2) = 24
-                // + 7(BW) + 1(BZ3) + 1(BZ5) + 1(BZ4) = 34
-                // + 6(RX) + 1(GY4) = 41
-                // + 6(RY) = 47
-                // + 6(GX) = 53
-                // + 4(GZ3:0) = 57
-                // + 6(BX) = 63
-                // + 4(BY3:0) = 67
-                // + 6(RZ) = 73
-                // + 5(D) = 78
-                // That's 78 bits. But we said 82 are needed. Off by 4.
-                // GY has only 2 bits accounted (GY5, GY4). We need 6 bits. Missing 4 bits = GY[3:0].
-                // Similarly GZ has GZ4, GZ5, GZ[3:0] = 6 bits. OK that's fine.
-                // BY has BY4, BY5, BY[3:0] = 6 bits. OK.
-                // BZ has BZ0-BZ5 = 6 bits. OK.
-                // So GY is missing GY[3:0] = 4 bits. With those 4 bits: 78+4 = 82. Correct!
-
-                // So GY[3:0] must be somewhere I missed. Looking at other references,
-                // some list the fields differently. Perhaps GY[3:0] is at the same position
-                // as what I thought was BY[3:0] at bits 63-66? No, BY[3:0] is separately listed.
-
-                // After more research, I believe the correct layout has GY[3:0] interleaved.
-                // Looking at the AMD/Intel reference decoders, mode 1 has:
-                // bit 41-46: RY (these are correct)
-                // But then GY[3:0] might be at bits 41-44 or elsewhere depending on the ordering.
-
-                // Actually I think the issue is that my descriptor parsing is wrong.
-                // The descriptor might list them in a different order than bit position.
-                // Let me try: after RY[5:0] at bits 41-46, GY[3:0] at bits 47-50, then GX[5:0] at 51-56...
-                // That would give: 47+4=51, 51+6=57, 57+4=61, 61+6=67, 67+4=71, 71+6=77, 77+5=82. YES!
-
-                // So the CORRECT layout for mode 1 is:
-                // 34-39: RX[5:0]
-                // 40: GY[4]
-                // 41-46: RY[5:0]
-                // 47-50: GY[3:0]   <-- HERE
-                // 51-56: GX[5:0]
-                // 57-60: GZ[3:0]
-                // 61-66: BX[5:0]
-                // 67-70: BY[3:0]
-                // 71-76: RZ[5:0]
-                // 77-81: D[4:0]
-
-                e0.x = GetBits(5, 7);
-                e0.y = GetBits(15, 7);
-                e0.z = GetBits(24, 7);
-
-                e1.x = GetBits(34, 6); // rx
-                e1.y = GetBits(51, 6); // gx
-                e1.z = GetBits(61, 6); // bx
-
-                e2.x = GetBits(41, 6); // ry
-                e2.y = GetBits(47, 4) | (GetBit(40) << 4) | (GetBit(2) << 5); // gy[3:0], gy[4], gy[5]
-                e2.z = GetBits(67, 4) | (GetBit(14) << 4) | (GetBit(22) << 5); // by[3:0], by[4], by[5]
-
-                e3.x = GetBits(71, 6); // rz
-                e3.y = GetBits(57, 4) | (GetBit(3) << 4) | (GetBit(4) << 5); // gz[3:0], gz[4], gz[5]
-                e3.z =
-                    GetBit(12)
-                    | (GetBit(13) << 1)
-                    | (GetBit(23) << 2)
-                    | (GetBit(31) << 3)
-                    | (GetBit(33) << 4)
-                    | (GetBit(32) << 5); // bz
-
-                partition = GetBits(77, 5);
+                e2.y |= r.ReadBits(1) << 5; // gy[5]
+                e3.y |= r.ReadBits(1) << 4; // gz[4]
+                e3.y |= r.ReadBits(1) << 5; // gz[5]
+                e0.x |= r.ReadBits(7); // rw[6:0]
+                e3.z |= r.ReadBits(1); // bz[0]
+                e3.z |= r.ReadBits(1) << 1; // bz[1]
+                e2.z |= r.ReadBits(1) << 4; // by[4]
+                e0.y |= r.ReadBits(7); // gw[6:0]
+                e2.z |= r.ReadBits(1) << 5; // by[5]
+                e3.z |= r.ReadBits(1) << 2; // bz[2]
+                e2.y |= r.ReadBits(1) << 4; // gy[4]
+                e0.z |= r.ReadBits(7); // bw[6:0]
+                e3.z |= r.ReadBits(1) << 3; // bz[3]
+                e3.z |= r.ReadBits(1) << 5; // bz[5]
+                e3.z |= r.ReadBits(1) << 4; // bz[4]
+                e1.x |= r.ReadBits(6); // rx[5:0]
+                e2.y |= r.ReadBits(4); // gy[3:0]
+                e1.y |= r.ReadBits(6); // gx[5:0]
+                e3.y |= r.ReadBits(4); // gz[3:0]
+                e1.z |= r.ReadBits(6); // bx[5:0]
+                e2.z |= r.ReadBits(4); // by[3:0]
+                e2.x |= r.ReadBits(6); // ry[5:0]
+                e3.x |= r.ReadBits(6); // rz[5:0]
+                partition = r.ReadBits(5);
                 break;
             }
 
-            default:
+            case 2: // 11-bit base (10+1), 5/4/4 delta
             {
-                // For modes 2-13, the bit extraction is similarly complex.
-                // As a practical fallback for modes we haven't fully implemented,
-                // we decode using a generic approach that reads the block more simply.
-                // This gives approximate results for less common modes.
-                DecodeBC6HEndpointsGeneric(
-                    data,
-                    offset,
-                    mode,
-                    modeInfo,
-                    out e0,
-                    out e1,
-                    out e2,
-                    out e3,
-                    out partition
-                );
+                e0.x |= r.ReadBits(10); // rw[9:0]
+                e0.y |= r.ReadBits(10); // gw[9:0]
+                e0.z |= r.ReadBits(10); // bw[9:0]
+                e1.x |= r.ReadBits(5); // rx[4:0]
+                e0.x |= r.ReadBits(1) << 10; // rw[10]
+                e2.y |= r.ReadBits(4); // gy[3:0]
+                e1.y |= r.ReadBits(4); // gx[3:0]
+                e0.y |= r.ReadBits(1) << 10; // gw[10]
+                e3.z |= r.ReadBits(1); // bz[0]
+                e3.y |= r.ReadBits(4); // gz[3:0]
+                e1.z |= r.ReadBits(4); // bx[3:0]
+                e0.z |= r.ReadBits(1) << 10; // bw[10]
+                e3.z |= r.ReadBits(1) << 1; // bz[1]
+                e2.z |= r.ReadBits(4); // by[3:0]
+                e2.x |= r.ReadBits(5); // ry[4:0]
+                e3.z |= r.ReadBits(1) << 2; // bz[2]
+                e3.x |= r.ReadBits(5); // rz[4:0]
+                e3.z |= r.ReadBits(1) << 3; // bz[3]
+                partition = r.ReadBits(5);
                 break;
             }
-        }
-    }
 
-    // Generic fallback: reads endpoints sequentially (not bit-accurate for modes 2-13,
-    // but provides reasonable results for the most commonly encountered textures).
-    static void DecodeBC6HEndpointsGeneric(
-        NativeArray<byte> data,
-        int offset,
-        int mode,
-        BC6HModeInfo modeInfo,
-        out int3 e0,
-        out int3 e1,
-        out int3 e2,
-        out int3 e3,
-        out int partition
-    )
-    {
-        var reader = new BC7BitReader(data, offset);
-        if (mode <= 1)
-            reader.SkipBits(2);
-        else
-            reader.SkipBits(5);
+            case 3: // 11-bit base, 4/5/4 delta
+            {
+                e0.x |= r.ReadBits(10); // rw[9:0]
+                e0.y |= r.ReadBits(10); // gw[9:0]
+                e0.z |= r.ReadBits(10); // bw[9:0]
+                e1.x |= r.ReadBits(4); // rx[3:0]
+                e0.x |= r.ReadBits(1) << 10; // rw[10]
+                e3.y |= r.ReadBits(1) << 4; // gz[4]
+                e2.y |= r.ReadBits(4); // gy[3:0]
+                e1.y |= r.ReadBits(5); // gx[4:0]
+                e0.y |= r.ReadBits(1) << 10; // gw[10]
+                e3.y |= r.ReadBits(4); // gz[3:0]
+                e1.z |= r.ReadBits(4); // bx[3:0]
+                e0.z |= r.ReadBits(1) << 10; // bw[10]
+                e3.z |= r.ReadBits(1) << 1; // bz[1]
+                e2.z |= r.ReadBits(4); // by[3:0]
+                e2.x |= r.ReadBits(4); // ry[3:0]
+                e3.z |= r.ReadBits(1); // bz[0]
+                e3.z |= r.ReadBits(1) << 2; // bz[2]
+                e3.x |= r.ReadBits(4); // rz[3:0]
+                e2.y |= r.ReadBits(1) << 4; // gy[4]
+                e3.z |= r.ReadBits(1) << 3; // bz[3]
+                partition = r.ReadBits(5);
+                break;
+            }
 
-        int epBits = modeInfo.endpointBits;
-        int dBitsR = modeInfo.deltaBits.x;
-        int dBitsG = modeInfo.deltaBits.y;
-        int dBitsB = modeInfo.deltaBits.z;
+            case 4: // 11-bit base, 4/4/5 delta
+            {
+                e0.x |= r.ReadBits(10); // rw[9:0]
+                e0.y |= r.ReadBits(10); // gw[9:0]
+                e0.z |= r.ReadBits(10); // bw[9:0]
+                e1.x |= r.ReadBits(4); // rx[3:0]
+                e0.x |= r.ReadBits(1) << 10; // rw[10]
+                e2.z |= r.ReadBits(1) << 4; // by[4]
+                e2.y |= r.ReadBits(4); // gy[3:0]
+                e1.y |= r.ReadBits(4); // gx[3:0]
+                e0.y |= r.ReadBits(1) << 10; // gw[10]
+                e3.z |= r.ReadBits(1); // bz[0]
+                e3.y |= r.ReadBits(4); // gz[3:0]
+                e1.z |= r.ReadBits(5); // bx[4:0]
+                e0.z |= r.ReadBits(1) << 10; // bw[10]
+                e2.z |= r.ReadBits(4); // by[3:0]
+                e2.x |= r.ReadBits(4); // ry[3:0]
+                e3.z |= r.ReadBits(1) << 1; // bz[1]
+                e3.z |= r.ReadBits(1) << 2; // bz[2]
+                e3.x |= r.ReadBits(4); // rz[3:0]
+                e3.z |= r.ReadBits(1) << 4; // bz[4]
+                e3.z |= r.ReadBits(1) << 3; // bz[3]
+                partition = r.ReadBits(5);
+                break;
+            }
 
-        // Read base endpoints
-        e0.x = reader.ReadBits(epBits);
-        e0.y = reader.ReadBits(epBits);
-        e0.z = reader.ReadBits(epBits);
+            case 5: // 9-bit base, 5/5/5 delta
+            {
+                e0.x |= r.ReadBits(9); // rw[8:0]
+                e2.z |= r.ReadBits(1) << 4; // by[4]
+                e0.y |= r.ReadBits(9); // gw[8:0]
+                e2.y |= r.ReadBits(1) << 4; // gy[4]
+                e0.z |= r.ReadBits(9); // bw[8:0]
+                e3.z |= r.ReadBits(1) << 4; // bz[4]
+                e1.x |= r.ReadBits(5); // rx[4:0]
+                e3.y |= r.ReadBits(1) << 4; // gz[4]
+                e2.y |= r.ReadBits(4); // gy[3:0]
+                e1.y |= r.ReadBits(5); // gx[4:0]
+                e3.z |= r.ReadBits(1); // bz[0]
+                e3.y |= r.ReadBits(4); // gz[3:0]
+                e1.z |= r.ReadBits(5); // bx[4:0]
+                e3.z |= r.ReadBits(1) << 1; // bz[1]
+                e2.z |= r.ReadBits(4); // by[3:0]
+                e2.x |= r.ReadBits(5); // ry[4:0]
+                e3.z |= r.ReadBits(1) << 2; // bz[2]
+                e3.x |= r.ReadBits(5); // rz[4:0]
+                e3.z |= r.ReadBits(1) << 3; // bz[3]
+                partition = r.ReadBits(5);
+                break;
+            }
 
-        if (modeInfo.numSubsets == 1)
-        {
-            e1.x = reader.ReadBits(dBitsR);
-            e1.y = reader.ReadBits(dBitsG);
-            e1.z = reader.ReadBits(dBitsB);
-            e2 = e3 = 0;
-            partition = 0;
-        }
-        else
-        {
-            e1.x = reader.ReadBits(dBitsR);
-            e1.y = reader.ReadBits(dBitsG);
-            e1.z = reader.ReadBits(dBitsB);
-            e2.x = reader.ReadBits(dBitsR);
-            e2.y = reader.ReadBits(dBitsG);
-            e2.z = reader.ReadBits(dBitsB);
-            e3.x = reader.ReadBits(dBitsR);
-            e3.y = reader.ReadBits(dBitsG);
-            e3.z = reader.ReadBits(dBitsB);
-            partition = reader.ReadBits(5);
+            case 6: // 8-bit base, 6/5/5 delta
+            {
+                e0.x |= r.ReadBits(8); // rw[7:0]
+                e3.y |= r.ReadBits(1) << 4; // gz[4]
+                e2.z |= r.ReadBits(1) << 4; // by[4]
+                e0.y |= r.ReadBits(8); // gw[7:0]
+                e3.z |= r.ReadBits(1) << 2; // bz[2]
+                e2.y |= r.ReadBits(1) << 4; // gy[4]
+                e0.z |= r.ReadBits(8); // bw[7:0]
+                e3.z |= r.ReadBits(1) << 3; // bz[3]
+                e3.z |= r.ReadBits(1) << 4; // bz[4]
+                e1.x |= r.ReadBits(6); // rx[5:0]
+                e2.y |= r.ReadBits(4); // gy[3:0]
+                e1.y |= r.ReadBits(5); // gx[4:0]
+                e3.z |= r.ReadBits(1); // bz[0]
+                e3.y |= r.ReadBits(4); // gz[3:0]
+                e1.z |= r.ReadBits(5); // bx[4:0]
+                e3.z |= r.ReadBits(1) << 1; // bz[1]
+                e2.z |= r.ReadBits(4); // by[3:0]
+                e2.x |= r.ReadBits(6); // ry[5:0]
+                e3.x |= r.ReadBits(6); // rz[5:0]
+                partition = r.ReadBits(5);
+                break;
+            }
+
+            case 7: // 8-bit base, 5/6/5 delta
+            {
+                e0.x |= r.ReadBits(8); // rw[7:0]
+                e3.z |= r.ReadBits(1); // bz[0]
+                e2.z |= r.ReadBits(1) << 4; // by[4]
+                e0.y |= r.ReadBits(8); // gw[7:0]
+                e2.y |= r.ReadBits(1) << 5; // gy[5]
+                e2.y |= r.ReadBits(1) << 4; // gy[4]
+                e0.z |= r.ReadBits(8); // bw[7:0]
+                e3.y |= r.ReadBits(1) << 5; // gz[5]
+                e3.z |= r.ReadBits(1) << 4; // bz[4]
+                e1.x |= r.ReadBits(5); // rx[4:0]
+                e3.y |= r.ReadBits(1) << 4; // gz[4]
+                e2.y |= r.ReadBits(4); // gy[3:0]
+                e1.y |= r.ReadBits(6); // gx[5:0]
+                e3.y |= r.ReadBits(4); // gz[3:0]
+                e1.z |= r.ReadBits(5); // bx[4:0]
+                e3.z |= r.ReadBits(1) << 1; // bz[1]
+                e2.z |= r.ReadBits(4); // by[3:0]
+                e2.x |= r.ReadBits(5); // ry[4:0]
+                e3.z |= r.ReadBits(1) << 2; // bz[2]
+                e3.x |= r.ReadBits(5); // rz[4:0]
+                e3.z |= r.ReadBits(1) << 3; // bz[3]
+                partition = r.ReadBits(5);
+                break;
+            }
+
+            case 8: // 8-bit base, 5/5/6 delta
+            {
+                e0.x |= r.ReadBits(8); // rw[7:0]
+                e3.z |= r.ReadBits(1) << 1; // bz[1]
+                e2.z |= r.ReadBits(1) << 4; // by[4]
+                e0.y |= r.ReadBits(8); // gw[7:0]
+                e2.z |= r.ReadBits(1) << 5; // by[5]
+                e2.y |= r.ReadBits(1) << 4; // gy[4]
+                e0.z |= r.ReadBits(8); // bw[7:0]
+                e3.z |= r.ReadBits(1) << 5; // bz[5]
+                e3.z |= r.ReadBits(1) << 4; // bz[4]
+                e1.x |= r.ReadBits(5); // rx[4:0]
+                e3.y |= r.ReadBits(1) << 4; // gz[4]
+                e2.y |= r.ReadBits(4); // gy[3:0]
+                e1.y |= r.ReadBits(5); // gx[4:0]
+                e3.z |= r.ReadBits(1); // bz[0]
+                e3.y |= r.ReadBits(4); // gz[3:0]
+                e1.z |= r.ReadBits(6); // bx[5:0]
+                e2.z |= r.ReadBits(4); // by[3:0]
+                e2.x |= r.ReadBits(5); // ry[4:0]
+                e3.z |= r.ReadBits(1) << 2; // bz[2]
+                e3.x |= r.ReadBits(5); // rz[4:0]
+                e3.z |= r.ReadBits(1) << 3; // bz[3]
+                partition = r.ReadBits(5);
+                break;
+            }
+
+            case 9: // 6-bit base, 6/6/6 (no transform)
+            {
+                e0.x |= r.ReadBits(6); // rw[5:0]
+                e3.y |= r.ReadBits(1) << 4; // gz[4]
+                e3.z |= r.ReadBits(1); // bz[0]
+                e3.z |= r.ReadBits(1) << 1; // bz[1]
+                e2.z |= r.ReadBits(1) << 4; // by[4]
+                e0.y |= r.ReadBits(6); // gw[5:0]
+                e2.y |= r.ReadBits(1) << 5; // gy[5]
+                e2.z |= r.ReadBits(1) << 5; // by[5]
+                e3.z |= r.ReadBits(1) << 2; // bz[2]
+                e2.y |= r.ReadBits(1) << 4; // gy[4]
+                e0.z |= r.ReadBits(6); // bw[5:0]
+                e3.y |= r.ReadBits(1) << 5; // gz[5]
+                e3.z |= r.ReadBits(1) << 3; // bz[3]
+                e3.z |= r.ReadBits(1) << 5; // bz[5]
+                e3.z |= r.ReadBits(1) << 4; // bz[4]
+                e1.x |= r.ReadBits(6); // rx[5:0]
+                e2.y |= r.ReadBits(4); // gy[3:0]
+                e1.y |= r.ReadBits(6); // gx[5:0]
+                e3.y |= r.ReadBits(4); // gz[3:0]
+                e1.z |= r.ReadBits(6); // bx[5:0]
+                e2.z |= r.ReadBits(4); // by[3:0]
+                e2.x |= r.ReadBits(6); // ry[5:0]
+                e3.x |= r.ReadBits(6); // rz[5:0]
+                partition = r.ReadBits(5);
+                break;
+            }
+
+            case 10: // 10-bit direct, no delta, no transform
+            {
+                e0.x |= r.ReadBits(10); // rw[9:0]
+                e0.y |= r.ReadBits(10); // gw[9:0]
+                e0.z |= r.ReadBits(10); // bw[9:0]
+                e1.x |= r.ReadBits(10); // rx[9:0]
+                e1.y |= r.ReadBits(10); // gx[9:0]
+                e1.z |= r.ReadBits(10); // bx[9:0]
+                break;
+            }
+
+            case 11: // 11-bit base (10+1), 9/9/9 delta
+            {
+                e0.x |= r.ReadBits(10); // rw[9:0]
+                e0.y |= r.ReadBits(10); // gw[9:0]
+                e0.z |= r.ReadBits(10); // bw[9:0]
+                e1.x |= r.ReadBits(9); // rx[8:0]
+                e0.x |= r.ReadBits(1) << 10; // rw[10]
+                e1.y |= r.ReadBits(9); // gx[8:0]
+                e0.y |= r.ReadBits(1) << 10; // gw[10]
+                e1.z |= r.ReadBits(9); // bx[8:0]
+                e0.z |= r.ReadBits(1) << 10; // bw[10]
+                break;
+            }
+
+            case 12: // 12-bit base (10+2 reversed), 8/8/8 delta
+            {
+                e0.x |= r.ReadBits(10); // rw[9:0]
+                e0.y |= r.ReadBits(10); // gw[9:0]
+                e0.z |= r.ReadBits(10); // bw[9:0]
+                e1.x |= r.ReadBits(8); // rx[7:0]
+                e0.x |= ReverseBits(r.ReadBits(2), 2) << 10; // rw[11:10] reversed
+                e1.y |= r.ReadBits(8); // gx[7:0]
+                e0.y |= ReverseBits(r.ReadBits(2), 2) << 10; // gw[11:10] reversed
+                e1.z |= r.ReadBits(8); // bx[7:0]
+                e0.z |= ReverseBits(r.ReadBits(2), 2) << 10; // bw[11:10] reversed
+                break;
+            }
+
+            case 13: // 16-bit base (10+6 reversed), 4/4/4 delta
+            {
+                e0.x |= r.ReadBits(10); // rw[9:0]
+                e0.y |= r.ReadBits(10); // gw[9:0]
+                e0.z |= r.ReadBits(10); // bw[9:0]
+                e1.x |= r.ReadBits(4); // rx[3:0]
+                e0.x |= ReverseBits(r.ReadBits(6), 6) << 10; // rw[15:10] reversed
+                e1.y |= r.ReadBits(4); // gx[3:0]
+                e0.y |= ReverseBits(r.ReadBits(6), 6) << 10; // gw[15:10] reversed
+                e1.z |= r.ReadBits(4); // bx[3:0]
+                e0.z |= ReverseBits(r.ReadBits(6), 6) << 10; // bw[15:10] reversed
+                break;
+            }
         }
     }
 }

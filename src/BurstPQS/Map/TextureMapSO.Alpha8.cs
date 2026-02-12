@@ -1,4 +1,5 @@
 using System;
+using System.Text.RegularExpressions;
 using Unity.Burst;
 using Unity.Collections;
 using UnityEngine;
@@ -43,26 +44,41 @@ public static partial class TextureMapSO
 
         public readonly float GetPixelFloat(int x, int y)
         {
-            float v = data[PixelIndex(x, y, Width, Height)] * Byte2Float;
-            return DepthToFloat(1f, 1f, 1f, v, depth);
+            float a = data[PixelIndex(x, y, Width, Height)] * Byte2Float;
+
+            if (depth == MapSO.MapDepth.Greyscale)
+                return DepthToFloat(a, 1f, 1f, 1f, depth);
+            else
+                return DepthToFloat(1f, 1f, 1f, a, depth);
         }
 
         public readonly Color GetPixelColor(int x, int y)
         {
-            float v = data[PixelIndex(x, y, Width, Height)] * Byte2Float;
-            return DepthToColor(1f, 1f, 1f, v, depth);
+            float a = data[PixelIndex(x, y, Width, Height)] * Byte2Float;
+
+            if (depth == MapSO.MapDepth.Greyscale)
+                return DepthToColor(a, 1f, 1f, 1f, depth);
+            else
+                return DepthToColor(1f, 1f, 1f, a, depth);
         }
 
         public readonly Color32 GetPixelColor32(int x, int y)
         {
-            byte v = data[PixelIndex(x, y, Width, Height)];
-            return DepthToColor32(255, 255, 255, v, depth);
+            byte a = data[PixelIndex(x, y, Width, Height)];
+
+            if (depth == MapSO.MapDepth.Greyscale)
+                return DepthToColor32(a, 255, 255, 255, depth);
+            else
+                return DepthToColor32(255, 255, 255, a, depth);
         }
 
         public readonly HeightAlpha GetPixelHeightAlpha(int x, int y)
         {
-            float v = data[PixelIndex(x, y, Width, Height)] * Byte2Float;
-            return DepthToHeightAlpha(1f, 1f, 1f, v, depth);
+            float a = data[PixelIndex(x, y, Width, Height)] * Byte2Float;
+            if (depth == MapSO.MapDepth.Greyscale)
+                return DepthToHeightAlpha(a, 1f, 1f, 1f, depth);
+            else
+                return DepthToHeightAlpha(1f, 1f, 1f, a, depth);
         }
 
         public float GetPixelFloat(float x, float y) => MapSODefaults.GetPixelFloat(ref this, x, y);

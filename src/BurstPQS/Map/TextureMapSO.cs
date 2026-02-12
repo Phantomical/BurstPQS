@@ -74,7 +74,7 @@ public static partial class TextureMapSO
         return depth switch
         {
             MapSO.MapDepth.Greyscale => r,
-            MapSO.MapDepth.HeightAlpha => (r + g) * 0.5f,
+            MapSO.MapDepth.HeightAlpha => (r + a) * 0.5f,
             MapSO.MapDepth.RGB => (r + g + b) * (1f / 3f),
             MapSO.MapDepth.RGBA => (r + g + b + a) * 0.25f,
             _ => r,
@@ -87,7 +87,7 @@ public static partial class TextureMapSO
         return depth switch
         {
             MapSO.MapDepth.Greyscale => new Color(r, r, r, 1f),
-            MapSO.MapDepth.HeightAlpha => new Color(r, r, r, g),
+            MapSO.MapDepth.HeightAlpha => new Color(r, r, r, a),
             MapSO.MapDepth.RGB => new Color(r, g, b, 1f),
             MapSO.MapDepth.RGBA => new Color(r, g, b, a),
             _ => new Color(r, r, r, 1f),
@@ -99,8 +99,8 @@ public static partial class TextureMapSO
     {
         return depth switch
         {
-            MapSO.MapDepth.Greyscale => new Color32(F2B(r), F2B(r), F2B(r), 255),
-            MapSO.MapDepth.HeightAlpha => new Color32(F2B(r), F2B(r), F2B(r), F2B(g)),
+            MapSO.MapDepth.Greyscale => new Color32(F2B(r), F2B(r), F2B(r), F2B(r)),
+            MapSO.MapDepth.HeightAlpha => new Color32(F2B(r), F2B(r), F2B(r), F2B(a)),
             MapSO.MapDepth.RGB => new Color32(F2B(r), F2B(g), F2B(b), 255),
             MapSO.MapDepth.RGBA => new Color32(F2B(r), F2B(g), F2B(b), F2B(a)),
             _ => new Color32(F2B(r), F2B(r), F2B(r), 255),
@@ -112,7 +112,7 @@ public static partial class TextureMapSO
     {
         return depth switch
         {
-            MapSO.MapDepth.Greyscale => new Color32(r, r, r, 255),
+            MapSO.MapDepth.Greyscale => new Color32(r, r, r, r),
             MapSO.MapDepth.HeightAlpha => new Color32(r, r, r, a),
             MapSO.MapDepth.RGB => new Color32(r, g, b, 255),
             MapSO.MapDepth.RGBA => new Color32(r, g, b, a),
@@ -126,7 +126,7 @@ public static partial class TextureMapSO
         return depth switch
         {
             MapSO.MapDepth.Greyscale => new HeightAlpha(r, 1f),
-            MapSO.MapDepth.HeightAlpha => new HeightAlpha(r, g),
+            MapSO.MapDepth.HeightAlpha => new HeightAlpha(r, a),
             MapSO.MapDepth.RGB => new HeightAlpha(r, 1f),
             MapSO.MapDepth.RGBA => new HeightAlpha(r, a),
             _ => new HeightAlpha(r, 1f),
@@ -173,7 +173,8 @@ public static partial class TextureMapSO
         out float r,
         out float g,
         out float b,
-        out float a
+        out float a,
+        bool opaque = false
     )
     {
         ushort c0 = (ushort)(data[blockOffset] | (data[blockOffset + 1] << 8));
@@ -185,7 +186,7 @@ public static partial class TextureMapSO
         int indexByte = data[blockOffset + 4 + localY];
         int code = (indexByte >> (localX * 2)) & 3;
 
-        if (c0 > c1)
+        if (opaque || c0 > c1)
         {
             switch (code)
             {

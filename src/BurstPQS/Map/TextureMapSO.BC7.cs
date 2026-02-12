@@ -394,6 +394,34 @@ public static partial class TextureMapSO
         return val | (val >> bits);
     }
 
+    // Read 2-subset endpoints for one channel.
+    // Bit order: s0_ep0, s0_ep1, s1_ep0, s1_ep1
+    // Output: ep0[subset], ep1[subset]
+    static void ReadBC7Endpoints2(ref BC7BitReader reader, int bits, out int2 ep0, out int2 ep1)
+    {
+        int s0e0 = reader.ReadBits(bits),
+            s0e1 = reader.ReadBits(bits);
+        int s1e0 = reader.ReadBits(bits),
+            s1e1 = reader.ReadBits(bits);
+        ep0 = new int2(s0e0, s1e0);
+        ep1 = new int2(s0e1, s1e1);
+    }
+
+    // Read 3-subset endpoints for one channel.
+    // Bit order: s0_ep0, s0_ep1, s1_ep0, s1_ep1, s2_ep0, s2_ep1
+    // Output: endpoints.c0[subset] = ep0, endpoints.c1[subset] = ep1
+    static void ReadBC7Endpoints3(ref BC7BitReader reader, int bits, out int4x2 endpoints)
+    {
+        int s0e0 = reader.ReadBits(bits),
+            s0e1 = reader.ReadBits(bits);
+        int s1e0 = reader.ReadBits(bits),
+            s1e1 = reader.ReadBits(bits);
+        int s2e0 = reader.ReadBits(bits),
+            s2e1 = reader.ReadBits(bits);
+        endpoints.c0 = new int4(s0e0, s1e0, s2e0, 0);
+        endpoints.c1 = new int4(s0e1, s1e1, s2e1, 0);
+    }
+
     // Mode 0: 3 subsets, 4-bit endpoints (RGB), 1-bit pbit, 3-bit indices
     static void DecodeBC7Mode0(
         ref BC7BitReader reader,
@@ -406,16 +434,10 @@ public static partial class TextureMapSO
     {
         int partition = reader.ReadBits(4);
 
-        int4x2 endpointsR,
-            endpointsG,
-            endpointsB;
         // 3 subsets x 2 endpoints x 4 bits = 24 bits per channel
-        endpointsR.c0 = new int4(reader.ReadBits(4), reader.ReadBits(4), reader.ReadBits(4), 0);
-        endpointsR.c1 = new int4(reader.ReadBits(4), reader.ReadBits(4), reader.ReadBits(4), 0);
-        endpointsG.c0 = new int4(reader.ReadBits(4), reader.ReadBits(4), reader.ReadBits(4), 0);
-        endpointsG.c1 = new int4(reader.ReadBits(4), reader.ReadBits(4), reader.ReadBits(4), 0);
-        endpointsB.c0 = new int4(reader.ReadBits(4), reader.ReadBits(4), reader.ReadBits(4), 0);
-        endpointsB.c1 = new int4(reader.ReadBits(4), reader.ReadBits(4), reader.ReadBits(4), 0);
+        ReadBC7Endpoints3(ref reader, 4, out int4x2 endpointsR);
+        ReadBC7Endpoints3(ref reader, 4, out int4x2 endpointsG);
+        ReadBC7Endpoints3(ref reader, 4, out int4x2 endpointsB);
 
         // 6 p-bits (one per endpoint)
         int pbit0 = reader.ReadBits(1);
@@ -487,19 +509,11 @@ public static partial class TextureMapSO
     {
         int partition = reader.ReadBits(6);
 
-        int2 r0,
-            r1,
-            g0,
-            g1,
-            b0,
-            b1;
-        r0 = new int2(reader.ReadBits(6), reader.ReadBits(6));
-        r1 = new int2(reader.ReadBits(6), reader.ReadBits(6));
-        g0 = new int2(reader.ReadBits(6), reader.ReadBits(6));
-        g1 = new int2(reader.ReadBits(6), reader.ReadBits(6));
-        b0 = new int2(reader.ReadBits(6), reader.ReadBits(6));
-        b1 = new int2(reader.ReadBits(6), reader.ReadBits(6));
+        ReadBC7Endpoints2(ref reader, 6, out int2 r0, out int2 r1);
+        ReadBC7Endpoints2(ref reader, 6, out int2 g0, out int2 g1);
+        ReadBC7Endpoints2(ref reader, 6, out int2 b0, out int2 b1);
 
+        // Shared p-bit per subset
         int pbit0 = reader.ReadBits(1);
         int pbit1 = reader.ReadBits(1);
 
@@ -556,15 +570,9 @@ public static partial class TextureMapSO
     {
         int partition = reader.ReadBits(6);
 
-        int4x2 endpointsR,
-            endpointsG,
-            endpointsB;
-        endpointsR.c0 = new int4(reader.ReadBits(5), reader.ReadBits(5), reader.ReadBits(5), 0);
-        endpointsR.c1 = new int4(reader.ReadBits(5), reader.ReadBits(5), reader.ReadBits(5), 0);
-        endpointsG.c0 = new int4(reader.ReadBits(5), reader.ReadBits(5), reader.ReadBits(5), 0);
-        endpointsG.c1 = new int4(reader.ReadBits(5), reader.ReadBits(5), reader.ReadBits(5), 0);
-        endpointsB.c0 = new int4(reader.ReadBits(5), reader.ReadBits(5), reader.ReadBits(5), 0);
-        endpointsB.c1 = new int4(reader.ReadBits(5), reader.ReadBits(5), reader.ReadBits(5), 0);
+        ReadBC7Endpoints3(ref reader, 5, out int4x2 endpointsR);
+        ReadBC7Endpoints3(ref reader, 5, out int4x2 endpointsG);
+        ReadBC7Endpoints3(ref reader, 5, out int4x2 endpointsB);
 
         int subset = BC7PartitionTable3[partition * 16 + pixelIndex];
         int anchor0 = 0;
@@ -608,18 +616,9 @@ public static partial class TextureMapSO
     {
         int partition = reader.ReadBits(6);
 
-        int2 r0,
-            r1,
-            g0,
-            g1,
-            b0,
-            b1;
-        r0 = new int2(reader.ReadBits(7), reader.ReadBits(7));
-        r1 = new int2(reader.ReadBits(7), reader.ReadBits(7));
-        g0 = new int2(reader.ReadBits(7), reader.ReadBits(7));
-        g1 = new int2(reader.ReadBits(7), reader.ReadBits(7));
-        b0 = new int2(reader.ReadBits(7), reader.ReadBits(7));
-        b1 = new int2(reader.ReadBits(7), reader.ReadBits(7));
+        ReadBC7Endpoints2(ref reader, 7, out int2 r0, out int2 r1);
+        ReadBC7Endpoints2(ref reader, 7, out int2 g0, out int2 g1);
+        ReadBC7Endpoints2(ref reader, 7, out int2 b0, out int2 b1);
 
         int pbit0 = reader.ReadBits(1);
         int pbit1 = reader.ReadBits(1);
@@ -855,22 +854,10 @@ public static partial class TextureMapSO
     {
         int partition = reader.ReadBits(6);
 
-        int2 r0,
-            r1,
-            g0,
-            g1,
-            b0,
-            b1,
-            a0,
-            a1;
-        r0 = new int2(reader.ReadBits(5), reader.ReadBits(5));
-        r1 = new int2(reader.ReadBits(5), reader.ReadBits(5));
-        g0 = new int2(reader.ReadBits(5), reader.ReadBits(5));
-        g1 = new int2(reader.ReadBits(5), reader.ReadBits(5));
-        b0 = new int2(reader.ReadBits(5), reader.ReadBits(5));
-        b1 = new int2(reader.ReadBits(5), reader.ReadBits(5));
-        a0 = new int2(reader.ReadBits(5), reader.ReadBits(5));
-        a1 = new int2(reader.ReadBits(5), reader.ReadBits(5));
+        ReadBC7Endpoints2(ref reader, 5, out int2 r0, out int2 r1);
+        ReadBC7Endpoints2(ref reader, 5, out int2 g0, out int2 g1);
+        ReadBC7Endpoints2(ref reader, 5, out int2 b0, out int2 b1);
+        ReadBC7Endpoints2(ref reader, 5, out int2 a0, out int2 a1);
 
         int pbit0 = reader.ReadBits(1);
         int pbit1 = reader.ReadBits(1);
