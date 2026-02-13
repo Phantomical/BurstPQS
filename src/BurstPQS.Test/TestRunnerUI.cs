@@ -106,12 +106,8 @@ public class TestRunnerUI : MonoBehaviour
         Directory.CreateDirectory(Path.GetDirectoryName(logPath));
 
         var sb = new StringBuilder();
-        sb.AppendLine(
-            $"BurstPQS Test Results - {System.DateTime.Now:yyyy-MM-dd HH:mm:ss}"
-        );
-        sb.AppendLine(
-            $"{passCount} passed, {failCount} failed ({results.states.Count} total)"
-        );
+        sb.AppendLine($"BurstPQS Test Results - {System.DateTime.Now:yyyy-MM-dd HH:mm:ss}");
+        sb.AppendLine($"{passCount} passed, {failCount} failed ({results.states.Count} total)");
         sb.AppendLine();
 
         foreach (var state in results.states)
@@ -210,14 +206,8 @@ public class TestRunnerUI : MonoBehaviour
                 return;
             initialized = true;
 
-            passLabel = new GUIStyle(HighLogic.Skin.label)
-            {
-                normal = { textColor = Color.green },
-            };
-            failLabel = new GUIStyle(HighLogic.Skin.label)
-            {
-                normal = { textColor = Color.red },
-            };
+            passLabel = new GUIStyle(HighLogic.Skin.label) { normal = { textColor = Color.green } };
+            failLabel = new GUIStyle(HighLogic.Skin.label) { normal = { textColor = Color.red } };
             detailLabel = new GUIStyle(HighLogic.Skin.label)
             {
                 normal = { textColor = new Color(1f, 0.8f, 0.4f) },
