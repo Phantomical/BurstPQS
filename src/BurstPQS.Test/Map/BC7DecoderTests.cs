@@ -16,16 +16,10 @@ public class BC7DecoderTests : BurstPQSTestBase
 {
     // ---- Bit writer for constructing BC7 blocks ----
 
-    struct BitWriter
+    struct BitWriter(byte[] data)
     {
-        readonly byte[] data;
-        int pos;
-
-        public BitWriter(byte[] data)
-        {
-            this.data = data;
-            pos = 0;
-        }
+        readonly byte[] data = data;
+        int pos = 0;
 
         /// <summary>Write <paramref name="count"/> bits of <paramref name="value"/>, LSB first.</summary>
         public void Write(int value, int count)
