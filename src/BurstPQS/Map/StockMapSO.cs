@@ -113,7 +113,7 @@ public struct StockBurstMapSO : IMapSO, IDisposable
             case 1:
             default:
                 val = data[index];
-                return new(val, val, val, byte.MaxValue);
+                return new(val, val, val, val);
         }
     }
 

@@ -62,8 +62,9 @@ public class BilinearInterpolationTests : BurstPQSTestBase
             Color at1 = map.GetPixelColor(1.0f, 0.5f);
             assertColorEquals("XWrap: x=0 vs x=1", at0, at1, 0.01f);
 
-            // x=0.5 should be midpoint between left and right columns
-            Color mid = map.GetPixelColor(0.5f, 0.0f);
+            // x=0.25 should be midpoint between left and right columns on a 2x2 texture
+            // (centerX = 0.25 * 2 = 0.5, midpoint between pixel 0 and pixel 1)
+            Color mid = map.GetPixelColor(0.25f, 0.0f);
             // At y=0, this interpolates between (0,0)=red and (1,0)=green at x midpoint
             // which should be roughly (0.5, 0.5, 0, 1) - yellow/brown
             assertFloatEquals("XMid.r", mid.r, 0.5f, 0.05f);
@@ -117,8 +118,9 @@ public class BilinearInterpolationTests : BurstPQSTestBase
 
         try
         {
-            // Center point (0.5, 0.5) should be average of all 4 corners
-            Color center = map.GetPixelColor(0.5f, 0.5f);
+            // Midpoint (0.25, 0.25) should be average of all 4 corners on a 2x2 texture
+            // (centerX = 0.25 * 2 = 0.5, centerY = 0.25 * 2 = 0.5)
+            Color center = map.GetPixelColor(0.25f, 0.25f);
             Color expected = new Color(0.5f, 0.5f, 0f, 1f);
             assertColorEquals("Center", center, expected, 0.05f);
         }
@@ -174,8 +176,9 @@ public class BilinearInterpolationTests : BurstPQSTestBase
 
         try
         {
-            // Center should interpolate height and alpha independently
-            HeightAlpha center = map.GetPixelHeightAlpha(0.5f, 0.5f);
+            // Midpoint (0.25, 0.25) should interpolate height and alpha independently
+            // on a 2x2 texture (centerX = 0.25*2 = 0.5, centerY = 0.25*2 = 0.5)
+            HeightAlpha center = map.GetPixelHeightAlpha(0.25f, 0.25f);
             // height = R channel = avg of 50,100,150,200 / 255 ≈ 125/255 ≈ 0.49
             // alpha = A channel = avg of 200,150,100,50 / 255 ≈ 125/255 ≈ 0.49
             assertFloatEquals("CenterHA.height", center.height, 125f / 255f, 0.05f);
