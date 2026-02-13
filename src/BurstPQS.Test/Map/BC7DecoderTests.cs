@@ -4,7 +4,7 @@ using KSP.Testing;
 using Unity.Collections;
 using UnityEngine;
 
-namespace BurstPQS.Test;
+namespace BurstPQS.Test.Map;
 
 /// <summary>
 /// Tests the BC7 block decoder against hand-crafted blocks with analytically-computed

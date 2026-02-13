@@ -3,7 +3,7 @@ using BurstPQS.Map;
 using KSP.Testing;
 using UnityEngine;
 
-namespace BurstPQS.Test;
+namespace BurstPQS.Test.Map;
 
 /// <summary>
 /// Tests <see cref="StockBurstMapSO"/> against stock <see cref="MapSO"/> to verify

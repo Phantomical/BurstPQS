@@ -4,7 +4,7 @@ using KSP.Testing;
 using Unity.Collections;
 using UnityEngine;
 
-namespace BurstPQS.Test;
+namespace BurstPQS.Test.Map;
 
 /// <summary>
 /// Tests bilinear interpolation in <see cref="MapSODefaults"/> for correctness

@@ -4,7 +4,7 @@ using KSP.Testing;
 using Unity.Collections;
 using UnityEngine;
 
-namespace BurstPQS.Test;
+namespace BurstPQS.Test.Map;
 
 /// <summary>
 /// Tests <see cref="BurstMapSO"/> wrapper dispatch to ensure vtable/managed paths
