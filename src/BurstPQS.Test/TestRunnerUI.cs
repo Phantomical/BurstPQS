@@ -64,12 +64,27 @@ public class TestRunnerUI : MonoBehaviour
         showWindow = true;
     }
 
+    int passCount;
+    int failCount;
+
     void RunTests()
     {
         results = TestManager.RunTests();
 
+        // Note: Stock TestManager.RunTests() has success/failed swapped,
+        // so we compute the counts ourselves from the individual test states.
+        passCount = 0;
+        failCount = 0;
+        foreach (var state in results.states)
+        {
+            if (state.Succeeded)
+                passCount++;
+            else
+                failCount++;
+        }
+
         var summary =
-            $"[BurstPQS.Test] {results.success} passed, {results.failed} failed ({results.states.Count} total)";
+            $"[BurstPQS.Test] {passCount} passed, {failCount} failed ({results.states.Count} total)";
         Debug.Log(summary);
 
         foreach (var state in results.states)
@@ -95,7 +110,7 @@ public class TestRunnerUI : MonoBehaviour
             $"BurstPQS Test Results - {System.DateTime.Now:yyyy-MM-dd HH:mm:ss}"
         );
         sb.AppendLine(
-            $"{results.success} passed, {results.failed} failed ({results.states.Count} total)"
+            $"{passCount} passed, {failCount} failed ({results.states.Count} total)"
         );
         sb.AppendLine();
 
@@ -140,8 +155,8 @@ public class TestRunnerUI : MonoBehaviour
     {
         GUILayout.BeginHorizontal();
         GUILayout.Label(
-            $"{results.success} passed, {results.failed} failed",
-            results.failed > 0 ? Styles.failLabel : Styles.passLabel
+            $"{passCount} passed, {failCount} failed",
+            failCount > 0 ? Styles.failLabel : Styles.passLabel
         );
         GUILayout.FlexibleSpace();
         if (GUILayout.Button("Re-run"))
