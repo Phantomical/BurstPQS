@@ -345,35 +345,51 @@ internal struct BuildQuadJob : IJob
         );
         mesh.interleaved = interleaved;
 
+        // PQS cache arrays (deinterleaved for main-thread bulk copy)
+        mesh.cacheColors = new NativeArray<Color>(vertexCount, Allocator.Persistent);
+        mesh.cacheUVs = new NativeArray<Vector2>(vertexCount, Allocator.Persistent);
+        mesh.cacheUV2s = new NativeArray<Vector2>(vertexCount, Allocator.Persistent);
+        mesh.cacheUV3s = new NativeArray<Vector2>(vertexCount, Allocator.Persistent);
+        mesh.cacheUV4s = new NativeArray<Vector2>(vertexCount, Allocator.Persistent);
+
         for (int i = 0; i < vertexCount; i++)
         {
+            Color color = reqColorChannel ? data.vertColor[i] : default;
+            Vector2 uv0 = data.uvs[i];
+            Vector2 uv1 = data.uv2s[i];
+            Vector2 uv2 = data.uv3s[i];
+            Vector2 uv3 = data.uv4s[i];
+
             interleaved[i] = new InterleavedVertex
             {
                 position = data.verts[i],
-                color = reqColorChannel ? data.vertColor[i] : default,
-                uv0 = data.uvs[i],
-                uv1 = data.uv2s[i],
-                uv2 = data.uv3s[i],
-                uv3 = data.uv4s[i],
+                color = color,
+                uv0 = uv0,
+                uv1 = uv1,
+                uv2 = uv2,
+                uv3 = uv3,
             };
+
+            mesh.cacheColors[i] = color;
+            mesh.cacheUVs[i] = uv0;
+            mesh.cacheUV2s[i] = uv1;
+            mesh.cacheUV3s[i] = uv2;
+            mesh.cacheUV4s[i] = uv3;
         }
 
         // vertsD: planet-relative positions for PQS cache (not a mesh attribute)
-        var positionsD = new NativeArray<Vector3d>(vertexCount, Allocator.Persistent);
-        mesh.vertsD = positionsD;
-        CopyToNativeArray(positionsD, data.vertsD);
+        mesh.vertsD = new NativeArray<Vector3d>(vertexCount, Allocator.Persistent);
+        mesh.vertsD.CopyFrom(data.vertsD.AsNativeArray());
 
         // Stream 1: normals (separate for edge stitching)
-        var normals = new NativeArray<Vector3>(vertexCount, Allocator.Persistent);
-        mesh.normals = normals;
-        normals.CopyFrom(data.normals.AsNativeArray());
+        mesh.normals = new NativeArray<Vector3>(vertexCount, Allocator.Persistent);
+        mesh.normals.CopyFrom(data.normals.AsNativeArray());
 
         // Stream 2: tangents (separate for edge stitching, conditional)
         if (reqAssignTangents)
         {
-            var tangents = new NativeArray<Vector4>(vertexCount, Allocator.Persistent);
-            mesh.tangents = tangents;
-            tangents.CopyFrom(data.tangents.AsNativeArray());
+            mesh.tangents = new NativeArray<Vector4>(vertexCount, Allocator.Persistent);
+            mesh.tangents.CopyFrom(data.tangents.AsNativeArray());
         }
     }
 

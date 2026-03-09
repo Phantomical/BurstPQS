@@ -22,17 +22,30 @@ internal struct InterleavedVertex
 
 internal struct MeshDataStruct : IDisposable
 {
+    // Mesh streams
     public NativeArray<InterleavedVertex> interleaved; // stream 0
-    public NativeArray<Vector3d> vertsD; // PQS cache only (not a mesh attribute)
     public NativeArray<Vector3> normals; // stream 1
     public NativeArray<Vector4> tangents; // stream 2 (conditional)
+
+    // PQS cache arrays (deinterleaved on worker thread)
+    public NativeArray<Vector3d> vertsD;
+    public NativeArray<Color> cacheColors;
+    public NativeArray<Vector2> cacheUVs;
+    public NativeArray<Vector2> cacheUV2s;
+    public NativeArray<Vector2> cacheUV3s;
+    public NativeArray<Vector2> cacheUV4s;
 
     public void Dispose()
     {
         interleaved.Dispose();
-        vertsD.Dispose();
         normals.Dispose();
         tangents.Dispose();
+        vertsD.Dispose();
+        cacheColors.Dispose();
+        cacheUVs.Dispose();
+        cacheUV2s.Dispose();
+        cacheUV3s.Dispose();
+        cacheUV4s.Dispose();
     }
 
     struct DisposeJob(MeshDataStruct data) : IJob
@@ -54,9 +67,15 @@ internal class MeshData : IDisposable
     public MeshDataStruct data;
 
     public NativeArray<InterleavedVertex> interleaved => data.interleaved;
-    public NativeArray<Vector3d> vertsD => data.vertsD;
     public NativeArray<Vector3> normals => data.normals;
     public NativeArray<Vector4> tangents => data.tangents;
+
+    public NativeArray<Vector3d> vertsD => data.vertsD;
+    public NativeArray<Color> cacheColors => data.cacheColors;
+    public NativeArray<Vector2> cacheUVs => data.cacheUVs;
+    public NativeArray<Vector2> cacheUV2s => data.cacheUV2s;
+    public NativeArray<Vector2> cacheUV3s => data.cacheUV3s;
+    public NativeArray<Vector2> cacheUV4s => data.cacheUV4s;
 
     private const int MaxPoolItems = 256;
     private static readonly Stack<MeshData> Pool = [];

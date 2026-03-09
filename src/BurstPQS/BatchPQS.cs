@@ -459,17 +459,11 @@ public class BatchPQS : MonoBehaviour
             meshData.normals.CopyTo(PQS.normals);
             if (meshData.tangents.IsCreated)
                 meshData.tangents.CopyTo(PQS.cacheTangents);
-
-            // Extract from interleaved for PQS cache
-            for (int i = 0; i < vertexCount; i++)
-            {
-                var v = meshData.interleaved[i];
-                PQS.cacheColors[i] = v.color;
-                PQS.cacheUVs[i] = v.uv0;
-                PQS.cacheUV2s[i] = v.uv1;
-                PQS.cacheUV3s[i] = v.uv2;
-                PQS.cacheUV4s[i] = v.uv3;
-            }
+            meshData.cacheColors.CopyTo(PQS.cacheColors);
+            meshData.cacheUVs.CopyTo(PQS.cacheUVs);
+            meshData.cacheUV2s.CopyTo(PQS.cacheUV2s);
+            meshData.cacheUV3s.CopyTo(PQS.cacheUV3s);
+            meshData.cacheUV4s.CopyTo(PQS.cacheUV4s);
 
             quad.edgeState = PQS.EdgeState.Reset;
 
