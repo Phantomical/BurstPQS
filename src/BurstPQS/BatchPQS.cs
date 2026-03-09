@@ -7,6 +7,7 @@ using Unity.Collections;
 using Unity.Jobs;
 using Unity.Profiling;
 using UnityEngine;
+using UnityEngine.Rendering;
 
 namespace BurstPQS;
 
@@ -410,49 +411,66 @@ public class BatchPQS : MonoBehaviour
 
         public void Complete()
         {
-            quad.mesh.Clear(false);
+            var mesh = quad.mesh;
+            mesh.Clear(false);
             handle.Complete();
 
-            if (!meshData.verts.IsCreated)
+            if (!meshData.interleaved.IsCreated)
                 throw new Exception("mesh vertex data is empty");
 
             pqs.buildQuad = quad;
 
-            quad.mesh.SetVertices(meshData.verts);
-            quad.mesh.SetNormals(meshData.normals);
+            int vertexCount = meshData.interleaved.Length;
+            const MeshUpdateFlags flags =
+                MeshUpdateFlags.DontValidateIndices
+                | MeshUpdateFlags.DontResetBoneBounds
+                | MeshUpdateFlags.DontNotifyMeshUsers;
 
+            // Declare vertex layout — attributes must be in VertexAttribute enum order
+            var attrs = new List<VertexAttributeDescriptor>
+            {
+                new(VertexAttribute.Position, VertexAttributeFormat.Float32, 3, 0),
+                new(VertexAttribute.Normal, VertexAttributeFormat.Float32, 3, 1),
+            };
             if (meshData.tangents.IsCreated)
-                quad.mesh.SetTangents(meshData.tangents);
-            if (meshData.colors.IsCreated)
-                quad.mesh.SetColors(meshData.colors);
-            if (meshData.uv0.IsCreated)
-                quad.mesh.SetUVs(0, meshData.uv0);
-            if (meshData.uv1.IsCreated)
-                quad.mesh.SetUVs(1, meshData.uv1);
-            if (meshData.uv2.IsCreated)
-                quad.mesh.SetUVs(2, meshData.uv2);
-            if (meshData.uv3.IsCreated)
-                quad.mesh.SetUVs(3, meshData.uv3);
+                attrs.Add(new(VertexAttribute.Tangent, VertexAttributeFormat.Float32, 4, 2));
+            attrs.Add(new(VertexAttribute.Color, VertexAttributeFormat.Float32, 4, 0));
+            attrs.Add(new(VertexAttribute.TexCoord0, VertexAttributeFormat.Float32, 2, 0));
+            attrs.Add(new(VertexAttribute.TexCoord1, VertexAttributeFormat.Float32, 2, 0));
+            attrs.Add(new(VertexAttribute.TexCoord2, VertexAttributeFormat.Float32, 2, 0));
+            attrs.Add(new(VertexAttribute.TexCoord3, VertexAttributeFormat.Float32, 2, 0));
+
+            mesh.SetVertexBufferParams(vertexCount, [.. attrs]);
+            mesh.SetVertexBufferData(meshData.interleaved, 0, 0, vertexCount, 0, flags);
+            mesh.SetVertexBufferData(meshData.normals, 0, 0, vertexCount, 1, flags);
+            if (meshData.tangents.IsCreated)
+                mesh.SetVertexBufferData(meshData.tangents, 0, 0, vertexCount, 2, flags);
+
+            int indexCount = PQS.cacheIndices[0].Length;
+            mesh.SetIndexBufferParams(indexCount, IndexFormat.UInt32);
+            mesh.SetIndexBufferData(PQS.cacheIndices[0], 0, 0, indexCount, flags);
+            mesh.subMeshCount = 1;
+            mesh.SetSubMesh(0, new SubMeshDescriptor(0, indexCount), flags);
+            mesh.RecalculateBounds();
 
             // Populate global PQS cache arrays that stock normally fills per-vertex.
             // These must be populated before OnMeshBuilt since stock PQSMods may read them.
             meshData.vertsD.CopyTo(PQS.verts);
             meshData.normals.CopyTo(PQS.normals);
-            if (meshData.colors.IsCreated)
-                meshData.colors.CopyTo(PQS.cacheColors);
             if (meshData.tangents.IsCreated)
                 meshData.tangents.CopyTo(PQS.cacheTangents);
-            if (meshData.uv0.IsCreated)
-                meshData.uv0.CopyTo(PQS.cacheUVs);
-            if (meshData.uv1.IsCreated)
-                meshData.uv1.CopyTo(PQS.cacheUV2s);
-            if (meshData.uv2.IsCreated)
-                meshData.uv2.CopyTo(PQS.cacheUV3s);
-            if (meshData.uv3.IsCreated)
-                meshData.uv3.CopyTo(PQS.cacheUV4s);
 
-            quad.mesh.SetTriangles(PQS.cacheIndices[0], 0);
-            quad.mesh.RecalculateBounds();
+            // Extract from interleaved for PQS cache
+            for (int i = 0; i < vertexCount; i++)
+            {
+                var v = meshData.interleaved[i];
+                PQS.cacheColors[i] = v.color;
+                PQS.cacheUVs[i] = v.uv0;
+                PQS.cacheUV2s[i] = v.uv1;
+                PQS.cacheUV3s[i] = v.uv2;
+                PQS.cacheUV4s[i] = v.uv3;
+            }
+
             quad.edgeState = PQS.EdgeState.Reset;
 
             jobSet.OnMeshBuilt(quad);
