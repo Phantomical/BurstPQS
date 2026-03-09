@@ -53,13 +53,16 @@
       <KSPAssemblyVersion>1.0.0</KSPAssemblyVersion>
       <GenerateDependencyAttribute>true</GenerateDependencyAttribute>
     </Reference>
+
+    <Reference Include="KSPTextureLoader">
+      <HintPath>$(DepSet1)/KSPTextureLoader/Plugins/KSPTextureLoader.dll</HintPath>
+      <Private>false</Private>
+    </Reference>
   </ItemGroup>
 
   <ItemGroup>
     <Publicize Include="Assembly-CSharp" />
-    <Publicize Include="Kopernicus:Kopernicus.OnDemand.MapSODemand.Image" />
-    <Publicize Include="Kopernicus:Kopernicus.OnDemand.MapSODemand.Format" />
-    <Publicize Include="Kopernicus:Kopernicus.OnDemand.MapSODemand+MemoryFormat" />
+    <Publicize Include="Kopernicus:Kopernicus.Components.KopernicusMapSO+RA16Texture" />
   </ItemGroup>
 
   <Target Name="CopyExtrasToPluginFolder" AfterTargets="KSPBT_CopyDLLsToPluginFolder">

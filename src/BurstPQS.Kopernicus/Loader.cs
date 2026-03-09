@@ -18,7 +18,8 @@ internal class Loader : MonoBehaviour
 
     void Start()
     {
-        BurstMapSO.RegisterMapSOFactoryFunc<MapSODemand>(BurstMapSODemand.Create);
+        BurstMapSO.RegisterMapSOFactoryFunc<MapSODemand>(BurstKopernicusMapSO.Create);
+        BurstMapSO.RegisterMapSOFactoryFunc<KopernicusMapSO>(BurstKopernicusMapSO.Create);
         BurstMapSO.RegisterMapSOFactoryFunc<KopernicusCBAttributeMapSO>(mapSO =>
             BurstMapSO.Create(new BurstCBAttributeMapSO(mapSO))
         );
