@@ -41,6 +41,9 @@
     <Reference Include="KSPTextureLoader">
       <HintPath>$(DepSet1)/KSPTextureLoader/Plugins/KSPTextureLoader.dll</HintPath>
       <Private>false</Private>
+      <KSPAssemblyName>KSPTextureLoader</KSPAssemblyName>
+      <KSPAssemblyVersion>1.0.27</KSPAssemblyVersion>
+      <GenerateDependencyAttribute>true</GenerateDependencyAttribute>
     </Reference>
 
     <KSPVersionFile Include=".">
