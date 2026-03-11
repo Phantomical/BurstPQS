@@ -1,8 +1,5 @@
-using System;
 using KSPTextureLoader;
 using Unity.Burst;
-using Unity.Collections;
-using Unity.Mathematics;
 using UnityEngine;
 
 namespace BurstPQS.Map;
@@ -10,9 +7,9 @@ namespace BurstPQS.Map;
 public static partial class TextureMapSO
 {
     [BurstCompile]
-    internal struct RHalf(CPUTexture2D.RHalf texture) : IMapSO
+    internal struct KopernicusPalette8(CPUTexture2D.KopernicusPalette8 texture) : IMapSO
     {
-        FormatMapSO<CPUTexture2D.RHalf> mapSO = new(texture);
+        FormatMapSO<CPUTexture2D.KopernicusPalette8> mapSO = new(texture);
 
         public readonly int Width => mapSO.Width;
         public readonly int Height => mapSO.Height;

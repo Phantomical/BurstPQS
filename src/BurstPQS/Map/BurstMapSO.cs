@@ -50,6 +50,7 @@ public interface IMapSO
 
     public int Height { get; }
     public int Width { get; }
+    public MapSO.MapDepth Depth { get; }
 }
 
 public static class MapSODefaults
@@ -633,16 +634,19 @@ public unsafe struct BurstMapSO : IMapSO, IDisposable
 
     int width;
     int height;
+    MapSO.MapDepth depth;
 
     public readonly bool IsValid => data is not null;
     public readonly int Width => width;
     public readonly int Height => height;
+    public readonly MapSO.MapDepth Depth => depth;
 
     public static BurstMapSO Create<T>(T mapSO)
         where T : struct, IMapSO
     {
         var width = mapSO.Width;
         var height = mapSO.Height;
+        var depth = mapSO.Depth;
 
         // This is probably wildly unsafe, but mono never moves static readonly fields
         // so it is ok
@@ -666,6 +670,7 @@ public unsafe struct BurstMapSO : IMapSO, IDisposable
                 managed = managed,
                 width = width,
                 height = height,
+                depth = depth,
             };
         }
         else
@@ -683,6 +688,7 @@ public unsafe struct BurstMapSO : IMapSO, IDisposable
                 gchandle = gchandle,
                 width = width,
                 height = height,
+                depth = depth,
             };
         }
     }

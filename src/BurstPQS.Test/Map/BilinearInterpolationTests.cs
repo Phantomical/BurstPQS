@@ -1,6 +1,7 @@
 using System;
 using BurstPQS.Map;
 using KSP.Testing;
+using KSPTextureLoader;
 using Unity.Collections;
 using UnityEngine;
 
@@ -15,7 +16,7 @@ public class BilinearInterpolationTests : BurstPQSTestBase
     /// <summary>
     /// Creates a 2x2 RGBA32 TextureMapSO with 4 distinct known colors.
     /// </summary>
-    static (TextureMapSO.RGBA32 map, Texture2D tex) Make2x2(
+    static (TextureMapSO.RGBA32 map, NativeArray<byte> nativeData) Make2x2(
         Color32 c00,
         Color32 c10,
         Color32 c01,
@@ -37,18 +38,18 @@ public class BilinearInterpolationTests : BurstPQSTestBase
         Write(0, 1, c01);
         Write(1, 1, c11);
 
-        var tex = new Texture2D(2, 2, TextureFormat.RGBA32, false);
-        tex.LoadRawTextureData(data);
-        tex.Apply(false, false);
-
-        return (new TextureMapSO.RGBA32(tex, MapSO.MapDepth.RGBA), tex);
+        var nativeData = new NativeArray<byte>(data, Allocator.Persistent);
+        return (
+            new TextureMapSO.RGBA32(new CPUTexture2D.RGBA32(nativeData, 2, 2, 1)),
+            nativeData
+        );
     }
 
     [TestInfo("Bilinear_XWrapping")]
     public void TestXWrapping()
     {
         // X coordinate should wrap: x=1.0 should be equivalent to x=0.0
-        var (map, tex) = Make2x2(
+        var (map, nativeData) = Make2x2(
             new Color32(255, 0, 0, 255), // (0,0) red
             new Color32(0, 255, 0, 255), // (1,0) green
             new Color32(0, 0, 255, 255), // (0,1) blue
@@ -72,7 +73,7 @@ public class BilinearInterpolationTests : BurstPQSTestBase
         }
         finally
         {
-            UnityEngine.Object.Destroy(tex);
+            nativeData.Dispose();
         }
     }
 
@@ -80,7 +81,7 @@ public class BilinearInterpolationTests : BurstPQSTestBase
     public void TestYClamping()
     {
         // Y coordinate should clamp (Kopernicus behavior): y<0 clamps to 0, y>1 clamps to 1
-        var (map, tex) = Make2x2(
+        var (map, nativeData) = Make2x2(
             new Color32(100, 0, 0, 255), // (0,0)
             new Color32(100, 0, 0, 255), // (1,0)
             new Color32(0, 200, 0, 255), // (0,1)
@@ -101,7 +102,7 @@ public class BilinearInterpolationTests : BurstPQSTestBase
         }
         finally
         {
-            UnityEngine.Object.Destroy(tex);
+            nativeData.Dispose();
         }
     }
 
@@ -109,7 +110,7 @@ public class BilinearInterpolationTests : BurstPQSTestBase
     public void TestInterpolation()
     {
         // Test that bilinear interpolation produces correct midpoints
-        var (map, tex) = Make2x2(
+        var (map, nativeData) = Make2x2(
             new Color32(0, 0, 0, 255), // (0,0) black
             new Color32(255, 0, 0, 255), // (1,0) red
             new Color32(0, 255, 0, 255), // (0,1) green
@@ -126,7 +127,7 @@ public class BilinearInterpolationTests : BurstPQSTestBase
         }
         finally
         {
-            UnityEngine.Object.Destroy(tex);
+            nativeData.Dispose();
         }
     }
 
@@ -134,7 +135,7 @@ public class BilinearInterpolationTests : BurstPQSTestBase
     public void TestFloatVsDouble()
     {
         // Float and double coords should produce the same results
-        var (map, tex) = Make2x2(
+        var (map, nativeData) = Make2x2(
             new Color32(50, 100, 150, 200),
             new Color32(200, 150, 100, 50),
             new Color32(100, 200, 50, 150),
@@ -160,14 +161,14 @@ public class BilinearInterpolationTests : BurstPQSTestBase
         }
         finally
         {
-            UnityEngine.Object.Destroy(tex);
+            nativeData.Dispose();
         }
     }
 
     [TestInfo("Bilinear_GetPixelHeightAlpha")]
     public void TestBilinearHeightAlpha()
     {
-        var (map, tex) = Make2x2(
+        var (map, nativeData) = Make2x2(
             new Color32(50, 0, 0, 200),
             new Color32(100, 0, 0, 150),
             new Color32(150, 0, 0, 100),
@@ -179,14 +180,14 @@ public class BilinearInterpolationTests : BurstPQSTestBase
             // Midpoint (0.25, 0.25) should interpolate height and alpha independently
             // on a 2x2 texture (centerX = 0.25*2 = 0.5, centerY = 0.25*2 = 0.5)
             HeightAlpha center = map.GetPixelHeightAlpha(0.25f, 0.25f);
-            // height = R channel = avg of 50,100,150,200 / 255 ≈ 125/255 ≈ 0.49
-            // alpha = A channel = avg of 200,150,100,50 / 255 ≈ 125/255 ≈ 0.49
+            // height = R channel = avg of 50,100,150,200 / 255 ~ 125/255 ~ 0.49
+            // alpha = A channel = avg of 200,150,100,50 / 255 ~ 125/255 ~ 0.49
             assertFloatEquals("CenterHA.height", center.height, 125f / 255f, 0.05f);
             assertFloatEquals("CenterHA.alpha", center.alpha, 125f / 255f, 0.05f);
         }
         finally
         {
-            UnityEngine.Object.Destroy(tex);
+            nativeData.Dispose();
         }
     }
 }

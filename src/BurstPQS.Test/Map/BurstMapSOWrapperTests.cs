@@ -1,6 +1,7 @@
 using System;
 using BurstPQS.Map;
 using KSP.Testing;
+using KSPTextureLoader;
 using Unity.Collections;
 using UnityEngine;
 
@@ -32,12 +33,18 @@ public class BurstMapSOWrapperTests : BurstPQSTestBase
         return data;
     }
 
+    static (TextureMapSO.RGBA32 inner, NativeArray<byte> nativeData) MakeMapSO()
+    {
+        var rawData = MakeRGBA32Data();
+        var nativeData = new NativeArray<byte>(rawData, Allocator.Persistent);
+        var inner = new TextureMapSO.RGBA32(new CPUTexture2D.RGBA32(nativeData, W, H, 1));
+        return (inner, nativeData);
+    }
+
     [TestInfo("BurstMapSO_CreateIsValid")]
     public void TestCreateIsValid()
     {
-        var rawData = MakeRGBA32Data();
-        var tex = CreateTexture(W, H, TextureFormat.RGBA32, rawData);
-        var inner = new TextureMapSO.RGBA32(tex, MapSO.MapDepth.RGBA);
+        var (inner, nativeData) = MakeMapSO();
         var burst = BurstMapSO.Create(inner);
 
         try
@@ -49,7 +56,7 @@ public class BurstMapSOWrapperTests : BurstPQSTestBase
         finally
         {
             burst.Dispose();
-            UnityEngine.Object.Destroy(tex);
+            nativeData.Dispose();
         }
     }
 
@@ -65,23 +72,19 @@ public class BurstMapSOWrapperTests : BurstPQSTestBase
     [TestInfo("BurstMapSO_DisposeInvalidates")]
     public void TestDisposeInvalidates()
     {
-        var rawData = MakeRGBA32Data();
-        var tex = CreateTexture(W, H, TextureFormat.RGBA32, rawData);
-        var inner = new TextureMapSO.RGBA32(tex, MapSO.MapDepth.RGBA);
+        var (inner, nativeData) = MakeMapSO();
         var burst = BurstMapSO.Create(inner);
 
         assertEquals("IsValid before dispose", burst.IsValid, true);
         burst.Dispose();
         assertEquals("IsValid after dispose", burst.IsValid, false);
-        UnityEngine.Object.Destroy(tex);
+        nativeData.Dispose();
     }
 
     [TestInfo("BurstMapSO_GetPixelFloat_Int")]
     public void TestGetPixelFloat_Int()
     {
-        var rawData = MakeRGBA32Data();
-        var tex = CreateTexture(W, H, TextureFormat.RGBA32, rawData);
-        var inner = new TextureMapSO.RGBA32(tex, MapSO.MapDepth.RGBA);
+        var (inner, nativeData) = MakeMapSO();
         var burst = BurstMapSO.Create(inner);
 
         try
@@ -99,16 +102,14 @@ public class BurstMapSOWrapperTests : BurstPQSTestBase
         finally
         {
             burst.Dispose();
-            UnityEngine.Object.Destroy(tex);
+            nativeData.Dispose();
         }
     }
 
     [TestInfo("BurstMapSO_GetPixelColor_Int")]
     public void TestGetPixelColor_Int()
     {
-        var rawData = MakeRGBA32Data();
-        var tex = CreateTexture(W, H, TextureFormat.RGBA32, rawData);
-        var inner = new TextureMapSO.RGBA32(tex, MapSO.MapDepth.RGBA);
+        var (inner, nativeData) = MakeMapSO();
         var burst = BurstMapSO.Create(inner);
 
         try
@@ -126,16 +127,14 @@ public class BurstMapSOWrapperTests : BurstPQSTestBase
         finally
         {
             burst.Dispose();
-            UnityEngine.Object.Destroy(tex);
+            nativeData.Dispose();
         }
     }
 
     [TestInfo("BurstMapSO_GetPixelColor32_Int")]
     public void TestGetPixelColor32_Int()
     {
-        var rawData = MakeRGBA32Data();
-        var tex = CreateTexture(W, H, TextureFormat.RGBA32, rawData);
-        var inner = new TextureMapSO.RGBA32(tex, MapSO.MapDepth.RGBA);
+        var (inner, nativeData) = MakeMapSO();
         var burst = BurstMapSO.Create(inner);
 
         try
@@ -153,16 +152,14 @@ public class BurstMapSOWrapperTests : BurstPQSTestBase
         finally
         {
             burst.Dispose();
-            UnityEngine.Object.Destroy(tex);
+            nativeData.Dispose();
         }
     }
 
     [TestInfo("BurstMapSO_GetPixelHeightAlpha_Int")]
     public void TestGetPixelHeightAlpha_Int()
     {
-        var rawData = MakeRGBA32Data();
-        var tex = CreateTexture(W, H, TextureFormat.RGBA32, rawData);
-        var inner = new TextureMapSO.RGBA32(tex, MapSO.MapDepth.RGBA);
+        var (inner, nativeData) = MakeMapSO();
         var burst = BurstMapSO.Create(inner);
 
         try
@@ -180,16 +177,14 @@ public class BurstMapSOWrapperTests : BurstPQSTestBase
         finally
         {
             burst.Dispose();
-            UnityEngine.Object.Destroy(tex);
+            nativeData.Dispose();
         }
     }
 
     [TestInfo("BurstMapSO_BilinearDispatch")]
     public void TestBilinearDispatch()
     {
-        var rawData = MakeRGBA32Data();
-        var tex = CreateTexture(W, H, TextureFormat.RGBA32, rawData);
-        var inner = new TextureMapSO.RGBA32(tex, MapSO.MapDepth.RGBA);
+        var (inner, nativeData) = MakeMapSO();
         var burst = BurstMapSO.Create(inner);
 
         try
@@ -220,7 +215,7 @@ public class BurstMapSOWrapperTests : BurstPQSTestBase
         finally
         {
             burst.Dispose();
-            UnityEngine.Object.Destroy(tex);
+            nativeData.Dispose();
         }
     }
 

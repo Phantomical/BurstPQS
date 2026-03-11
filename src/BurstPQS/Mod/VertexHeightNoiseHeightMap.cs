@@ -20,7 +20,7 @@ public class VertexHeightNoiseHeightMap(PQSMod_VertexHeightNoiseHeightMap mod)
                 jobSet.Add(
                     new BuildJobPerlin
                     {
-                        heightMap = TextureMapSO.Create(mod.heightMap, MapSO.MapDepth.RGB),
+                        heightMap = TextureMapSO.Create(mod.heightMap),
                         noise = new(perlin),
                         heightStart = mod.heightStart,
                         heightEnd = mod.heightEnd,
@@ -34,7 +34,7 @@ public class VertexHeightNoiseHeightMap(PQSMod_VertexHeightNoiseHeightMap mod)
                 jobSet.Add(
                     new BuildJobRidgedMultifractal
                     {
-                        heightMap = TextureMapSO.Create(mod.heightMap, MapSO.MapDepth.RGB),
+                        heightMap = TextureMapSO.Create(mod.heightMap),
                         noise = new(multi),
                         heightStart = mod.heightStart,
                         heightEnd = mod.heightEnd,
@@ -48,7 +48,7 @@ public class VertexHeightNoiseHeightMap(PQSMod_VertexHeightNoiseHeightMap mod)
                 jobSet.Add(
                     new BuildJobBillow
                     {
-                        heightMap = TextureMapSO.Create(mod.heightMap, MapSO.MapDepth.RGB),
+                        heightMap = TextureMapSO.Create(mod.heightMap),
                         noise = new(billow),
                         heightStart = mod.heightStart,
                         heightEnd = mod.heightEnd,
@@ -62,7 +62,7 @@ public class VertexHeightNoiseHeightMap(PQSMod_VertexHeightNoiseHeightMap mod)
                 jobSet.Add(
                     new BuildJobFallback
                     {
-                        heightMap = TextureMapSO.Create(mod.heightMap, MapSO.MapDepth.RGB),
+                        heightMap = TextureMapSO.Create(mod.heightMap),
                         noiseMap = mod.noiseMap,
                         heightStart = mod.heightStart,
                         heightEnd = mod.heightEnd,

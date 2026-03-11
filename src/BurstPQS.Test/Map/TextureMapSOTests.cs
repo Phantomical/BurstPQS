@@ -1,6 +1,8 @@
 using System;
 using BurstPQS.Map;
 using KSP.Testing;
+using KSPTextureLoader;
+using Unity.Collections;
 using UnityEngine;
 
 namespace BurstPQS.Test.Map;
@@ -71,15 +73,15 @@ public class TextureMapSOTests : BurstPQSTestBase
 
     void TestFormat<T>(
         TextureFormat fmt,
-        MapSO.MapDepth depth,
-        Func<Texture2D, MapSO.MapDepth, T> factory,
+        Func<NativeArray<byte>, int, int, T> factory,
         string name,
         float tolerance = Tol
     )
         where T : struct, IMapSO
     {
         var (tex, pixels) = MakeTestTexture(fmt);
-        var mapSO = factory(tex, depth);
+        var nativeData = new NativeArray<byte>(tex.GetRawTextureData(), Allocator.Persistent);
+        var mapSO = factory(nativeData, tex.width, tex.height);
         var burst = BurstMapSO.Create(mapSO);
 
         try
@@ -135,6 +137,7 @@ public class TextureMapSOTests : BurstPQSTestBase
         {
             if (burst.IsValid)
                 burst.Dispose();
+            nativeData.Dispose();
             UnityEngine.Object.Destroy(tex);
         }
     }
@@ -145,14 +148,15 @@ public class TextureMapSOTests : BurstPQSTestBase
     /// </summary>
     void TestUncompressedVsTexture2D<T>(
         TextureFormat fmt,
-        Func<Texture2D, MapSO.MapDepth, T> factory,
+        Func<NativeArray<byte>, int, int, T> factory,
         string name,
         float tolerance = Tol
     )
         where T : struct, IMapSO
     {
         var (tex, pixels) = MakeTestTexture(fmt);
-        var mapSO = factory(tex, MapSO.MapDepth.RGBA);
+        var nativeData = new NativeArray<byte>(tex.GetRawTextureData(), Allocator.Persistent);
+        var mapSO = factory(nativeData, tex.width, tex.height);
 
         try
         {
@@ -168,58 +172,41 @@ public class TextureMapSOTests : BurstPQSTestBase
         }
         finally
         {
+            nativeData.Dispose();
             UnityEngine.Object.Destroy(tex);
         }
     }
 
     // ---- Uncompressed 4-channel formats ----
 
+    static TextureMapSO.RGBA32 MakeRGBA32(NativeArray<byte> data, int w, int h) =>
+        new(new CPUTexture2D.RGBA32(data, w, h, 1));
+
+    static TextureMapSO.ARGB32 MakeARGB32(NativeArray<byte> data, int w, int h) =>
+        new(new CPUTexture2D.ARGB32(data, w, h, 1));
+
+    static TextureMapSO.BGRA32 MakeBGRA32(NativeArray<byte> data, int w, int h) =>
+        new(new CPUTexture2D.BGRA32(data, w, h, 1));
+
     [TestInfo("TextureMapSO_RGBA32")]
     public void TestRGBA32()
     {
-        TestUncompressedVsTexture2D(
-            TextureFormat.RGBA32,
-            (tex, d) => new TextureMapSO.RGBA32(tex, d),
-            "RGBA32"
-        );
-        TestFormat(
-            TextureFormat.RGBA32,
-            MapSO.MapDepth.RGBA,
-            (tex, d) => new TextureMapSO.RGBA32(tex, d),
-            "RGBA32"
-        );
+        TestUncompressedVsTexture2D(TextureFormat.RGBA32, MakeRGBA32, "RGBA32");
+        TestFormat(TextureFormat.RGBA32, MakeRGBA32, "RGBA32");
     }
 
     [TestInfo("TextureMapSO_ARGB32")]
     public void TestARGB32()
     {
-        TestUncompressedVsTexture2D(
-            TextureFormat.ARGB32,
-            (tex, d) => new TextureMapSO.ARGB32(tex, d),
-            "ARGB32"
-        );
-        TestFormat(
-            TextureFormat.ARGB32,
-            MapSO.MapDepth.RGBA,
-            (tex, d) => new TextureMapSO.ARGB32(tex, d),
-            "ARGB32"
-        );
+        TestUncompressedVsTexture2D(TextureFormat.ARGB32, MakeARGB32, "ARGB32");
+        TestFormat(TextureFormat.ARGB32, MakeARGB32, "ARGB32");
     }
 
     [TestInfo("TextureMapSO_BGRA32")]
     public void TestBGRA32()
     {
-        TestUncompressedVsTexture2D(
-            TextureFormat.BGRA32,
-            (tex, d) => new TextureMapSO.BGRA32(tex, d),
-            "BGRA32"
-        );
-        TestFormat(
-            TextureFormat.BGRA32,
-            MapSO.MapDepth.RGBA,
-            (tex, d) => new TextureMapSO.BGRA32(tex, d),
-            "BGRA32"
-        );
+        TestUncompressedVsTexture2D(TextureFormat.BGRA32, MakeBGRA32, "BGRA32");
+        TestFormat(TextureFormat.BGRA32, MakeBGRA32, "BGRA32");
     }
 
     // ---- Uncompressed 3-channel formats ----
@@ -229,13 +216,12 @@ public class TextureMapSOTests : BurstPQSTestBase
     {
         TestUncompressedVsTexture2D(
             TextureFormat.RGB24,
-            (tex, d) => new TextureMapSO.RGB24(tex, d),
+            (data, w, h) => new TextureMapSO.RGB24(new CPUTexture2D.RGB24(data, w, h, 1)),
             "RGB24"
         );
         TestFormat(
             TextureFormat.RGB24,
-            MapSO.MapDepth.RGB,
-            (tex, d) => new TextureMapSO.RGB24(tex, d),
+            (data, w, h) => new TextureMapSO.RGB24(new CPUTexture2D.RGB24(data, w, h, 1)),
             "RGB24"
         );
     }
@@ -246,7 +232,7 @@ public class TextureMapSOTests : BurstPQSTestBase
         // RGB565 is lossy due to bit reduction, so use larger tolerance
         TestUncompressedVsTexture2D(
             TextureFormat.RGB565,
-            (tex, d) => new TextureMapSO.RGB565(tex, d),
+            (data, w, h) => new TextureMapSO.RGB565(new CPUTexture2D.RGB565(data, w, h, 1)),
             "RGB565",
             0.04f // 5-bit channels have ~1/31 precision
         );
@@ -259,8 +245,7 @@ public class TextureMapSOTests : BurstPQSTestBase
     {
         TestFormat(
             TextureFormat.RG16,
-            MapSO.MapDepth.HeightAlpha,
-            (tex, d) => new TextureMapSO.RG16(tex, d),
+            (data, w, h) => new TextureMapSO.RG16(new CPUTexture2D.RG16(data, w, h, 1)),
             "RG16"
         );
     }
@@ -272,8 +257,7 @@ public class TextureMapSOTests : BurstPQSTestBase
     {
         TestFormat(
             TextureFormat.R8,
-            MapSO.MapDepth.Greyscale,
-            (tex, d) => new TextureMapSO.R8(tex, d),
+            (data, w, h) => new TextureMapSO.R8(new CPUTexture2D.R8(data, w, h, 1)),
             "R8"
         );
     }
@@ -283,8 +267,7 @@ public class TextureMapSOTests : BurstPQSTestBase
     {
         TestFormat(
             TextureFormat.Alpha8,
-            MapSO.MapDepth.Greyscale,
-            (tex, d) => new TextureMapSO.Alpha8(tex, d),
+            (data, w, h) => new TextureMapSO.Alpha8(new CPUTexture2D.Alpha8(data, w, h, 1)),
             "Alpha8"
         );
     }
@@ -294,8 +277,7 @@ public class TextureMapSOTests : BurstPQSTestBase
     {
         TestFormat(
             TextureFormat.R16,
-            MapSO.MapDepth.Greyscale,
-            (tex, d) => new TextureMapSO.R16(tex, d),
+            (data, w, h) => new TextureMapSO.R16(new CPUTexture2D.R16(data, w, h, 1)),
             "R16"
         );
     }
@@ -307,8 +289,7 @@ public class TextureMapSOTests : BurstPQSTestBase
     {
         TestFormat(
             TextureFormat.RFloat,
-            MapSO.MapDepth.Greyscale,
-            (tex, d) => new TextureMapSO.RFloat(tex, d),
+            (data, w, h) => new TextureMapSO.RFloat(new CPUTexture2D.RFloat(data, w, h, 1)),
             "RFloat",
             0.001f
         );
@@ -319,8 +300,7 @@ public class TextureMapSOTests : BurstPQSTestBase
     {
         TestFormat(
             TextureFormat.RGFloat,
-            MapSO.MapDepth.HeightAlpha,
-            (tex, d) => new TextureMapSO.RGFloat(tex, d),
+            (data, w, h) => new TextureMapSO.RGFloat(new CPUTexture2D.RGFloat(data, w, h, 1)),
             "RGFloat",
             0.001f
         );
@@ -331,14 +311,13 @@ public class TextureMapSOTests : BurstPQSTestBase
     {
         TestUncompressedVsTexture2D(
             TextureFormat.RGBAFloat,
-            (tex, d) => new TextureMapSO.RGBAFloat(tex, d),
+            (data, w, h) => new TextureMapSO.RGBAFloat(new CPUTexture2D.RGBAFloat(data, w, h, 1)),
             "RGBAFloat",
             0.001f
         );
         TestFormat(
             TextureFormat.RGBAFloat,
-            MapSO.MapDepth.RGBA,
-            (tex, d) => new TextureMapSO.RGBAFloat(tex, d),
+            (data, w, h) => new TextureMapSO.RGBAFloat(new CPUTexture2D.RGBAFloat(data, w, h, 1)),
             "RGBAFloat",
             0.001f
         );
@@ -351,8 +330,7 @@ public class TextureMapSOTests : BurstPQSTestBase
     {
         TestFormat(
             TextureFormat.RHalf,
-            MapSO.MapDepth.Greyscale,
-            (tex, d) => new TextureMapSO.RHalf(tex, d),
+            (data, w, h) => new TextureMapSO.RHalf(new CPUTexture2D.RHalf(data, w, h, 1)),
             "RHalf",
             0.002f
         );
@@ -363,8 +341,7 @@ public class TextureMapSOTests : BurstPQSTestBase
     {
         TestFormat(
             TextureFormat.RGHalf,
-            MapSO.MapDepth.HeightAlpha,
-            (tex, d) => new TextureMapSO.RGHalf(tex, d),
+            (data, w, h) => new TextureMapSO.RGHalf(new CPUTexture2D.RGHalf(data, w, h, 1)),
             "RGHalf",
             0.002f
         );
@@ -375,8 +352,7 @@ public class TextureMapSOTests : BurstPQSTestBase
     {
         TestFormat(
             TextureFormat.RGBAHalf,
-            MapSO.MapDepth.RGBA,
-            (tex, d) => new TextureMapSO.RGBAHalf(tex, d),
+            (data, w, h) => new TextureMapSO.RGBAHalf(new CPUTexture2D.RGBAHalf(data, w, h, 1)),
             "RGBAHalf",
             0.002f
         );
@@ -387,11 +363,10 @@ public class TextureMapSOTests : BurstPQSTestBase
     [TestInfo("TextureMapSO_RGBA4444")]
     public void TestRGBA4444()
     {
-        // 4-bit channels → 1/15 precision
+        // 4-bit channels -> 1/15 precision
         TestFormat(
             TextureFormat.RGBA4444,
-            MapSO.MapDepth.RGBA,
-            (tex, d) => new TextureMapSO.RGBA4444(tex, d),
+            (data, w, h) => new TextureMapSO.RGBA4444(new CPUTexture2D.RGBA4444(data, w, h, 1)),
             "RGBA4444",
             0.07f
         );
@@ -402,8 +377,7 @@ public class TextureMapSOTests : BurstPQSTestBase
     {
         TestFormat(
             TextureFormat.ARGB4444,
-            MapSO.MapDepth.RGBA,
-            (tex, d) => new TextureMapSO.ARGB4444(tex, d),
+            (data, w, h) => new TextureMapSO.ARGB444(new CPUTexture2D.ARGB4444(data, w, h, 1)),
             "ARGB4444",
             0.07f
         );
@@ -433,7 +407,10 @@ public class TextureMapSOTests : BurstPQSTestBase
             return;
         }
 
-        var mapSO = new TextureMapSO.DXT1(src, MapSO.MapDepth.RGB);
+        var nativeData = new NativeArray<byte>(src.GetRawTextureData(), Allocator.Persistent);
+        var mapSO = new TextureMapSO.DXT1(
+            new CPUTexture2D.DXT1(nativeData, src.width, src.height, 1)
+        );
         var burst = BurstMapSO.Create(mapSO);
 
         try
@@ -456,6 +433,7 @@ public class TextureMapSOTests : BurstPQSTestBase
         finally
         {
             burst.Dispose();
+            nativeData.Dispose();
             UnityEngine.Object.Destroy(src);
         }
     }
@@ -477,7 +455,10 @@ public class TextureMapSOTests : BurstPQSTestBase
             return;
         }
 
-        var mapSO = new TextureMapSO.DXT5(src, MapSO.MapDepth.RGBA);
+        var nativeData = new NativeArray<byte>(src.GetRawTextureData(), Allocator.Persistent);
+        var mapSO = new TextureMapSO.DXT5(
+            new CPUTexture2D.DXT5(nativeData, src.width, src.height, 1)
+        );
         var burst = BurstMapSO.Create(mapSO);
 
         try
@@ -498,6 +479,7 @@ public class TextureMapSOTests : BurstPQSTestBase
         finally
         {
             burst.Dispose();
+            nativeData.Dispose();
             UnityEngine.Object.Destroy(src);
         }
     }
@@ -521,7 +503,10 @@ public class TextureMapSOTests : BurstPQSTestBase
             return;
         }
 
-        var mapSO = new TextureMapSO.BC4(src, MapSO.MapDepth.Greyscale);
+        var nativeData = new NativeArray<byte>(src.GetRawTextureData(), Allocator.Persistent);
+        var mapSO = new TextureMapSO.BC4(
+            new CPUTexture2D.BC4(nativeData, src.width, src.height, 1)
+        );
         var burst = BurstMapSO.Create(mapSO);
 
         try
@@ -542,6 +527,7 @@ public class TextureMapSOTests : BurstPQSTestBase
         finally
         {
             burst.Dispose();
+            nativeData.Dispose();
             UnityEngine.Object.Destroy(src);
         }
     }

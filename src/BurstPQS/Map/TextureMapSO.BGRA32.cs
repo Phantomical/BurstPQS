@@ -1,6 +1,5 @@
-using System;
+using KSPTextureLoader;
 using Unity.Burst;
-using Unity.Collections;
 using UnityEngine;
 
 namespace BurstPQS.Map;
@@ -8,115 +7,37 @@ namespace BurstPQS.Map;
 public static partial class TextureMapSO
 {
     [BurstCompile]
-    public struct BGRA32 : IMapSO
+    internal struct BGRA32(CPUTexture2D.BGRA32 texture) : IMapSO
     {
-        NativeArray<byte> data;
-        MapSO.MapDepth depth;
+        FormatMapSO<CPUTexture2D.BGRA32> mapSO = new(texture);
 
-        public int Width { get; private set; }
-        public int Height { get; private set; }
+        public readonly int Width => mapSO.Width;
+        public readonly int Height => mapSO.Height;
+        public readonly MapSO.MapDepth Depth => mapSO.Depth;
 
-        public BGRA32(Texture2D texture, MapSO.MapDepth depth)
-        {
-            ValidateFormat(texture, TextureFormat.BGRA32);
-            this = new BGRA32(
-                texture.GetRawTextureData<byte>(),
-                texture.width,
-                texture.height,
-                depth
-            );
-        }
+        public float GetPixelFloat(int x, int y) => mapSO.GetPixelFloat(x, y);
 
-        public BGRA32(NativeArray<byte> data, int width, int height, MapSO.MapDepth depth)
-        {
-            int required = width * height * 4;
-            if (data.Length < required)
-                throw new ArgumentException(
-                    $"Data length {data.Length} is too small for {width}x{height} BGRA32 texture (need at least {required})",
-                    nameof(data)
-                );
-            this.data = data;
-            Width = width;
-            Height = height;
-            this.depth = depth;
-        }
+        public float GetPixelFloat(float x, float y) => mapSO.GetPixelFloat(x, y);
 
-        readonly void GetComponents(
-            int x,
-            int y,
-            out float r,
-            out float g,
-            out float b,
-            out float a
-        )
-        {
-            int i = PixelIndex(x, y, Width, Height) * 4;
-            b = data[i] * Byte2Float;
-            g = data[i + 1] * Byte2Float;
-            r = data[i + 2] * Byte2Float;
-            a = data[i + 3] * Byte2Float;
-        }
+        public float GetPixelFloat(double x, double y) => mapSO.GetPixelFloat(x, y);
 
-        readonly void GetByteComponents(
-            int x,
-            int y,
-            out byte r,
-            out byte g,
-            out byte b,
-            out byte a
-        )
-        {
-            int i = PixelIndex(x, y, Width, Height) * 4;
-            b = data[i];
-            g = data[i + 1];
-            r = data[i + 2];
-            a = data[i + 3];
-        }
+        public Color GetPixelColor(int x, int y) => mapSO.GetPixelColor(x, y);
 
-        public readonly float GetPixelFloat(int x, int y)
-        {
-            GetComponents(x, y, out float r, out float g, out float b, out float a);
-            return DepthToFloat(r, g, b, a, depth);
-        }
+        public Color GetPixelColor(float x, float y) => mapSO.GetPixelColor(x, y);
 
-        public readonly Color GetPixelColor(int x, int y)
-        {
-            GetComponents(x, y, out float r, out float g, out float b, out float a);
-            return DepthToColor(r, g, b, a, depth);
-        }
+        public Color GetPixelColor(double x, double y) => mapSO.GetPixelColor(x, y);
 
-        public readonly Color32 GetPixelColor32(int x, int y)
-        {
-            GetByteComponents(x, y, out byte r, out byte g, out byte b, out byte a);
-            return DepthToColor32(r, g, b, a, depth);
-        }
+        public Color32 GetPixelColor32(int x, int y) => mapSO.GetPixelColor32(x, y);
 
-        public readonly HeightAlpha GetPixelHeightAlpha(int x, int y)
-        {
-            GetComponents(x, y, out float r, out float g, out float b, out float a);
-            return DepthToHeightAlpha(r, g, b, a, depth);
-        }
+        public Color32 GetPixelColor32(float x, float y) => mapSO.GetPixelColor32(x, y);
 
-        public float GetPixelFloat(float x, float y) => MapSODefaults.GetPixelFloat(ref this, x, y);
+        public Color32 GetPixelColor32(double x, double y) => mapSO.GetPixelColor32(x, y);
 
-        public float GetPixelFloat(double x, double y) =>
-            MapSODefaults.GetPixelFloat(ref this, x, y);
+        public HeightAlpha GetPixelHeightAlpha(int x, int y) => mapSO.GetPixelHeightAlpha(x, y);
 
-        public Color GetPixelColor(float x, float y) => MapSODefaults.GetPixelColor(ref this, x, y);
-
-        public Color GetPixelColor(double x, double y) =>
-            MapSODefaults.GetPixelColor(ref this, x, y);
-
-        public Color32 GetPixelColor32(float x, float y) =>
-            MapSODefaults.GetPixelColor32(ref this, x, y);
-
-        public Color32 GetPixelColor32(double x, double y) =>
-            MapSODefaults.GetPixelColor32(ref this, x, y);
-
-        public HeightAlpha GetPixelHeightAlpha(float x, float y) =>
-            MapSODefaults.GetPixelHeightAlpha(ref this, x, y);
+        public HeightAlpha GetPixelHeightAlpha(float x, float y) => mapSO.GetPixelHeightAlpha(x, y);
 
         public HeightAlpha GetPixelHeightAlpha(double x, double y) =>
-            MapSODefaults.GetPixelHeightAlpha(ref this, x, y);
+            mapSO.GetPixelHeightAlpha(x, y);
     }
 }

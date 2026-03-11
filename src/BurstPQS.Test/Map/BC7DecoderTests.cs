@@ -1,6 +1,7 @@
 using System;
 using BurstPQS.Map;
 using KSP.Testing;
+using KSPTextureLoader;
 using Unity.Collections;
 using UnityEngine;
 
@@ -89,7 +90,10 @@ public class BC7DecoderTests : BurstPQSTestBase
     static (TextureMapSO.BC7 bc7, NativeArray<byte> nativeData) MakeBC7(byte[] block)
     {
         var native = new NativeArray<byte>(block, Allocator.Persistent);
-        return (new TextureMapSO.BC7(native, 4, 4, MapSO.MapDepth.RGBA), native);
+        return (
+            new TextureMapSO.BC7(new CPUTexture2D.BC7(native, 4, 4, 1)),
+            native
+        );
     }
 
     void AssertBC7Pixel(
@@ -118,7 +122,7 @@ public class BC7DecoderTests : BurstPQSTestBase
         tex.Apply(false, false);
 
         var native = new NativeArray<byte>(block, Allocator.Persistent);
-        var bc7 = new TextureMapSO.BC7(native, 4, 4, MapSO.MapDepth.RGBA);
+        var bc7 = new TextureMapSO.BC7(new CPUTexture2D.BC7(native, 4, 4, 1));
 
         try
         {
@@ -141,7 +145,7 @@ public class BC7DecoderTests : BurstPQSTestBase
 
     // ---- Mode 0: 3 subsets, 4-bit RGB + 1 unique pbit, 3-bit indices ----
     //
-    // Layout: 1 mode | 4 partition | 72 endpoints (3ch × 6ep × 4bit) | 6 pbits | 45 indices
+    // Layout: 1 mode | 4 partition | 72 endpoints (3ch x 6ep x 4bit) | 6 pbits | 45 indices
     //
     // Solid test: partition=0, all R=10, G=5, B=2, all pbits=1
     // After pbit: (10<<1)|1=21, (5<<1)|1=11, (2<<1)|1=5 (5-bit values)
@@ -177,7 +181,7 @@ public class BC7DecoderTests : BurstPQSTestBase
 
     // ---- Mode 1: 2 subsets, 6-bit RGB + 1 shared pbit, 3-bit indices ----
     //
-    // Layout: 2 mode | 6 partition | 72 endpoints (3ch × 4ep × 6bit) | 2 shared pbits | 46 indices
+    // Layout: 2 mode | 6 partition | 72 endpoints (3ch x 4ep x 6bit) | 2 shared pbits | 46 indices
     //
     // Solid test: partition=0, all R=40, G=20, B=10, both shared pbits=0
     // After pbit: (40<<1)|0=80, (20<<1)|0=40, (10<<1)|0=20 (7-bit)
@@ -212,7 +216,7 @@ public class BC7DecoderTests : BurstPQSTestBase
 
     // ---- Mode 2: 3 subsets, 5-bit RGB, no pbit, 2-bit indices ----
     //
-    // Layout: 3 mode | 6 partition | 90 endpoints (3ch × 6ep × 5bit) | 29 indices
+    // Layout: 3 mode | 6 partition | 90 endpoints (3ch x 6ep x 5bit) | 29 indices
     //
     // Solid test: partition=0, all R=20, G=10, B=5
     // Unquantize(20,5)=165, Unquantize(10,5)=82, Unquantize(5,5)=41
@@ -245,7 +249,7 @@ public class BC7DecoderTests : BurstPQSTestBase
 
     // ---- Mode 3: 2 subsets, 7-bit RGB + 1 unique pbit, 2-bit indices ----
     //
-    // Layout: 4 mode | 6 partition | 84 endpoints (3ch × 4ep × 7bit) | 4 pbits | 30 indices
+    // Layout: 4 mode | 6 partition | 84 endpoints (3ch x 4ep x 7bit) | 4 pbits | 30 indices
     //
     // Solid test: partition=0, all R=100, G=50, B=25, all pbits=0
     // After pbit: (100<<1)|0=200, (50<<1)|0=100, (25<<1)|0=50 (8-bit)
@@ -280,7 +284,7 @@ public class BC7DecoderTests : BurstPQSTestBase
 
     // ---- Mode 4: 1 subset, 5-bit RGB + 6-bit A, rotation, idxMode, 2+3 bit indices ----
     //
-    // Layout: 5 mode | 2 rotation | 1 idxMode | 30 RGB ep (2×5×3) | 12 A ep (2×6) | 31 idx2 | 47 idx3
+    // Layout: 5 mode | 2 rotation | 1 idxMode | 30 RGB ep (2x5x3) | 12 A ep (2x6) | 31 idx2 | 47 idx3
     //
     // Solid test: rotation=0, idxMode=0, R0=R1=20, G0=G1=10, B0=B1=5, A0=A1=40
     // Unquantize(20,5)=165, Unquantize(10,5)=82, Unquantize(5,5)=41, Unquantize(40,6)=162
@@ -315,7 +319,7 @@ public class BC7DecoderTests : BurstPQSTestBase
 
     // ---- Mode 5: 1 subset, 7-bit RGB + 8-bit A, rotation, 2+2 bit indices ----
     //
-    // Layout: 6 mode | 2 rotation | 42 RGB ep (2×7×3) | 16 A ep (2×8) | 31 color idx | 31 alpha idx
+    // Layout: 6 mode | 2 rotation | 42 RGB ep (2x7x3) | 16 A ep (2x8) | 31 color idx | 31 alpha idx
     //
     // Solid test: rotation=0, R0=R1=100, G0=G1=50, B0=B1=25, A0=A1=200
     // Unquantize(100,7)=201, Unquantize(50,7)=100, Unquantize(25,7)=50, Unquantize(200,8)=200
@@ -349,7 +353,7 @@ public class BC7DecoderTests : BurstPQSTestBase
 
     // ---- Mode 6: 1 subset, 7-bit RGBA + 1 unique pbit, 4-bit indices ----
     //
-    // Layout: 7 mode | 56 RGBA ep (2×7×4) | 2 pbits | 63 indices
+    // Layout: 7 mode | 56 RGBA ep (2x7x4) | 2 pbits | 63 indices
     //
     // Solid test: R0=R1=50, G0=G1=30, B0=B1=10, A0=A1=60, pbit0=pbit1=0
     // After pbit: R=100, G=60, B=20, A=120 (8-bit, no unquantize needed)
@@ -383,7 +387,7 @@ public class BC7DecoderTests : BurstPQSTestBase
 
     // ---- Mode 7: 2 subsets, 5-bit RGBA + 1 unique pbit, 2-bit indices ----
     //
-    // Layout: 8 mode | 6 partition | 80 endpoints (4ch × 4ep × 5bit) | 4 pbits | 30 indices
+    // Layout: 8 mode | 6 partition | 80 endpoints (4ch x 4ep x 5bit) | 4 pbits | 30 indices
     //
     // Solid test: partition=0, all R=20, G=10, B=5, A=25, all pbits=0
     // After pbit: R=40, G=20, B=10, A=50 (6-bit)
@@ -422,7 +426,7 @@ public class BC7DecoderTests : BurstPQSTestBase
     [TestInfo("BC7_ReservedMode")]
     public void TestReservedMode()
     {
-        var block = new byte[16]; // all zeros → mode >= 8
+        var block = new byte[16]; // all zeros -> mode >= 8
         var (bc7, data) = MakeBC7(block);
         try
         {
@@ -449,7 +453,7 @@ public class BC7DecoderTests : BurstPQSTestBase
     // Weight = BC7Weights4[4] = 17
     // R = (100*47 + 200*17 + 32) >> 6 = (4700+3400+32)>>6 = 8132>>6 = 127
     // G = (0*47 + 120*17 + 32) >> 6 = (2040+32)>>6 = 2072>>6 = 32
-    // B = (254*47 + 0*17 + 32) >> 6 = (11938+32)>>6 = 11970>>6 = 187 (11970/64=186.99→186)
+    // B = (254*47 + 0*17 + 32) >> 6 = (11938+32)>>6 = 11970>>6 = 187 (11970/64=186.99->186)
     // A = (60*47 + 180*17 + 32) >> 6 = (2820+3060+32)>>6 = 5912>>6 = 92
 
     [TestInfo("BC7_Mode6_Interpolation")]
@@ -493,7 +497,7 @@ public class BC7DecoderTests : BurstPQSTestBase
         {
             AssertBC7Pixel("Mode6Interp(0,0)", bc7, 0, 0, expR, expG, expB, expA);
 
-            // Pixel 1 has index 0, weight=0 → selects ep0 exactly
+            // Pixel 1 has index 0, weight=0 -> selects ep0 exactly
             AssertBC7Pixel("Mode6Interp(1,0)", bc7, 1, 0, r0, g0, b0, a0);
 
             CompareAllPixelsWithUnity("Mode6Interp", block);
@@ -578,7 +582,7 @@ public class BC7DecoderTests : BurstPQSTestBase
     public void TestMode0Partition()
     {
         // Partition 0, 3-subset table row 0: 0,0,1,1,0,0,1,1,0,2,2,1,2,2,2,2
-        // Pixel 0 → subset 0, Pixel 2 → subset 1, Pixel 9 → subset 2
+        // Pixel 0 -> subset 0, Pixel 2 -> subset 1, Pixel 9 -> subset 2
 
         int rS0 = 15,
             gS0 = 8,
@@ -621,7 +625,7 @@ public class BC7DecoderTests : BurstPQSTestBase
         bw.WriteN(0, 1, 6);
         // indices all 0
 
-        // Compute expected via Unquantize (4-bit + pbit=0 → 5-bit values)
+        // Compute expected via Unquantize (4-bit + pbit=0 -> 5-bit values)
         int exR0 = Unquantize((rS0 << 1) | pbit, 5);
         int exG0 = Unquantize((gS0 << 1) | pbit, 5);
         int exB0 = Unquantize((bS0 << 1) | pbit, 5);
@@ -635,11 +639,11 @@ public class BC7DecoderTests : BurstPQSTestBase
         var (bc7, data) = MakeBC7(block);
         try
         {
-            // Pixel (0,0) = index 0 → subset 0
+            // Pixel (0,0) = index 0 -> subset 0
             AssertBC7Pixel("Part0_sub0", bc7, 0, 0, exR0, exG0, exB0, 255);
-            // Pixel (2,0) = index 2 → subset 1
+            // Pixel (2,0) = index 2 -> subset 1
             AssertBC7Pixel("Part0_sub1", bc7, 2, 0, exR1, exG1, exB1, 255);
-            // Pixel (1,2) = index 9 → subset 2
+            // Pixel (1,2) = index 9 -> subset 2
             AssertBC7Pixel("Part0_sub2", bc7, 1, 2, exR2, exG2, exB2, 255);
 
             CompareAllPixelsWithUnity("Mode0Part", block);
@@ -655,9 +659,9 @@ public class BC7DecoderTests : BurstPQSTestBase
     // Base: R0=R1=100, G0=G1=50, B0=B1=25, A0=A1=200, rotation=0
     // Unquantize(100,7)=201, Unquantize(50,7)=100, Unquantize(25,7)=50, Unquantize(200,8)=200
     // rotation=0: R=201, G=100, B=50,  A=200
-    // rotation=1: swap R↔A → R=200, G=100, B=50,  A=201
-    // rotation=2: swap G↔A → R=201, G=200, B=50,  A=100
-    // rotation=3: swap B↔A → R=201, G=100, B=200, A=50
+    // rotation=1: swap R<->A -> R=200, G=100, B=50,  A=201
+    // rotation=2: swap G<->A -> R=201, G=200, B=50,  A=100
+    // rotation=3: swap B<->A -> R=201, G=100, B=200, A=50
 
     byte[] BuildMode5Block(int r, int g, int b, int a, int rotation)
     {
@@ -778,8 +782,8 @@ public class BC7DecoderTests : BurstPQSTestBase
     //   2-bit anchor index has 1 bit (0-1), 3-bit anchor index has 2 bits (0-3)
     //   Use idx2=1, idx3=2
     //
-    // idxMode=0: colorIdx=idx2=1 → w=Weights2[1]=21, alphaIdx=idx3=2 → w=Weights3[2]=18
-    // idxMode=1: colorIdx=idx3=2 → w=Weights3[2]=18, alphaIdx=idx2=1 → w=Weights2[1]=21
+    // idxMode=0: colorIdx=idx2=1 -> w=Weights2[1]=21, alphaIdx=idx3=2 -> w=Weights3[2]=18
+    // idxMode=1: colorIdx=idx3=2 -> w=Weights3[2]=18, alphaIdx=idx2=1 -> w=Weights2[1]=21
 
     [TestInfo("BC7_Mode4_IdxMode")]
     public void TestMode4IdxMode()
@@ -891,7 +895,7 @@ public class BC7DecoderTests : BurstPQSTestBase
     [TestInfo("BC7_Mode6_PBits")]
     public void TestMode6PBits()
     {
-        // pbit0=0, pbit1=0 → ep0=100, ep1=100
+        // pbit0=0, pbit1=0 -> ep0=100, ep1=100
         {
             var block = new byte[16];
             var w = new BitWriter(block);
@@ -915,7 +919,7 @@ public class BC7DecoderTests : BurstPQSTestBase
             }
         }
 
-        // pbit0=1, pbit1=1 → ep0=101, ep1=101
+        // pbit0=1, pbit1=1 -> ep0=101, ep1=101
         {
             var block = new byte[16];
             var w = new BitWriter(block);
@@ -940,7 +944,7 @@ public class BC7DecoderTests : BurstPQSTestBase
         }
 
         // pbit0=0, pbit1=1: ep0=100, ep1=101
-        // With anchor index=7 → weight=Weights4[7]=30
+        // With anchor index=7 -> weight=Weights4[7]=30
         // Interpolate(100, 101, 30) = (100*34 + 101*30 + 32)>>6 = (3400+3030+32)>>6 = 6462>>6 = 100
         {
             var block = new byte[16];
@@ -992,8 +996,8 @@ public class BC7DecoderTests : BurstPQSTestBase
         w.Write(0, 1); // pbit1 = 0 (shared for subset 1)
 
         int rExp = Unquantize((40 << 1) | 1, 7); // 163
-        int gExp = Unquantize((20 << 1) | 1, 7); // 82→(82>>7)=0→82
-        int bExp = Unquantize((10 << 1) | 1, 7); // 42→(42>>7)=0→42
+        int gExp = Unquantize((20 << 1) | 1, 7); // 82->(82>>7)=0->82
+        int bExp = Unquantize((10 << 1) | 1, 7); // 42->(42>>7)=0->42
 
         var (bc7, data) = MakeBC7(block);
         try
@@ -1041,10 +1045,10 @@ public class BC7DecoderTests : BurstPQSTestBase
         var (bc7, data) = MakeBC7(block);
         try
         {
-            // Pixel 0: index 0, weight=0 → R=100
+            // Pixel 0: index 0, weight=0 -> R=100
             AssertBC7Pixel("NonAnchor_p0", bc7, 0, 0, re0, 0, 0, ae);
 
-            // Pixel 1: index 15, weight=Weights4[15]=64 → R = Interpolate(100,200,64) = 200
+            // Pixel 1: index 15, weight=Weights4[15]=64 -> R = Interpolate(100,200,64) = 200
             int expR1 = Interpolate(re0, re1, Weights4[15]);
             AssertBC7Pixel("NonAnchor_p1", bc7, 1, 0, expR1, 0, 0, ae);
 
@@ -1065,11 +1069,11 @@ public class BC7DecoderTests : BurstPQSTestBase
     public void TestMode3UniquePBits()
     {
         // Use partition 0, R=100 for all endpoints
-        // pbit0=0 → s0e0=(100<<1)|0=200
-        // pbit1=1 → s0e1=(100<<1)|1=201
+        // pbit0=0 -> s0e0=(100<<1)|0=200
+        // pbit1=1 -> s0e1=(100<<1)|1=201
         // pbit2=0, pbit3=1 (for subset 1)
         // All 8-bit, no unquantize needed.
-        // With all indices=0, pixel 0 → subset 0 ep0: R=200
+        // With all indices=0, pixel 0 -> subset 0 ep0: R=200
         var block = new byte[16];
         var w = new BitWriter(block);
         w.Write(0b00001000, 4); // mode 3
@@ -1083,7 +1087,7 @@ public class BC7DecoderTests : BurstPQSTestBase
         w.Write(1, 1); // pbit3 for s1e1
         // indices all 0
 
-        // Pixel 0 → subset 0, index 0 → ep0
+        // Pixel 0 -> subset 0, index 0 -> ep0
         // ep0 uses pbit0=0: R=(100<<1)|0=200, G=(50<<1)|0=100, B=(25<<1)|0=50
         var (bc7, data) = MakeBC7(block);
         try
@@ -1143,7 +1147,7 @@ public class BC7DecoderTests : BurstPQSTestBase
         w.WriteN(0, 1, 4);
         // indices all 0
 
-        // Subset 0 (pixel 0): 5-bit + pbit=0 → 6-bit
+        // Subset 0 (pixel 0): 5-bit + pbit=0 -> 6-bit
         int exR0 = Unquantize(rS0 << 1, 6);
         int exG0 = Unquantize(gS0 << 1, 6);
         int exB0 = Unquantize(bS0 << 1, 6);

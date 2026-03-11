@@ -1,6 +1,8 @@
 using System;
 using BurstPQS.Map;
 using KSP.Testing;
+using KSPTextureLoader;
+using Unity.Collections;
 using UnityEngine;
 
 namespace BurstPQS.Test.Map;
@@ -22,13 +24,14 @@ public class DepthInterpretationTests : BurstPQSTestBase
     const float Bf = B / 255f;
     const float Af = A / 255f;
 
-    static (TextureMapSO.RGBA32 map, Texture2D tex) MakeSinglePixelRGBA32(MapSO.MapDepth depth)
+    static (TextureMapSO.RGBA32 map, NativeArray<byte> data) MakeSinglePixelRGBA32()
     {
-        var data = new byte[] { R, G, B, A };
-        var tex = new Texture2D(1, 1, TextureFormat.RGBA32, false);
-        tex.LoadRawTextureData(data);
-        tex.Apply(false, false);
-        return (new TextureMapSO.RGBA32(tex, depth), tex);
+        var bytes = new byte[] { R, G, B, A };
+        var data = new NativeArray<byte>(bytes, Allocator.Persistent);
+        return (
+            new TextureMapSO.RGBA32(new CPUTexture2D.RGBA32(data, 1, 1, 1)),
+            data
+        );
     }
 
     // ---- Greyscale depth ----
@@ -36,7 +39,7 @@ public class DepthInterpretationTests : BurstPQSTestBase
     [TestInfo("Depth_Greyscale_Float")]
     public void TestGreyscaleFloat()
     {
-        var (map, tex) = MakeSinglePixelRGBA32(MapSO.MapDepth.Greyscale);
+        var (map, data) = MakeSinglePixelRGBA32();
         try
         {
             // Greyscale: float = R
@@ -44,14 +47,14 @@ public class DepthInterpretationTests : BurstPQSTestBase
         }
         finally
         {
-            UnityEngine.Object.Destroy(tex);
+            data.Dispose();
         }
     }
 
     [TestInfo("Depth_Greyscale_Color")]
     public void TestGreyscaleColor()
     {
-        var (map, tex) = MakeSinglePixelRGBA32(MapSO.MapDepth.Greyscale);
+        var (map, data) = MakeSinglePixelRGBA32();
         try
         {
             // Greyscale: Color = (R, R, R, 1)
@@ -63,33 +66,33 @@ public class DepthInterpretationTests : BurstPQSTestBase
         }
         finally
         {
-            UnityEngine.Object.Destroy(tex);
+            data.Dispose();
         }
     }
 
     [TestInfo("Depth_Greyscale_Color32")]
     public void TestGreyscaleColor32()
     {
-        var (map, tex) = MakeSinglePixelRGBA32(MapSO.MapDepth.Greyscale);
+        var (map, data) = MakeSinglePixelRGBA32();
         try
         {
-            // Greyscale: Color32 = (R, R, R, R) per TextureMapSO implementation
+            // Greyscale: Color32 = (R, R, R, 255)
             assertColor32Equals(
                 "Greyscale.Color32",
                 map.GetPixelColor32(0, 0),
-                new Color32(R, R, R, R)
+                new Color32(R, R, R, 255)
             );
         }
         finally
         {
-            UnityEngine.Object.Destroy(tex);
+            data.Dispose();
         }
     }
 
     [TestInfo("Depth_Greyscale_HeightAlpha")]
     public void TestGreyscaleHeightAlpha()
     {
-        var (map, tex) = MakeSinglePixelRGBA32(MapSO.MapDepth.Greyscale);
+        var (map, data) = MakeSinglePixelRGBA32();
         try
         {
             // Greyscale: HeightAlpha = (R, 1)
@@ -101,7 +104,7 @@ public class DepthInterpretationTests : BurstPQSTestBase
         }
         finally
         {
-            UnityEngine.Object.Destroy(tex);
+            data.Dispose();
         }
     }
 
@@ -110,7 +113,7 @@ public class DepthInterpretationTests : BurstPQSTestBase
     [TestInfo("Depth_HeightAlpha_Float")]
     public void TestHeightAlphaFloat()
     {
-        var (map, tex) = MakeSinglePixelRGBA32(MapSO.MapDepth.HeightAlpha);
+        var (map, data) = MakeSinglePixelRGBA32();
         try
         {
             // HeightAlpha: float = (R + A) * 0.5
@@ -118,14 +121,14 @@ public class DepthInterpretationTests : BurstPQSTestBase
         }
         finally
         {
-            UnityEngine.Object.Destroy(tex);
+            data.Dispose();
         }
     }
 
     [TestInfo("Depth_HeightAlpha_Color")]
     public void TestHeightAlphaColor()
     {
-        var (map, tex) = MakeSinglePixelRGBA32(MapSO.MapDepth.HeightAlpha);
+        var (map, data) = MakeSinglePixelRGBA32();
         try
         {
             // HeightAlpha: Color = (R, R, R, A)
@@ -137,14 +140,14 @@ public class DepthInterpretationTests : BurstPQSTestBase
         }
         finally
         {
-            UnityEngine.Object.Destroy(tex);
+            data.Dispose();
         }
     }
 
     [TestInfo("Depth_HeightAlpha_Color32")]
     public void TestHeightAlphaColor32()
     {
-        var (map, tex) = MakeSinglePixelRGBA32(MapSO.MapDepth.HeightAlpha);
+        var (map, data) = MakeSinglePixelRGBA32();
         try
         {
             // HeightAlpha: Color32 = (R, R, R, A)
@@ -156,14 +159,14 @@ public class DepthInterpretationTests : BurstPQSTestBase
         }
         finally
         {
-            UnityEngine.Object.Destroy(tex);
+            data.Dispose();
         }
     }
 
     [TestInfo("Depth_HeightAlpha_HA")]
     public void TestHeightAlphaHA()
     {
-        var (map, tex) = MakeSinglePixelRGBA32(MapSO.MapDepth.HeightAlpha);
+        var (map, data) = MakeSinglePixelRGBA32();
         try
         {
             // HeightAlpha: HeightAlpha = (R, A)
@@ -175,7 +178,7 @@ public class DepthInterpretationTests : BurstPQSTestBase
         }
         finally
         {
-            UnityEngine.Object.Destroy(tex);
+            data.Dispose();
         }
     }
 
@@ -184,7 +187,7 @@ public class DepthInterpretationTests : BurstPQSTestBase
     [TestInfo("Depth_RGB_Float")]
     public void TestRGBFloat()
     {
-        var (map, tex) = MakeSinglePixelRGBA32(MapSO.MapDepth.RGB);
+        var (map, data) = MakeSinglePixelRGBA32();
         try
         {
             // RGB: float = (R + G + B) / 3
@@ -192,14 +195,14 @@ public class DepthInterpretationTests : BurstPQSTestBase
         }
         finally
         {
-            UnityEngine.Object.Destroy(tex);
+            data.Dispose();
         }
     }
 
     [TestInfo("Depth_RGB_Color")]
     public void TestRGBColor()
     {
-        var (map, tex) = MakeSinglePixelRGBA32(MapSO.MapDepth.RGB);
+        var (map, data) = MakeSinglePixelRGBA32();
         try
         {
             // RGB: Color = (R, G, B, 1)
@@ -207,14 +210,14 @@ public class DepthInterpretationTests : BurstPQSTestBase
         }
         finally
         {
-            UnityEngine.Object.Destroy(tex);
+            data.Dispose();
         }
     }
 
     [TestInfo("Depth_RGB_Color32")]
     public void TestRGBColor32()
     {
-        var (map, tex) = MakeSinglePixelRGBA32(MapSO.MapDepth.RGB);
+        var (map, data) = MakeSinglePixelRGBA32();
         try
         {
             // RGB: Color32 = (R, G, B, 255)
@@ -226,14 +229,14 @@ public class DepthInterpretationTests : BurstPQSTestBase
         }
         finally
         {
-            UnityEngine.Object.Destroy(tex);
+            data.Dispose();
         }
     }
 
     [TestInfo("Depth_RGB_HeightAlpha")]
     public void TestRGBHeightAlpha()
     {
-        var (map, tex) = MakeSinglePixelRGBA32(MapSO.MapDepth.RGB);
+        var (map, data) = MakeSinglePixelRGBA32();
         try
         {
             // RGB: HeightAlpha = (R, 1)
@@ -245,7 +248,7 @@ public class DepthInterpretationTests : BurstPQSTestBase
         }
         finally
         {
-            UnityEngine.Object.Destroy(tex);
+            data.Dispose();
         }
     }
 
@@ -254,7 +257,7 @@ public class DepthInterpretationTests : BurstPQSTestBase
     [TestInfo("Depth_RGBA_Float")]
     public void TestRGBAFloat()
     {
-        var (map, tex) = MakeSinglePixelRGBA32(MapSO.MapDepth.RGBA);
+        var (map, data) = MakeSinglePixelRGBA32();
         try
         {
             // RGBA: float = (R + G + B + A) / 4
@@ -262,14 +265,14 @@ public class DepthInterpretationTests : BurstPQSTestBase
         }
         finally
         {
-            UnityEngine.Object.Destroy(tex);
+            data.Dispose();
         }
     }
 
     [TestInfo("Depth_RGBA_Color")]
     public void TestRGBAColor()
     {
-        var (map, tex) = MakeSinglePixelRGBA32(MapSO.MapDepth.RGBA);
+        var (map, data) = MakeSinglePixelRGBA32();
         try
         {
             // RGBA: Color = (R, G, B, A)
@@ -277,14 +280,14 @@ public class DepthInterpretationTests : BurstPQSTestBase
         }
         finally
         {
-            UnityEngine.Object.Destroy(tex);
+            data.Dispose();
         }
     }
 
     [TestInfo("Depth_RGBA_Color32")]
     public void TestRGBAColor32()
     {
-        var (map, tex) = MakeSinglePixelRGBA32(MapSO.MapDepth.RGBA);
+        var (map, data) = MakeSinglePixelRGBA32();
         try
         {
             // RGBA: Color32 = (R, G, B, A)
@@ -292,14 +295,14 @@ public class DepthInterpretationTests : BurstPQSTestBase
         }
         finally
         {
-            UnityEngine.Object.Destroy(tex);
+            data.Dispose();
         }
     }
 
     [TestInfo("Depth_RGBA_HeightAlpha")]
     public void TestRGBAHeightAlpha()
     {
-        var (map, tex) = MakeSinglePixelRGBA32(MapSO.MapDepth.RGBA);
+        var (map, data) = MakeSinglePixelRGBA32();
         try
         {
             // RGBA: HeightAlpha = (R, A)
@@ -311,7 +314,7 @@ public class DepthInterpretationTests : BurstPQSTestBase
         }
         finally
         {
-            UnityEngine.Object.Destroy(tex);
+            data.Dispose();
         }
     }
 }

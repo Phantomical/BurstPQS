@@ -41,6 +41,11 @@
     <Reference Include="$(KSPBT_GameRoot)/GameData/000_KSPBurst/Plugins/System.Runtime.CompilerServices.Unsafe.dll">
       <Private>false</Private>
     </Reference>
+
+    <Reference Include="KSPTextureLoader">
+      <HintPath>$(DepSet1)/KSPTextureLoader/Plugins/KSPTextureLoader.dll</HintPath>
+      <Private>false</Private>
+    </Reference>
   </ItemGroup>
 
   <ItemGroup>

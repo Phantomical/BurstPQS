@@ -38,11 +38,20 @@
       <Private>false</Private>
     </Reference>
 
+    <Reference Include="KSPTextureLoader">
+      <HintPath>$(DepSet1)/KSPTextureLoader/Plugins/KSPTextureLoader.dll</HintPath>
+      <Private>false</Private>
+    </Reference>
+
     <KSPVersionFile Include=".">
       <Destination>$(GameDataOutDir)/BurstPQS.version</Destination>
       <URL>https://github.com/Phantomical/BurstPQS/releases/latest/download/BurstPQS.version</URL>
       <Download>https://github.com/Phantomical/BurstPQS/releases/latest</Download>
     </KSPVersionFile>
+  </ItemGroup>
+
+  <ItemGroup>
+    <InternalsVisibleTo Include="BurstPQS.Test" />
   </ItemGroup>
 
   <ItemGroup>

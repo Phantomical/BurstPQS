@@ -1,5 +1,6 @@
 using System;
 using System.Runtime.CompilerServices;
+using KSPTextureLoader;
 using Unity.Burst;
 using Unity.Collections;
 using Unity.Mathematics;
@@ -15,290 +16,228 @@ namespace BurstPQS.Map;
 [BurstCompile(FloatMode = FloatMode.Fast)]
 public static partial class TextureMapSO
 {
-    const float Byte2Float = 1f / 255f;
-    const float UShort2Float = 1f / 65535f;
-
-    public static BurstMapSO Create(Texture2D texture, MapSO.MapDepth depth)
+    struct FormatMapSO<T>(T texture) : IMapSO
+        where T : ICPUTexture2D
     {
-        return texture.format switch
+        readonly T texture = texture;
+
+        public readonly int Width => texture.Width;
+        public readonly int Height => texture.Height;
+        public readonly MapSO.MapDepth Depth => MapSO.MapDepth.RGBA;
+
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        public float GetPixelFloat(int x, int y) => texture.GetPixel(x, y).grayscale;
+
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        public Color GetPixelColor(int x, int y) => texture.GetPixel(x, y);
+
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        public Color32 GetPixelColor32(int x, int y) => texture.GetPixel32(x, y);
+
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        public HeightAlpha GetPixelHeightAlpha(int x, int y)
         {
-            TextureFormat.Alpha8 => BurstMapSO.Create(new Alpha8(texture, depth)),
-            TextureFormat.ARGB32 => BurstMapSO.Create(new ARGB32(texture, depth)),
-            TextureFormat.ARGB4444 => BurstMapSO.Create(new ARGB4444(texture, depth)),
-            TextureFormat.BC4 => BurstMapSO.Create(new BC4(texture, depth)),
-            TextureFormat.BC5 => BurstMapSO.Create(new BC5(texture, depth)),
-            TextureFormat.BC6H => BurstMapSO.Create(new BC6H(texture, depth)),
-            TextureFormat.BC7 => BurstMapSO.Create(new BC7(texture, depth)),
-            TextureFormat.BGRA32 => BurstMapSO.Create(new BGRA32(texture, depth)),
-            TextureFormat.DXT1 => BurstMapSO.Create(new DXT1(texture, depth)),
-            TextureFormat.DXT5 => BurstMapSO.Create(new DXT5(texture, depth)),
-            TextureFormat.R8 => BurstMapSO.Create(new R8(texture, depth)),
-            TextureFormat.R16 => BurstMapSO.Create(new R16(texture, depth)),
-            TextureFormat.RFloat => BurstMapSO.Create(new RFloat(texture, depth)),
-            TextureFormat.RG16 => BurstMapSO.Create(new RG16(texture, depth)),
-            TextureFormat.RGB24 => BurstMapSO.Create(new RGB24(texture, depth)),
-            TextureFormat.RGB565 => BurstMapSO.Create(new RGB565(texture, depth)),
-            TextureFormat.RGBA32 => BurstMapSO.Create(new RGBA32(texture, depth)),
-            TextureFormat.RGBA4444 => BurstMapSO.Create(new RGBA4444(texture, depth)),
-            TextureFormat.RGBAFloat => BurstMapSO.Create(new RGBAFloat(texture, depth)),
-            TextureFormat.RGBAHalf => BurstMapSO.Create(new RGBAHalf(texture, depth)),
-            TextureFormat.RGFloat => BurstMapSO.Create(new RGFloat(texture, depth)),
-            TextureFormat.RHalf => BurstMapSO.Create(new RHalf(texture, depth)),
-            TextureFormat.RGHalf => BurstMapSO.Create(new RGHalf(texture, depth)),
+            Color c = texture.GetPixel(x, y);
+            return new(c.r, c.a);
+        }
+
+        public float GetPixelFloat(float x, float y) => MapSODefaults.GetPixelFloat(ref this, x, y);
+
+        public float GetPixelFloat(double x, double y) =>
+            MapSODefaults.GetPixelFloat(ref this, x, y);
+
+        public Color GetPixelColor(float x, float y) => MapSODefaults.GetPixelColor(ref this, x, y);
+
+        public Color GetPixelColor(double x, double y) =>
+            MapSODefaults.GetPixelColor(ref this, x, y);
+
+        public Color32 GetPixelColor32(float x, float y) =>
+            MapSODefaults.GetPixelColor32(ref this, x, y);
+
+        public Color32 GetPixelColor32(double x, double y) =>
+            MapSODefaults.GetPixelColor32(ref this, x, y);
+
+        public HeightAlpha GetPixelHeightAlpha(float x, float y) =>
+            MapSODefaults.GetPixelHeightAlpha(ref this, x, y);
+
+        public HeightAlpha GetPixelHeightAlpha(double x, double y) =>
+            MapSODefaults.GetPixelHeightAlpha(ref this, x, y);
+    }
+
+    public static BurstMapSO Create(CPUTexture2D texture)
+    {
+        var width = texture.Width;
+        var height = texture.Height;
+        var mipCount = texture.MipCount;
+        var data = texture.GetRawTextureData();
+
+        return texture switch
+        {
+            CPUTexture2D<CPUTexture2D.Alpha8> => BurstMapSO.Create(
+                new Alpha8(new(data, width, height, mipCount))
+            ),
+            CPUTexture2D<CPUTexture2D.ARGB32> => BurstMapSO.Create(
+                new ARGB32(new(data, width, height, mipCount))
+            ),
+            CPUTexture2D<CPUTexture2D.ARGB4444> => BurstMapSO.Create(
+                new ARGB444(new(data, width, height, mipCount))
+            ),
+            CPUTexture2D<CPUTexture2D.BC4> => BurstMapSO.Create(
+                new BC4(new(data, width, height, mipCount))
+            ),
+            CPUTexture2D<CPUTexture2D.BC5> => BurstMapSO.Create(
+                new BC5(new(data, width, height, mipCount))
+            ),
+            CPUTexture2D<CPUTexture2D.BC6H> => BurstMapSO.Create(
+                new BC6H(new(data, width, height, mipCount))
+            ),
+            CPUTexture2D<CPUTexture2D.BC7> => BurstMapSO.Create(
+                new BC7(new(data, width, height, mipCount))
+            ),
+            CPUTexture2D<CPUTexture2D.BGRA32> => BurstMapSO.Create(
+                new BGRA32(new(data, width, height, mipCount))
+            ),
+            CPUTexture2D<CPUTexture2D.DXT1> => BurstMapSO.Create(
+                new DXT1(new(data, width, height, mipCount))
+            ),
+            CPUTexture2D<CPUTexture2D.DXT5> => BurstMapSO.Create(
+                new DXT5(new(data, width, height, mipCount))
+            ),
+            CPUTexture2D<CPUTexture2D.R8> => BurstMapSO.Create(
+                new R8(new(data, width, height, mipCount))
+            ),
+            CPUTexture2D<CPUTexture2D.R16> => BurstMapSO.Create(
+                new R16(new(data, width, height, mipCount))
+            ),
+            CPUTexture2D<CPUTexture2D.RA16> => BurstMapSO.Create(
+                new RA16(new(data, width, height, mipCount))
+            ),
+            CPUTexture2D<CPUTexture2D.RFloat> => BurstMapSO.Create(
+                new RFloat(new(data, width, height, mipCount))
+            ),
+            CPUTexture2D<CPUTexture2D.RG16> => BurstMapSO.Create(
+                new RG16(new(data, width, height, mipCount))
+            ),
+            CPUTexture2D<CPUTexture2D.RGB24> => BurstMapSO.Create(
+                new RGB24(new(data, width, height, mipCount))
+            ),
+            CPUTexture2D<CPUTexture2D.RGB565> => BurstMapSO.Create(
+                new RGB565(new(data, width, height, mipCount))
+            ),
+            CPUTexture2D<CPUTexture2D.RGBA32> => BurstMapSO.Create(
+                new RGBA32(new(data, width, height, mipCount))
+            ),
+            CPUTexture2D<CPUTexture2D.RGBA4444> => BurstMapSO.Create(
+                new RGBA4444(new(data, width, height, mipCount))
+            ),
+            CPUTexture2D<CPUTexture2D.RGBAFloat> => BurstMapSO.Create(
+                new RGBAFloat(new(data, width, height, mipCount))
+            ),
+            CPUTexture2D<CPUTexture2D.RGBAHalf> => BurstMapSO.Create(
+                new RGBAHalf(new(data, width, height, mipCount))
+            ),
+            CPUTexture2D<CPUTexture2D.RGFloat> => BurstMapSO.Create(
+                new RGFloat(new(data, width, height, mipCount))
+            ),
+            CPUTexture2D<CPUTexture2D.RGHalf> => BurstMapSO.Create(
+                new RGHalf(new(data, width, height, mipCount))
+            ),
+            CPUTexture2D<CPUTexture2D.RHalf> => BurstMapSO.Create(
+                new RHalf(new(data, width, height, mipCount))
+            ),
+            CPUTexture2D<CPUTexture2D.KopernicusPalette4> => BurstMapSO.Create(
+                new KopernicusPalette4(new(data, width, height))
+            ),
+            CPUTexture2D<CPUTexture2D.KopernicusPalette8> => BurstMapSO.Create(
+                new KopernicusPalette8(new(data, width, height))
+            ),
             _ => throw new NotSupportedException(
-                $"texture format {texture.format} is not supported by TextureMapSO"
+                $"CPU texture of type {texture.GetType().FullName} is not supported by TextureMapSO"
             ),
         };
     }
 
-    static void ValidateFormat(Texture2D texture, TextureFormat expected)
+    public static BurstMapSO Create(Texture2D texture)
     {
-        if (texture.format != expected)
-            throw new ArgumentException(
-                $"Expected texture format {expected} but got {texture.format}",
-                nameof(texture)
-            );
-    }
+        var width = texture.width;
+        var height = texture.height;
+        var mipCount = texture.mipmapCount;
+        var data = texture.GetRawTextureData<byte>();
 
-    [MethodImpl(MethodImplOptions.AggressiveInlining)]
-    static int PixelIndex(int x, int y, int width, int height)
-    {
-        x = math.clamp(x, 0, width - 1);
-        y = math.clamp(y, 0, height - 1);
-        return y * width + x;
-    }
-
-    [MethodImpl(MethodImplOptions.AggressiveInlining)]
-    static float DepthToFloat(float r, float g, float b, float a, MapSO.MapDepth depth)
-    {
-        return depth switch
+        return texture.format switch
         {
-            MapSO.MapDepth.Greyscale => r,
-            MapSO.MapDepth.HeightAlpha => (r + a) * 0.5f,
-            MapSO.MapDepth.RGB => (r + g + b) * (1f / 3f),
-            MapSO.MapDepth.RGBA => (r + g + b + a) * 0.25f,
-            _ => r,
+            TextureFormat.Alpha8 => BurstMapSO.Create(
+                new Alpha8(new(data, width, height, mipCount))
+            ),
+            TextureFormat.ARGB32 => BurstMapSO.Create(
+                new ARGB32(new(data, width, height, mipCount))
+            ),
+            TextureFormat.ARGB4444 => BurstMapSO.Create(
+                new ARGB32(new(data, width, height, mipCount))
+            ),
+            TextureFormat.BC4 => BurstMapSO.Create(
+                new BC4(new(data, width, height, mipCount))
+            ),
+            TextureFormat.BC5 => BurstMapSO.Create(
+                new BC5(new(data, width, height, mipCount))
+            ),
+            TextureFormat.BC6H => BurstMapSO.Create(
+                new BC6H(new(data, width, height, mipCount))
+            ),
+            TextureFormat.BC7 => BurstMapSO.Create(
+                new BC7(new(data, width, height, mipCount))
+            ),
+            TextureFormat.BGRA32 => BurstMapSO.Create(
+                new BGRA32(new(data, width, height, mipCount))
+            ),
+            TextureFormat.DXT1 => BurstMapSO.Create(
+                new DXT1(new(data, width, height, mipCount))
+            ),
+            TextureFormat.DXT5 => BurstMapSO.Create(
+                new DXT5(new(data, width, height, mipCount))
+            ),
+            TextureFormat.R8 => BurstMapSO.Create(
+                new R8(new(data, width, height, mipCount))
+            ),
+            TextureFormat.R16 => BurstMapSO.Create(
+                new R16(new(data, width, height, mipCount))
+            ),
+            TextureFormat.RFloat => BurstMapSO.Create(
+                new RFloat(new(data, width, height, mipCount))
+            ),
+            TextureFormat.RG16 => BurstMapSO.Create(
+                new RG16(new(data, width, height, mipCount))
+            ),
+            TextureFormat.RGB24 => BurstMapSO.Create(
+                new RGB24(new(data, width, height, mipCount))
+            ),
+            TextureFormat.RGB565 => BurstMapSO.Create(
+                new RGB565(new(data, width, height, mipCount))
+            ),
+            TextureFormat.RGBA32 => BurstMapSO.Create(
+                new RGBA32(new(data, width, height, mipCount))
+            ),
+            TextureFormat.RGBA4444 => BurstMapSO.Create(
+                new RGBA4444(new(data, width, height, mipCount))
+            ),
+            TextureFormat.RGBAFloat => BurstMapSO.Create(
+                new RGBAFloat(new(data, width, height, mipCount))
+            ),
+            TextureFormat.RGBAHalf => BurstMapSO.Create(
+                new RGBAHalf(new(data, width, height, mipCount))
+            ),
+            TextureFormat.RGFloat => BurstMapSO.Create(
+                new RGFloat(new(data, width, height, mipCount))
+            ),
+            TextureFormat.RGHalf => BurstMapSO.Create(
+                new RGHalf(new(data, width, height, mipCount))
+            ),
+            TextureFormat.RHalf => BurstMapSO.Create(
+                new RHalf(new(data, width, height, mipCount))
+            ),
+            _ => throw new NotSupportedException(
+                $"texture format {texture.format} is not supported by TextureMapSO"
+            ),
         };
-    }
-
-    [MethodImpl(MethodImplOptions.AggressiveInlining)]
-    static Color DepthToColor(float r, float g, float b, float a, MapSO.MapDepth depth)
-    {
-        return depth switch
-        {
-            MapSO.MapDepth.Greyscale => new Color(r, r, r, 1f),
-            MapSO.MapDepth.HeightAlpha => new Color(r, r, r, a),
-            MapSO.MapDepth.RGB => new Color(r, g, b, 1f),
-            MapSO.MapDepth.RGBA => new Color(r, g, b, a),
-            _ => new Color(r, r, r, 1f),
-        };
-    }
-
-    [MethodImpl(MethodImplOptions.AggressiveInlining)]
-    static Color32 DepthToColor32(float r, float g, float b, float a, MapSO.MapDepth depth)
-    {
-        return depth switch
-        {
-            MapSO.MapDepth.Greyscale => new Color32(F2B(r), F2B(r), F2B(r), F2B(r)),
-            MapSO.MapDepth.HeightAlpha => new Color32(F2B(r), F2B(r), F2B(r), F2B(a)),
-            MapSO.MapDepth.RGB => new Color32(F2B(r), F2B(g), F2B(b), 255),
-            MapSO.MapDepth.RGBA => new Color32(F2B(r), F2B(g), F2B(b), F2B(a)),
-            _ => new Color32(F2B(r), F2B(r), F2B(r), 255),
-        };
-    }
-
-    [MethodImpl(MethodImplOptions.AggressiveInlining)]
-    static Color32 DepthToColor32(byte r, byte g, byte b, byte a, MapSO.MapDepth depth)
-    {
-        return depth switch
-        {
-            MapSO.MapDepth.Greyscale => new Color32(r, r, r, r),
-            MapSO.MapDepth.HeightAlpha => new Color32(r, r, r, a),
-            MapSO.MapDepth.RGB => new Color32(r, g, b, 255),
-            MapSO.MapDepth.RGBA => new Color32(r, g, b, a),
-            _ => new Color32(r, r, r, 255),
-        };
-    }
-
-    [MethodImpl(MethodImplOptions.AggressiveInlining)]
-    static HeightAlpha DepthToHeightAlpha(float r, float g, float b, float a, MapSO.MapDepth depth)
-    {
-        return depth switch
-        {
-            MapSO.MapDepth.Greyscale => new HeightAlpha(r, 1f),
-            MapSO.MapDepth.HeightAlpha => new HeightAlpha(r, a),
-            MapSO.MapDepth.RGB => new HeightAlpha(r, 1f),
-            MapSO.MapDepth.RGBA => new HeightAlpha(r, a),
-            _ => new HeightAlpha(r, 1f),
-        };
-    }
-
-    [MethodImpl(MethodImplOptions.AggressiveInlining)]
-    static byte F2B(float f) => (byte)(math.saturate(f) * 255f + 0.5f);
-
-    // ---- Block compression helpers ----
-
-    [MethodImpl(MethodImplOptions.AggressiveInlining)]
-    static void BlockCoords(
-        int x,
-        int y,
-        int width,
-        out int blockIndex,
-        out int localX,
-        out int localY,
-        int blockSize
-    )
-    {
-        int blockX = x >> 2;
-        int blockY = y >> 2;
-        localX = x & 3;
-        localY = y & 3;
-        int blocksPerRow = (width + 3) >> 2;
-        blockIndex = (blockY * blocksPerRow + blockX) * blockSize;
-    }
-
-    [MethodImpl(MethodImplOptions.AggressiveInlining)]
-    static void UnpackRGB565(ushort c, out float r, out float g, out float b)
-    {
-        r = ((c >> 11) & 0x1F) * (1f / 31f);
-        g = ((c >> 5) & 0x3F) * (1f / 63f);
-        b = (c & 0x1F) * (1f / 31f);
-    }
-
-    static void DecodeDXT1Pixel(
-        NativeArray<byte> data,
-        int blockOffset,
-        int localX,
-        int localY,
-        out float r,
-        out float g,
-        out float b,
-        out float a,
-        bool opaque = false
-    )
-    {
-        ushort c0 = (ushort)(data[blockOffset] | (data[blockOffset + 1] << 8));
-        ushort c1 = (ushort)(data[blockOffset + 2] | (data[blockOffset + 3] << 8));
-
-        UnpackRGB565(c0, out float r0, out float g0, out float b0);
-        UnpackRGB565(c1, out float r1, out float g1, out float b1);
-
-        int indexByte = data[blockOffset + 4 + localY];
-        int code = (indexByte >> (localX * 2)) & 3;
-
-        if (opaque || c0 > c1)
-        {
-            switch (code)
-            {
-                case 0:
-                    r = r0;
-                    g = g0;
-                    b = b0;
-                    a = 1f;
-                    return;
-                case 1:
-                    r = r1;
-                    g = g1;
-                    b = b1;
-                    a = 1f;
-                    return;
-                case 2:
-                    r = (2f * r0 + r1) * (1f / 3f);
-                    g = (2f * g0 + g1) * (1f / 3f);
-                    b = (2f * b0 + b1) * (1f / 3f);
-                    a = 1f;
-                    return;
-                default:
-                    r = (r0 + 2f * r1) * (1f / 3f);
-                    g = (g0 + 2f * g1) * (1f / 3f);
-                    b = (b0 + 2f * b1) * (1f / 3f);
-                    a = 1f;
-                    return;
-            }
-        }
-        else
-        {
-            switch (code)
-            {
-                case 0:
-                    r = r0;
-                    g = g0;
-                    b = b0;
-                    a = 1f;
-                    return;
-                case 1:
-                    r = r1;
-                    g = g1;
-                    b = b1;
-                    a = 1f;
-                    return;
-                case 2:
-                    r = (r0 + r1) * 0.5f;
-                    g = (g0 + g1) * 0.5f;
-                    b = (b0 + b1) * 0.5f;
-                    a = 1f;
-                    return;
-                default:
-                    r = 0f;
-                    g = 0f;
-                    b = 0f;
-                    a = 0f;
-                    return;
-            }
-        }
-    }
-
-    static float DecodeBC4Block(
-        Unity.Collections.NativeArray<byte> data,
-        int blockOffset,
-        int localX,
-        int localY
-    )
-    {
-        float a0 = data[blockOffset] * Byte2Float;
-        float a1 = data[blockOffset + 1] * Byte2Float;
-
-        int bitOffset = (localY * 4 + localX) * 3;
-        int byteIndex = blockOffset + 2 + bitOffset / 8;
-        int bitShift = bitOffset % 8;
-
-        int code;
-        if (bitShift <= 5)
-        {
-            code = (data[byteIndex] >> bitShift) & 7;
-        }
-        else
-        {
-            code = ((data[byteIndex] >> bitShift) | (data[byteIndex + 1] << (8 - bitShift))) & 7;
-        }
-
-        if (data[blockOffset] > data[blockOffset + 1])
-        {
-            return code switch
-            {
-                0 => a0,
-                1 => a1,
-                2 => (6f * a0 + 1f * a1) * (1f / 7f),
-                3 => (5f * a0 + 2f * a1) * (1f / 7f),
-                4 => (4f * a0 + 3f * a1) * (1f / 7f),
-                5 => (3f * a0 + 4f * a1) * (1f / 7f),
-                6 => (2f * a0 + 5f * a1) * (1f / 7f),
-                _ => (1f * a0 + 6f * a1) * (1f / 7f),
-            };
-        }
-        else
-        {
-            return code switch
-            {
-                0 => a0,
-                1 => a1,
-                2 => (4f * a0 + 1f * a1) * (1f / 5f),
-                3 => (3f * a0 + 2f * a1) * (1f / 5f),
-                4 => (2f * a0 + 3f * a1) * (1f / 5f),
-                5 => (1f * a0 + 4f * a1) * (1f / 5f),
-                6 => 0f,
-                _ => 1f,
-            };
-        }
     }
 }

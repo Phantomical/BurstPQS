@@ -12,6 +12,7 @@ public readonly struct InvalidMapSO : IMapSO
 {
     public int Width => 1;
     public int Height => 1;
+    public MapSO.MapDepth Depth => MapSO.MapDepth.RGBA;
 
     public float GetPixelFloat(int x, int y) => 0f;
 

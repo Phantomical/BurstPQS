@@ -27,6 +27,7 @@ public struct BurstCBAttributeMapSO : IMapSO, IDisposable
 
     public int Width { get; private set; }
     public int Height { get; private set; }
+    public MapSO.MapDepth Depth => MapSO.MapDepth.Greyscale;
 
     public unsafe BurstCBAttributeMapSO(KopernicusCBAttributeMapSO mapSO)
     {

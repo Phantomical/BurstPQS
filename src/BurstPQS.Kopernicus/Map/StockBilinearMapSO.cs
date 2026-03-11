@@ -18,6 +18,7 @@ public struct StockBilinearBurstMapSO(MapSO mapSO) : IMapSO, IDisposable
 
     public readonly int Width => inner.Width;
     public readonly int Height => inner.Height;
+    public readonly MapSO.MapDepth Depth => inner.Depth;
 
     public float GetPixelFloat(int x, int y) => inner.GetPixelFloat(x, y);
 

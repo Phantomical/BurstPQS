@@ -43,8 +43,8 @@ public struct StockBurstMapSO : IMapSO, IDisposable
 
     readonly int PixelIndex(int x, int y)
     {
-        x = MathUtil.Clamp(x, 0, Width);
-        y = MathUtil.Clamp(y, 0, Height);
+        x = MathUtil.Clamp(x, 0, Width - 1);
+        y = MathUtil.Clamp(y, 0, Height - 1);
 
         var index = y * RowWidth + x * BitsPerPixel;
         if (index < 0 || index > Size)
