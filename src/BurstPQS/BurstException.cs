@@ -31,12 +31,12 @@ internal static class BurstException
         }
     }
 
-    static readonly SharedStatic<BurstExceptionVTable> VTableStatic;
+    static readonly SharedStaticShim<BurstExceptionVTable> VTableStatic;
     static ref BurstExceptionVTable VTable => ref VTableStatic.Data;
 
     static BurstException()
     {
-        VTableStatic = SharedStatic<BurstExceptionVTable>.GetOrCreate<BurstExceptionVTable>();
+        VTableStatic = SharedStaticShim<BurstExceptionVTable>.GetOrCreate<BurstExceptionVTable>();
         InitVTable();
     }
 

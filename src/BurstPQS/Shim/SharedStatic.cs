@@ -9,9 +9,7 @@ using UnityEngine;
 
 namespace BackgroundResourceProcessing.Shim;
 
-#if false
-
-internal readonly unsafe struct SharedStatic<T>
+internal readonly unsafe struct SharedStaticShim<T>
     where T : unmanaged
 {
     private readonly void* _buffer;
@@ -20,22 +18,22 @@ internal readonly unsafe struct SharedStatic<T>
 
     public void* UnsafeDataPointer => _buffer;
 
-    private SharedStatic(void* buffer)
+    private SharedStaticShim(void* buffer)
     {
         _buffer = buffer;
     }
 
-    public static SharedStatic<T> GetOrCreate<TContext>(uint alignment = 0) =>
+    public static SharedStaticShim<T> GetOrCreate<TContext>(uint alignment = 0) =>
         GetOrCreate(BurstRuntime.GetHashCode64<TContext>(), 0, alignment);
 
-    public static SharedStatic<T> GetOrCreate<TContext, TSubContext>(uint alignment = 0) =>
+    public static SharedStaticShim<T> GetOrCreate<TContext, TSubContext>(uint alignment = 0) =>
         GetOrCreate(
             BurstRuntime.GetHashCode64<TContext>(),
             BurstRuntime.GetHashCode64<TSubContext>(),
             alignment
         );
 
-    private static SharedStatic<T> GetOrCreate(long hash, long subhash, uint alignment) =>
+    private static SharedStaticShim<T> GetOrCreate(long hash, long subhash, uint alignment) =>
         new(
             GetOrCreateInternal(
                 hash,
@@ -58,4 +56,3 @@ internal readonly unsafe struct SharedStatic<T>
         return result;
     }
 }
-#endif
