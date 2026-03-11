@@ -1,6 +1,7 @@
 using System;
 using System.Collections.Generic;
 using System.Runtime.InteropServices;
+using Unity.Burst;
 using Unity.Collections;
 using Unity.Jobs;
 using UnityEngine;
@@ -20,6 +21,7 @@ internal struct InterleavedVertex
     public Vector2 uv3; //  8 bytes
 } // 60 bytes total
 
+[BurstCompile]
 internal struct MeshDataStruct : IDisposable
 {
     // Mesh streams
@@ -48,17 +50,17 @@ internal struct MeshDataStruct : IDisposable
         cacheUV4s.Dispose();
     }
 
-    struct DisposeJob(MeshDataStruct data) : IJob
+    [BurstCompile]
+    public struct BatchDisposeJob(NativeList<MeshDataStruct> list) : IJob
     {
-        MeshDataStruct data = data;
+        NativeList<MeshDataStruct> list = list;
 
-        public void Execute() => data.Dispose();
-    }
-
-    public void Dispose(JobHandle dependsOn)
-    {
-        new DisposeJob(this).Schedule(dependsOn);
-        this = default;
+        public void Execute()
+        {
+            for (int i = 0; i < list.Length; i++)
+                list[i].Dispose();
+            list.Dispose();
+        }
     }
 }
 
@@ -86,9 +88,18 @@ internal class MeshData : IDisposable
         return new();
     }
 
+    public MeshDataStruct ReleaseData()
+    {
+        var d = data;
+        data = default;
+        Pool.Push(this);
+        return d;
+    }
+
     public void Dispose()
     {
-        data.Dispose(default);
+        data.Dispose();
+        data = default;
         Pool.Push(this);
     }
 }

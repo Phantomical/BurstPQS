@@ -31,6 +31,7 @@ public class BatchPQS : MonoBehaviour
 
     private readonly Dictionary<PQ, PendingBuild> pending = [];
     private readonly Queue<PQ> buildQueue = [];
+    private NativeList<MeshDataStruct> disposeList;
 
     void Awake()
     {
@@ -112,9 +113,27 @@ public class BatchPQS : MonoBehaviour
         pqs.isThinking = false;
     }
 
+    readonly struct BatchDisposeScope : IDisposable
+    {
+        readonly BatchPQS batchPQS;
+
+        public BatchDisposeScope(BatchPQS batchPQS, int capacity)
+        {
+            this.batchPQS = batchPQS;
+            batchPQS.disposeList = new NativeList<MeshDataStruct>(capacity, Allocator.TempJob);
+        }
+
+        public void Dispose()
+        {
+            new MeshDataStruct.BatchDisposeJob(batchPQS.disposeList).Schedule();
+            batchPQS.disposeList = default;
+        }
+    }
+
     void CompleteQueuedBuilds()
     {
         using var scope = CompleteQueuedBuildsMarker.Auto();
+        using var disposeScope = new BatchDisposeScope(this, buildQueue.Count);
 
         while (buildQueue.TryDequeue(out var quad))
         {
@@ -488,7 +507,13 @@ public class BatchPQS : MonoBehaviour
             }
             finally
             {
-                meshData?.Dispose();
+                if (meshData is not null)
+                {
+                    if (batchPQS.disposeList.IsCreated)
+                        batchPQS.disposeList.Add(meshData.ReleaseData());
+                    else
+                        meshData.Dispose();
+                }
                 jobSet?.Dispose();
             }
         }
