@@ -409,6 +409,13 @@ public class BatchPQS : MonoBehaviour
             return true;
         }
 
+        static readonly List<VertexAttributeDescriptor> AttrList = [];
+        static readonly VertexAttributeDescriptor[][] AttrArrays =
+        [
+            new VertexAttributeDescriptor[7],
+            new VertexAttributeDescriptor[8],
+        ];
+
         public void Complete()
         {
             var mesh = quad.mesh;
@@ -427,11 +434,10 @@ public class BatchPQS : MonoBehaviour
                 | MeshUpdateFlags.DontNotifyMeshUsers;
 
             // Declare vertex layout — attributes must be in VertexAttribute enum order
-            var attrs = new List<VertexAttributeDescriptor>
-            {
-                new(VertexAttribute.Position, VertexAttributeFormat.Float32, 3, 0),
-                new(VertexAttribute.Normal, VertexAttributeFormat.Float32, 3, 1),
-            };
+            var attrs = AttrList;
+            attrs.Clear();
+            attrs.Add(new(VertexAttribute.Position, VertexAttributeFormat.Float32, 3, 0));
+            attrs.Add(new(VertexAttribute.Normal, VertexAttributeFormat.Float32, 3, 1));
             if (meshData.tangents.IsCreated)
                 attrs.Add(new(VertexAttribute.Tangent, VertexAttributeFormat.Float32, 4, 2));
             attrs.Add(new(VertexAttribute.Color, VertexAttributeFormat.Float32, 4, 0));
