@@ -1,5 +1,6 @@
 using System;
 using System.Runtime.CompilerServices;
+using BurstPQS.CompilerServices;
 using KSPTextureLoader;
 using Unity.Burst;
 using Unity.Collections;
@@ -63,6 +64,159 @@ public static partial class TextureMapSO
         public HeightAlpha GetPixelHeightAlpha(double x, double y) =>
             MapSODefaults.GetPixelHeightAlpha(ref this, x, y);
     }
+
+    [StructInherit(typeof(FormatMapSO<CPUTexture2D.Alpha8>), Name = "mapSO")]
+    [BurstCompile]
+    internal partial struct Alpha8 : IMapSO { }
+
+    [StructInherit(typeof(FormatMapSO<CPUTexture2D.ARGB32>), Name = "mapSO")]
+    [BurstCompile]
+    internal partial struct ARGB32 : IMapSO { }
+
+    /// <summary>
+    /// ARGB4444 format. Each pixel is a 16-bit value with 4 bits per channel
+    /// in the order A, R, G, B (high to low bits).
+    /// </summary>
+    [StructInherit(typeof(FormatMapSO<CPUTexture2D.ARGB4444>), Name = "mapSO")]
+    [BurstCompile]
+    internal partial struct ARGB444 : IMapSO { }
+
+    /// <summary>
+    /// BC4 compressed format. Encodes a single channel (R) in 8-byte blocks covering
+    /// 4x4 pixels (4 bits/pixel). Each block stores two 8-bit endpoints and a 4x4 grid
+    /// of 3-bit indices selecting from a 6- or 8-value palette interpolated between them.
+    /// Uses the same alpha block encoding as DXT5.
+    /// </summary>
+    [StructInherit(typeof(FormatMapSO<CPUTexture2D.BC4>), Name = "mapSO")]
+    [BurstCompile]
+    internal partial struct BC4 : IMapSO { }
+
+    /// <summary>
+    /// BC5 compressed format. Encodes two channels (R, G) in 16-byte blocks covering
+    /// 4x4 pixels (8 bits/pixel). Each block consists of two independent BC4 blocks
+    /// side by side, one for the red channel and one for the green channel.
+    /// </summary>
+    [StructInherit(typeof(FormatMapSO<CPUTexture2D.BC5>), Name = "mapSO")]
+    [BurstCompile]
+    internal partial struct BC5 : IMapSO { }
+
+    /// <summary>
+    /// BC6H compressed format. Encodes HDR RGB (no alpha) in 16-byte blocks covering
+    /// 4x4 pixels (8 bits/pixel). Supports 14 modes (0-13) with 1 or 2 subsets,
+    /// half-float endpoints (10-16 bits) with optional delta encoding, and 3- or 4-bit
+    /// indices. Endpoints are unquantized to 16-bit half-precision floats and interpolated.
+    /// Comes in signed (<c>BC6H_SF16</c>) and unsigned (<c>BC6H_UF16</c>) variants.
+    /// </summary>
+    [StructInherit(typeof(FormatMapSO<CPUTexture2D.BC6H>), Name = "mapSO")]
+    [BurstCompile]
+    internal partial struct BC6H : IMapSO { }
+
+    /// <summary>
+    /// BC7 compressed format. Encodes RGBA in 16-byte blocks covering 4x4 pixels
+    /// (8 bits/pixel). Supports 8 modes (0-7) with varying numbers of subsets (1-3),
+    /// endpoint precision (4-8 bits), index precision (2-4 bits), and optional
+    /// per-endpoint p-bits, channel rotation, and separate color/alpha index sets.
+    /// Partition tables select which pixels belong to which subset.
+    /// </summary>
+    [StructInherit(typeof(FormatMapSO<CPUTexture2D.BC7>), Name = "mapSO")]
+    [BurstCompile]
+    internal partial struct BC7 : IMapSO { }
+
+    [StructInherit(typeof(FormatMapSO<CPUTexture2D.BGRA32>), Name = "mapSO")]
+    [BurstCompile]
+    internal partial struct BGRA32 : IMapSO { }
+
+    /// <summary>
+    /// DXT1/BC1 compressed format. Encodes RGB with optional 1-bit alpha in 8-byte blocks
+    /// covering 4x4 pixels (4 bits/pixel). Each block stores two RGB565 color endpoints and
+    /// a 4x4 grid of 2-bit indices selecting from a 4-color palette interpolated between them.
+    /// When <c>color0 &lt;= color1</c>, index 3 produces transparent black (1-bit alpha).
+    /// </summary>
+    [StructInherit(typeof(FormatMapSO<CPUTexture2D.DXT1>), Name = "mapSO")]
+    [BurstCompile]
+    internal partial struct DXT1 : IMapSO { }
+
+    /// <summary>
+    /// DXT5/BC3 compressed format. Encodes RGBA in 16-byte blocks covering 4x4 pixels
+    /// (8 bits/pixel). Each block consists of an 8-byte alpha block followed by an 8-byte
+    /// DXT1 color block. The alpha block stores two 8-bit endpoints and a 4x4 grid of
+    /// 3-bit indices selecting from an 8-value palette interpolated between them.
+    /// </summary>
+    [StructInherit(typeof(FormatMapSO<CPUTexture2D.DXT5>), Name = "mapSO")]
+    [BurstCompile]
+    internal partial struct DXT5 : IMapSO { }
+
+    [StructInherit(typeof(FormatMapSO<CPUTexture2D.R8>), Name = "mapSO")]
+    [BurstCompile]
+    internal partial struct R8 : IMapSO { }
+
+    [StructInherit(typeof(FormatMapSO<CPUTexture2D.R16>), Name = "mapSO")]
+    [BurstCompile]
+    internal partial struct R16 : IMapSO { }
+
+    [StructInherit(typeof(FormatMapSO<CPUTexture2D.RA16>), Name = "mapSO")]
+    [BurstCompile]
+    internal partial struct RA16 : IMapSO { }
+
+    [StructInherit(typeof(FormatMapSO<CPUTexture2D.RFloat>), Name = "mapSO")]
+    [BurstCompile]
+    internal partial struct RFloat : IMapSO { }
+
+    [StructInherit(typeof(FormatMapSO<CPUTexture2D.RG16>), Name = "mapSO")]
+    [BurstCompile]
+    internal partial struct RG16 : IMapSO { }
+
+    [StructInherit(typeof(FormatMapSO<CPUTexture2D.RGB24>), Name = "mapSO")]
+    [BurstCompile]
+    internal partial struct RGB24 : IMapSO { }
+
+    /// <summary>
+    /// RGB565 format. Each pixel is a 16-bit value with 5 bits red, 6 bits green,
+    /// 5 bits blue (high to low bits). No alpha channel.
+    /// </summary>
+    [StructInherit(typeof(FormatMapSO<CPUTexture2D.RGB565>), Name = "mapSO")]
+    [BurstCompile]
+    internal partial struct RGB565 : IMapSO { }
+
+    [StructInherit(typeof(FormatMapSO<CPUTexture2D.RGBA32>), Name = "mapSO")]
+    [BurstCompile]
+    internal partial struct RGBA32 : IMapSO { }
+
+    /// <summary>
+    /// RGBA4444 format. Each pixel is a 16-bit value with 4 bits per channel
+    /// in the order R, G, B, A (high to low bits).
+    /// </summary>
+    [StructInherit(typeof(FormatMapSO<CPUTexture2D.RGBA4444>), Name = "mapSO")]
+    [BurstCompile]
+    internal partial struct RGBA4444 : IMapSO { }
+
+    [StructInherit(typeof(FormatMapSO<CPUTexture2D.RGBAFloat>), Name = "mapSO")]
+    [BurstCompile]
+    internal partial struct RGBAFloat : IMapSO { }
+
+    [StructInherit(typeof(FormatMapSO<CPUTexture2D.RGBAHalf>), Name = "mapSO")]
+    [BurstCompile]
+    internal partial struct RGBAHalf : IMapSO { }
+
+    [StructInherit(typeof(FormatMapSO<CPUTexture2D.RGFloat>), Name = "mapSO")]
+    [BurstCompile]
+    internal partial struct RGFloat : IMapSO { }
+
+    [StructInherit(typeof(FormatMapSO<CPUTexture2D.RGHalf>), Name = "mapSO")]
+    [BurstCompile]
+    internal partial struct RGHalf : IMapSO { }
+
+    [StructInherit(typeof(FormatMapSO<CPUTexture2D.RHalf>), Name = "mapSO")]
+    [BurstCompile]
+    internal partial struct RHalf : IMapSO { }
+
+    [StructInherit(typeof(FormatMapSO<CPUTexture2D.KopernicusPalette4>), Name = "mapSO")]
+    [BurstCompile]
+    internal partial struct KopernicusPalette4 : IMapSO { }
+
+    [StructInherit(typeof(FormatMapSO<CPUTexture2D.KopernicusPalette8>), Name = "mapSO")]
+    [BurstCompile]
+    internal partial struct KopernicusPalette8 : IMapSO { }
 
     public static BurstMapSO Create(CPUTexture2D texture)
     {

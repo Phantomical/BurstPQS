@@ -1,5 +1,6 @@
 using System;
 using System.Runtime.CompilerServices;
+using BurstPQS.CompilerServices;
 using BurstPQS.Map;
 using Kopernicus.Components;
 using Kopernicus.OnDemand;
@@ -106,6 +107,110 @@ static partial class BurstKopernicusMapSO
         public HeightAlpha GetPixelHeightAlpha(double x, double y) =>
             MapSODefaults.GetPixelHeightAlpha(ref this, x, y);
     }
+
+    [StructInherit(typeof(FormatMapSO<CPUTexture2D.Alpha8>), Name = "mapSO")]
+    [BurstCompile]
+    public partial struct Alpha8 : IMapSO;
+
+    [StructInherit(typeof(FormatMapSO<CPUTexture2D.ARGB32>), Name = "mapSO")]
+    [BurstCompile]
+    public partial struct ARGB32 : IMapSO;
+
+    [StructInherit(typeof(FormatMapSO<CPUTexture2D.ARGB4444>), Name = "mapSO")]
+    [BurstCompile]
+    public partial struct ARGB4444 : IMapSO;
+
+    [StructInherit(typeof(FormatMapSO<CPUTexture2D.BC4>), Name = "mapSO")]
+    [BurstCompile]
+    public partial struct BC4 : IMapSO;
+
+    [StructInherit(typeof(FormatMapSO<CPUTexture2D.BC5>), Name = "mapSO")]
+    [BurstCompile]
+    public partial struct BC5 : IMapSO;
+
+    [StructInherit(typeof(FormatMapSO<CPUTexture2D.BC6H>), Name = "mapSO")]
+    [BurstCompile]
+    public partial struct BC6H : IMapSO;
+
+    [StructInherit(typeof(FormatMapSO<CPUTexture2D.BC7>), Name = "mapSO")]
+    [BurstCompile]
+    public partial struct BC7 : IMapSO;
+
+    [StructInherit(typeof(FormatMapSO<CPUTexture2D.BGRA32>), Name = "mapSO")]
+    [BurstCompile]
+    public partial struct BGRA32 : IMapSO;
+
+    [StructInherit(typeof(FormatMapSO<CPUTexture2D.DXT1>), Name = "mapSO")]
+    [BurstCompile]
+    public partial struct DXT1 : IMapSO;
+
+    [StructInherit(typeof(FormatMapSO<CPUTexture2D.DXT5>), Name = "mapSO")]
+    [BurstCompile]
+    public partial struct DXT5 : IMapSO;
+
+    [StructInherit(typeof(FormatMapSO<CPUTexture2D.R8>), Name = "mapSO")]
+    [BurstCompile]
+    public partial struct R8 : IMapSO;
+
+    [StructInherit(typeof(FormatMapSO<CPUTexture2D.R16>), Name = "mapSO")]
+    [BurstCompile]
+    public partial struct R16 : IMapSO;
+
+    [StructInherit(typeof(FormatMapSO<CPUTexture2D.RA16>), Name = "mapSO")]
+    [BurstCompile]
+    public partial struct RA16 : IMapSO;
+
+    [StructInherit(typeof(FormatMapSO<CPUTexture2D.RFloat>), Name = "mapSO")]
+    [BurstCompile]
+    public partial struct RFloat : IMapSO;
+
+    [StructInherit(typeof(FormatMapSO<CPUTexture2D.RG16>), Name = "mapSO")]
+    [BurstCompile]
+    public partial struct RG16 : IMapSO;
+
+    [StructInherit(typeof(FormatMapSO<CPUTexture2D.RGB24>), Name = "mapSO")]
+    [BurstCompile]
+    public partial struct RGB24 : IMapSO;
+
+    [StructInherit(typeof(FormatMapSO<CPUTexture2D.RGB565>), Name = "mapSO")]
+    [BurstCompile]
+    public partial struct RGB565 : IMapSO;
+
+    [StructInherit(typeof(FormatMapSO<CPUTexture2D.RGBA32>), Name = "mapSO")]
+    [BurstCompile]
+    public partial struct RGBA32 : IMapSO;
+
+    [StructInherit(typeof(FormatMapSO<CPUTexture2D.RGBA4444>), Name = "mapSO")]
+    [BurstCompile]
+    public partial struct RGBA4444 : IMapSO;
+
+    [StructInherit(typeof(FormatMapSO<CPUTexture2D.RGBAFloat>), Name = "mapSO")]
+    [BurstCompile]
+    public partial struct RGBAFloat : IMapSO;
+
+    [StructInherit(typeof(FormatMapSO<CPUTexture2D.RGBAHalf>), Name = "mapSO")]
+    [BurstCompile]
+    public partial struct RGBAHalf : IMapSO;
+
+    [StructInherit(typeof(FormatMapSO<CPUTexture2D.RGFloat>), Name = "mapSO")]
+    [BurstCompile]
+    public partial struct RGFloat : IMapSO;
+
+    [StructInherit(typeof(FormatMapSO<CPUTexture2D.RGHalf>), Name = "mapSO")]
+    [BurstCompile]
+    public partial struct RGHalf : IMapSO;
+
+    [StructInherit(typeof(FormatMapSO<CPUTexture2D.RHalf>), Name = "mapSO")]
+    [BurstCompile]
+    public partial struct RHalf : IMapSO;
+
+    [StructInherit(typeof(FormatMapSO<CPUTexture2D.KopernicusPalette4>), Name = "mapSO")]
+    [BurstCompile]
+    public partial struct KopernicusPalette4 : IMapSO;
+
+    [StructInherit(typeof(FormatMapSO<CPUTexture2D.KopernicusPalette8>), Name = "mapSO")]
+    [BurstCompile]
+    public partial struct KopernicusPalette8 : IMapSO;
 
     public static BurstMapSO Create(MapSODemand mapSO)
     {
