@@ -1,44 +1,13 @@
+using BurstPQS.CompilerServices;
 using BurstPQS.Map;
 using KSPTextureLoader;
 using Unity.Burst;
-using UnityEngine;
 
 namespace BurstPQS.Kopernicus.Map;
 
 static partial class BurstKopernicusMapSO
 {
+    [StructInherit(typeof(FormatMapSO<CPUTexture2D.DXT1>), Name = "mapSO")]
     [BurstCompile]
-    public struct DXT1(CPUTexture2D.DXT1 texture, MapSO.MapDepth depth) : IMapSO
-    {
-        FormatMapSO<CPUTexture2D.DXT1> mapSO = new(texture, depth);
-
-        public readonly int Width => mapSO.Width;
-        public readonly int Height => mapSO.Height;
-        public readonly MapSO.MapDepth Depth => mapSO.Depth;
-
-        public float GetPixelFloat(int x, int y) => mapSO.GetPixelFloat(x, y);
-
-        public float GetPixelFloat(float x, float y) => mapSO.GetPixelFloat(x, y);
-
-        public float GetPixelFloat(double x, double y) => mapSO.GetPixelFloat(x, y);
-
-        public Color GetPixelColor(int x, int y) => mapSO.GetPixelColor(x, y);
-
-        public Color GetPixelColor(float x, float y) => mapSO.GetPixelColor(x, y);
-
-        public Color GetPixelColor(double x, double y) => mapSO.GetPixelColor(x, y);
-
-        public Color32 GetPixelColor32(int x, int y) => mapSO.GetPixelColor32(x, y);
-
-        public Color32 GetPixelColor32(float x, float y) => mapSO.GetPixelColor32(x, y);
-
-        public Color32 GetPixelColor32(double x, double y) => mapSO.GetPixelColor32(x, y);
-
-        public HeightAlpha GetPixelHeightAlpha(int x, int y) => mapSO.GetPixelHeightAlpha(x, y);
-
-        public HeightAlpha GetPixelHeightAlpha(float x, float y) => mapSO.GetPixelHeightAlpha(x, y);
-
-        public HeightAlpha GetPixelHeightAlpha(double x, double y) =>
-            mapSO.GetPixelHeightAlpha(x, y);
-    }
+    public partial struct DXT1 : IMapSO { }
 }

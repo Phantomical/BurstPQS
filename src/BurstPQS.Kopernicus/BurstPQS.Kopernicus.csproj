@@ -17,6 +17,8 @@
       <GenerateDependencyAttribute>true</GenerateDependencyAttribute>
     </ProjectReference>
 
+    <ProjectReference Include="..\BurstPQS.Generators\BurstPQS.Generators.csproj" OutputItemType="Analyzer" ReferenceOutputAssembly="false" />
+
     <PackageReference Include="KSPBuildTools" Version="1.1.0" />
     <PackageReference Include="Krafs.Publicizer" Version="2.3.0">
       <IncludeAssets>runtime; build; native; contentfiles; analyzers; buildtransitive</IncludeAssets>
