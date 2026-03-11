@@ -5,8 +5,7 @@
     <!-- This project uses KSP's in-game test framework, not a standard .NET test runner -->
     <IsTestProject>false</IsTestProject>
 
-    <!-- <KSPBT_ModRoot>$(ProjectRootDir)\GameData\BurstPQS.Test</KSPBT_ModRoot> -->
-    <KSPBT_ModRoot>$(GameDataOutDir)</KSPBT_ModRoot>
+    <KSPBT_ModRoot>$(ProjectRootDir)\GameData\BurstPQS.Test</KSPBT_ModRoot>
     <KSPBT_ModPluginFolder>Plugins</KSPBT_ModPluginFolder>
 
     <!-- IgnoresAccessChecksToAttribute from Krafs.Publicizer conflicts with the one
