@@ -107,38 +107,4 @@
 
     <Copy SourceFiles="@(_ExtrasToCopy)" DestinationFolder="$(KSPBT_ModRoot)/$(KSPBT_ModPluginFolder)/%(RecursiveDir)" />
   </Target>
-
-  <!-- 
-  <Target Name="GenerateKSPVersionFile" AfterTargets="Build">
-    <ReadLinesFromFile File="$(ProjectDir)\$(ProjectName).version">
-      <Output TaskParameter="Lines" ItemName="_JSONLines" />
-    </ReadLinesFromFile>
-
-    <PropertyGroup>
-      <_JSON>@(_JSONLines, '%0a')</_JSON>
-
-      <_Major>$(Version.Split('.')[0])</_Major>
-      <_Minor>$(Version.Split('.')[1])</_Minor>
-      <_Patch>$(Version.Split('.')[2])</_Patch>
-      <_Build>0</_Build>
-    </PropertyGroup>
-
-    <JsonPoke Content="$(_JSON)" Query="$.VERSION.MAJOR" RawValue="$(_Major)">
-      <Output TaskParameter="Content" PropertyName="_JSON" />
-    </JsonPoke>
-    <JsonPoke Content="$(_JSON)" Query="$.VERSION.MINOR" RawValue="$(_Minor)">
-      <Output TaskParameter="Content" PropertyName="_JSON" />
-    </JsonPoke>
-    <JsonPoke Content="$(_JSON)" Query="$.VERSION.PATCH" RawValue="$(_Patch)">
-      <Output TaskParameter="Content" PropertyName="_JSON" />
-    </JsonPoke>
-    <JsonPoke Content="$(_JSON)" Query="$.VERSION.PATCH" RawValue="$(_Patch)">
-      <Output TaskParameter="Content" PropertyName="_JSON" />
-    </JsonPoke>
-    <JsonPoke Content="$(_JSON)" Query="$.VERSION.BUILD" RawValue="$(_Build)">
-      <Output TaskParameter="Content" PropertyName="_JSON" />
-    </JsonPoke>
-    <WriteLinesToFile File="$(GameDataOutDir)\$(ProjectName).version" Lines="$(_JSON)"
-      Overwrite="true" />
-  </Target> -->
 </Project>
