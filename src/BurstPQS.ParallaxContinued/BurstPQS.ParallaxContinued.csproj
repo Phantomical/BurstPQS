@@ -39,10 +39,10 @@
       <GenerateDependencyAttribute>true</GenerateDependencyAttribute>
     </Reference>
 
-    <Reference Include="$(KSPBT_GameRoot)/GameData/000_KSPBurst/Plugins/Unity.*.dll">
+    <Reference Include="$(DepSet1)/000_KSPBurst/Plugins/Unity.*.dll">
       <Private>false</Private>
     </Reference>
-    <Reference Include="$(KSPBT_GameRoot)/GameData/000_KSPBurst/Plugins/System.Runtime.CompilerServices.Unsafe.dll">
+    <Reference Include="$(DepSet1)/000_KSPBurst/Plugins/System.Runtime.CompilerServices.Unsafe.dll">
       <Private>false</Private>
     </Reference>
 
