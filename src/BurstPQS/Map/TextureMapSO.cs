@@ -79,7 +79,7 @@ public static partial class TextureMapSO
     /// </summary>
     [StructInherit(typeof(FormatMapSO<CPUTexture2D.ARGB4444>), Name = "mapSO")]
     [BurstCompile]
-    internal partial struct ARGB444 : IMapSO { }
+    internal partial struct ARGB4444 : IMapSO { }
 
     /// <summary>
     /// BC4 compressed format. Encodes a single channel (R) in 8-byte blocks covering
@@ -234,7 +234,7 @@ public static partial class TextureMapSO
                 new ARGB32(new(data, width, height, mipCount))
             ),
             CPUTexture2D<CPUTexture2D.ARGB4444> => BurstMapSO.Create(
-                new ARGB444(new(data, width, height, mipCount))
+                new ARGB4444(new(data, width, height, mipCount))
             ),
             CPUTexture2D<CPUTexture2D.BC4> => BurstMapSO.Create(
                 new BC4(new(data, width, height, mipCount))

@@ -377,7 +377,7 @@ public class TextureMapSOTests : BurstPQSTestBase
     {
         TestFormat(
             TextureFormat.ARGB4444,
-            (data, w, h) => new TextureMapSO.ARGB444(new CPUTexture2D.ARGB4444(data, w, h, 1)),
+            (data, w, h) => new TextureMapSO.ARGB4444(new CPUTexture2D.ARGB4444(data, w, h, 1)),
             "ARGB4444",
             0.07f
         );
