@@ -175,42 +175,22 @@ public static partial class TextureMapSO
             TextureFormat.ARGB4444 => BurstMapSO.Create(
                 new ARGB32(new(data, width, height, mipCount))
             ),
-            TextureFormat.BC4 => BurstMapSO.Create(
-                new BC4(new(data, width, height, mipCount))
-            ),
-            TextureFormat.BC5 => BurstMapSO.Create(
-                new BC5(new(data, width, height, mipCount))
-            ),
-            TextureFormat.BC6H => BurstMapSO.Create(
-                new BC6H(new(data, width, height, mipCount))
-            ),
-            TextureFormat.BC7 => BurstMapSO.Create(
-                new BC7(new(data, width, height, mipCount))
-            ),
+            TextureFormat.BC4 => BurstMapSO.Create(new BC4(new(data, width, height, mipCount))),
+            TextureFormat.BC5 => BurstMapSO.Create(new BC5(new(data, width, height, mipCount))),
+            TextureFormat.BC6H => BurstMapSO.Create(new BC6H(new(data, width, height, mipCount))),
+            TextureFormat.BC7 => BurstMapSO.Create(new BC7(new(data, width, height, mipCount))),
             TextureFormat.BGRA32 => BurstMapSO.Create(
                 new BGRA32(new(data, width, height, mipCount))
             ),
-            TextureFormat.DXT1 => BurstMapSO.Create(
-                new DXT1(new(data, width, height, mipCount))
-            ),
-            TextureFormat.DXT5 => BurstMapSO.Create(
-                new DXT5(new(data, width, height, mipCount))
-            ),
-            TextureFormat.R8 => BurstMapSO.Create(
-                new R8(new(data, width, height, mipCount))
-            ),
-            TextureFormat.R16 => BurstMapSO.Create(
-                new R16(new(data, width, height, mipCount))
-            ),
+            TextureFormat.DXT1 => BurstMapSO.Create(new DXT1(new(data, width, height, mipCount))),
+            TextureFormat.DXT5 => BurstMapSO.Create(new DXT5(new(data, width, height, mipCount))),
+            TextureFormat.R8 => BurstMapSO.Create(new R8(new(data, width, height, mipCount))),
+            TextureFormat.R16 => BurstMapSO.Create(new R16(new(data, width, height, mipCount))),
             TextureFormat.RFloat => BurstMapSO.Create(
                 new RFloat(new(data, width, height, mipCount))
             ),
-            TextureFormat.RG16 => BurstMapSO.Create(
-                new RG16(new(data, width, height, mipCount))
-            ),
-            TextureFormat.RGB24 => BurstMapSO.Create(
-                new RGB24(new(data, width, height, mipCount))
-            ),
+            TextureFormat.RG16 => BurstMapSO.Create(new RG16(new(data, width, height, mipCount))),
+            TextureFormat.RGB24 => BurstMapSO.Create(new RGB24(new(data, width, height, mipCount))),
             TextureFormat.RGB565 => BurstMapSO.Create(
                 new RGB565(new(data, width, height, mipCount))
             ),
@@ -232,9 +212,7 @@ public static partial class TextureMapSO
             TextureFormat.RGHalf => BurstMapSO.Create(
                 new RGHalf(new(data, width, height, mipCount))
             ),
-            TextureFormat.RHalf => BurstMapSO.Create(
-                new RHalf(new(data, width, height, mipCount))
-            ),
+            TextureFormat.RHalf => BurstMapSO.Create(new RHalf(new(data, width, height, mipCount))),
             _ => throw new NotSupportedException(
                 $"texture format {texture.format} is not supported by TextureMapSO"
             ),
