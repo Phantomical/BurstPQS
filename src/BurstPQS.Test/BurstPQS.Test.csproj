@@ -9,6 +9,10 @@
     <KSPBT_ModRoot>$(GameDataOutDir)</KSPBT_ModRoot>
     <KSPBT_ModPluginFolder>Plugins</KSPBT_ModPluginFolder>
 
+    <!-- IgnoresAccessChecksToAttribute from Krafs.Publicizer conflicts with the one
+         in BurstPQS (visible via InternalsVisibleTo). Both projects need their own copy. -->
+    <NoWarn>$(NoWarn);CS0436</NoWarn>
+
     <!-- Nothing we can do about this warning -->
     <ResolveAssemblyWarnOrErrorOnTargetArchitectureMismatch>None</ResolveAssemblyWarnOrErrorOnTargetArchitectureMismatch>
   </PropertyGroup>
