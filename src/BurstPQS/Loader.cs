@@ -43,6 +43,7 @@ internal class BurstLoader : MonoBehaviour
         RegisterBatchPQSMods();
 
         BurstMapSO.RegisterMapSOFactoryFunc<MapSO>(CreateStockMapSO);
+        BurstMapSO.RegisterMapSOFactoryFunc<CBTextureAtlasSO>(CreateStockMapSO);
     }
 
     #region BatchPQSMod Registration
