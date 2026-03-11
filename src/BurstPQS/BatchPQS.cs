@@ -125,8 +125,12 @@ public class BatchPQS : MonoBehaviour
 
         public void Dispose()
         {
-            new MeshDataStruct.BatchDisposeJob(batchPQS.disposeList).Schedule();
+            var list = batchPQS.disposeList;
             batchPQS.disposeList = default;
+            if (list.Length == 0)
+                list.Dispose();
+            else
+                new MeshDataStruct.BatchDisposeJob(list).Schedule();
         }
     }
 
