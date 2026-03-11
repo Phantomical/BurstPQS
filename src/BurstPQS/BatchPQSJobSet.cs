@@ -5,7 +5,6 @@ namespace BurstPQS;
 
 public class BatchPQSJobSet : IDisposable
 {
-    private const int MaxPoolItems = 128;
     private static readonly Stack<BatchPQSJobSet> Pool = [];
 
     internal static BatchPQSJobSet Acquire()
@@ -77,11 +76,8 @@ public class BatchPQSJobSet : IDisposable
         }
         finally
         {
-            if (Pool.Count < MaxPoolItems)
-            {
-                jobs.Clear();
-                Pool.Push(this);
-            }
+            jobs.Clear();
+            Pool.Push(this);
         }
     }
 }

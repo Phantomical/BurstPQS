@@ -77,7 +77,6 @@ internal class MeshData : IDisposable
     public NativeArray<Vector2> cacheUV3s => data.cacheUV3s;
     public NativeArray<Vector2> cacheUV4s => data.cacheUV4s;
 
-    private const int MaxPoolItems = 256;
     private static readonly Stack<MeshData> Pool = [];
 
     public static MeshData Acquire()
@@ -90,8 +89,6 @@ internal class MeshData : IDisposable
     public void Dispose()
     {
         data.Dispose(default);
-
-        if (Pool.Count < MaxPoolItems)
-            Pool.Push(this);
+        Pool.Push(this);
     }
 }

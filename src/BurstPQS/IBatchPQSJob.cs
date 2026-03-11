@@ -247,7 +247,6 @@ internal sealed unsafe class JobData<T>(in T job) : JobData
         return lambda.Compile();
     }
 
-    const int MaxPoolItems = 128;
     static readonly Stack<JobData<T>> Pool = [];
 
     public static JobData<T> Create(in T job)
@@ -319,11 +318,8 @@ internal sealed unsafe class JobData<T>(in T job) : JobData
         }
         finally
         {
-            if (Pool.Count < MaxPoolItems)
-            {
-                job = default;
-                Pool.Push(this);
-            }
+            job = default;
+            Pool.Push(this);
         }
     }
 }
