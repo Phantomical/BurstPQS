@@ -17,10 +17,11 @@ namespace BurstPQS.Map;
 [BurstCompile(FloatMode = FloatMode.Fast)]
 public static partial class TextureMapSO
 {
-    readonly struct FormatMapSO<T>(T texture) : IMapSO
+    readonly struct FormatMapSO<T>(T texture, TextureWrapMode wrapMode) : IMapSO
         where T : ICPUTexture2D
     {
         readonly T texture = texture;
+        readonly TextureWrapMode wrapMode = wrapMode;
 
         public readonly int Width => texture.Width;
         public readonly int Height => texture.Height;
@@ -53,16 +54,51 @@ public static partial class TextureMapSO
         }
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        static float2 WrapRepeat(float2 coords)
+        {
+            return coords - math.floor(coords);
+        }
+
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        static float2 WrapMirror(float2 coords)
+        {
+            // Every other integer interval is reflected
+            var floored = math.floor(coords);
+            var frac = coords - floored;
+            var isOdd = (int2)floored & 1;
+            return math.select(frac, 1f - frac, isOdd != 0);
+        }
+
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        static float2 WrapMirrorOnce(float2 coords)
+        {
+            // Mirror negative values, then clamp
+            return math.saturate(math.abs(coords));
+        }
+
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
         readonly BilinearCoords ConstructBilinearCoords(float x, float y)
         {
             var coords = new float2(x, y);
             var dims = new int2(texture.Width, texture.Height);
+            var lastPixel = dims - 1;
 
-            coords = math.abs(coords - math.floor(coords));
-            var min = (int2)math.floor(coords);
+            coords = wrapMode switch
+            {
+                TextureWrapMode.Repeat => WrapRepeat(coords),
+                TextureWrapMode.Mirror => WrapMirror(coords),
+                TextureWrapMode.MirrorOnce => WrapMirrorOnce(coords),
+                _ => math.saturate(coords),
+            };
             var center = coords * dims;
-            var max = (int2)math.ceil(center) % dims;
+            var min = (int2)math.floor(center);
             var mid = center - min;
+
+            int2 max;
+            if (wrapMode == TextureWrapMode.Repeat)
+                max = (min + 1) % dims;
+            else
+                max = math.min(min + 1, lastPixel);
 
             return new()
             {
@@ -300,86 +336,87 @@ public static partial class TextureMapSO
         var height = texture.Height;
         var mipCount = texture.MipCount;
         var data = texture.GetRawTextureData();
+        const TextureWrapMode wrap = TextureWrapMode.Repeat;
 
         return texture switch
         {
             CPUTexture2D<CPUTexture2D.Alpha8> => BurstMapSO.Create(
-                new Alpha8(new(data, width, height, mipCount))
+                new Alpha8(new(data, width, height, mipCount), wrap)
             ),
             CPUTexture2D<CPUTexture2D.ARGB32> => BurstMapSO.Create(
-                new ARGB32(new(data, width, height, mipCount))
+                new ARGB32(new(data, width, height, mipCount), wrap)
             ),
             CPUTexture2D<CPUTexture2D.ARGB4444> => BurstMapSO.Create(
-                new ARGB4444(new(data, width, height, mipCount))
+                new ARGB4444(new(data, width, height, mipCount), wrap)
             ),
             CPUTexture2D<CPUTexture2D.BC4> => BurstMapSO.Create(
-                new BC4(new(data, width, height, mipCount))
+                new BC4(new(data, width, height, mipCount), wrap)
             ),
             CPUTexture2D<CPUTexture2D.BC5> => BurstMapSO.Create(
-                new BC5(new(data, width, height, mipCount))
+                new BC5(new(data, width, height, mipCount), wrap)
             ),
             CPUTexture2D<CPUTexture2D.BC6H> => BurstMapSO.Create(
-                new BC6H(new(data, width, height, mipCount))
+                new BC6H(new(data, width, height, mipCount), wrap)
             ),
             CPUTexture2D<CPUTexture2D.BC7> => BurstMapSO.Create(
-                new BC7(new(data, width, height, mipCount))
+                new BC7(new(data, width, height, mipCount), wrap)
             ),
             CPUTexture2D<CPUTexture2D.BGRA32> => BurstMapSO.Create(
-                new BGRA32(new(data, width, height, mipCount))
+                new BGRA32(new(data, width, height, mipCount), wrap)
             ),
             CPUTexture2D<CPUTexture2D.DXT1> => BurstMapSO.Create(
-                new DXT1(new(data, width, height, mipCount))
+                new DXT1(new(data, width, height, mipCount), wrap)
             ),
             CPUTexture2D<CPUTexture2D.DXT5> => BurstMapSO.Create(
-                new DXT5(new(data, width, height, mipCount))
+                new DXT5(new(data, width, height, mipCount), wrap)
             ),
             CPUTexture2D<CPUTexture2D.R8> => BurstMapSO.Create(
-                new R8(new(data, width, height, mipCount))
+                new R8(new(data, width, height, mipCount), wrap)
             ),
             CPUTexture2D<CPUTexture2D.R16> => BurstMapSO.Create(
-                new R16(new(data, width, height, mipCount))
+                new R16(new(data, width, height, mipCount), wrap)
             ),
             CPUTexture2D<CPUTexture2D.RA16> => BurstMapSO.Create(
-                new RA16(new(data, width, height, mipCount))
+                new RA16(new(data, width, height, mipCount), wrap)
             ),
             CPUTexture2D<CPUTexture2D.RFloat> => BurstMapSO.Create(
-                new RFloat(new(data, width, height, mipCount))
+                new RFloat(new(data, width, height, mipCount), wrap)
             ),
             CPUTexture2D<CPUTexture2D.RG16> => BurstMapSO.Create(
-                new RG16(new(data, width, height, mipCount))
+                new RG16(new(data, width, height, mipCount), wrap)
             ),
             CPUTexture2D<CPUTexture2D.RGB24> => BurstMapSO.Create(
-                new RGB24(new(data, width, height, mipCount))
+                new RGB24(new(data, width, height, mipCount), wrap)
             ),
             CPUTexture2D<CPUTexture2D.RGB565> => BurstMapSO.Create(
-                new RGB565(new(data, width, height, mipCount))
+                new RGB565(new(data, width, height, mipCount), wrap)
             ),
             CPUTexture2D<CPUTexture2D.RGBA32> => BurstMapSO.Create(
-                new RGBA32(new(data, width, height, mipCount))
+                new RGBA32(new(data, width, height, mipCount), wrap)
             ),
             CPUTexture2D<CPUTexture2D.RGBA4444> => BurstMapSO.Create(
-                new RGBA4444(new(data, width, height, mipCount))
+                new RGBA4444(new(data, width, height, mipCount), wrap)
             ),
             CPUTexture2D<CPUTexture2D.RGBAFloat> => BurstMapSO.Create(
-                new RGBAFloat(new(data, width, height, mipCount))
+                new RGBAFloat(new(data, width, height, mipCount), wrap)
             ),
             CPUTexture2D<CPUTexture2D.RGBAHalf> => BurstMapSO.Create(
-                new RGBAHalf(new(data, width, height, mipCount))
+                new RGBAHalf(new(data, width, height, mipCount), wrap)
             ),
             CPUTexture2D<CPUTexture2D.RGFloat> => BurstMapSO.Create(
-                new RGFloat(new(data, width, height, mipCount))
+                new RGFloat(new(data, width, height, mipCount), wrap)
             ),
             CPUTexture2D<CPUTexture2D.RGHalf> => BurstMapSO.Create(
-                new RGHalf(new(data, width, height, mipCount))
+                new RGHalf(new(data, width, height, mipCount), wrap)
             ),
             CPUTexture2D<CPUTexture2D.RHalf> => BurstMapSO.Create(
-                new RHalf(new(data, width, height, mipCount))
+                new RHalf(new(data, width, height, mipCount), wrap)
             ),
             CPUTexture2D<CPUTexture2D.KopernicusPalette4> => BurstMapSO.Create(
-                new KopernicusPalette4(new(data, width, height))
+                new KopernicusPalette4(new(data, width, height), wrap)
             ),
             CPUTexture2D<CPUTexture2D.KopernicusPalette8> => BurstMapSO.Create(
-                new KopernicusPalette8(new(data, width, height))
+                new KopernicusPalette8(new(data, width, height), wrap)
             ),
             _ => throw new NotSupportedException(
                 $"CPU texture of type {texture.GetType().FullName} is not supported by TextureMapSO"
@@ -393,56 +430,77 @@ public static partial class TextureMapSO
         var height = texture.height;
         var mipCount = texture.mipmapCount;
         var data = texture.GetRawTextureData<byte>();
+        var wrap = texture.wrapMode;
 
         return texture.format switch
         {
             TextureFormat.Alpha8 => BurstMapSO.Create(
-                new Alpha8(new(data, width, height, mipCount))
+                new Alpha8(new(data, width, height, mipCount), wrap)
             ),
             TextureFormat.ARGB32 => BurstMapSO.Create(
-                new ARGB32(new(data, width, height, mipCount))
+                new ARGB32(new(data, width, height, mipCount), wrap)
             ),
             TextureFormat.ARGB4444 => BurstMapSO.Create(
-                new ARGB32(new(data, width, height, mipCount))
+                new ARGB32(new(data, width, height, mipCount), wrap)
             ),
-            TextureFormat.BC4 => BurstMapSO.Create(new BC4(new(data, width, height, mipCount))),
-            TextureFormat.BC5 => BurstMapSO.Create(new BC5(new(data, width, height, mipCount))),
-            TextureFormat.BC6H => BurstMapSO.Create(new BC6H(new(data, width, height, mipCount))),
-            TextureFormat.BC7 => BurstMapSO.Create(new BC7(new(data, width, height, mipCount))),
+            TextureFormat.BC4 => BurstMapSO.Create(
+                new BC4(new(data, width, height, mipCount), wrap)
+            ),
+            TextureFormat.BC5 => BurstMapSO.Create(
+                new BC5(new(data, width, height, mipCount), wrap)
+            ),
+            TextureFormat.BC6H => BurstMapSO.Create(
+                new BC6H(new(data, width, height, mipCount), wrap)
+            ),
+            TextureFormat.BC7 => BurstMapSO.Create(
+                new BC7(new(data, width, height, mipCount), wrap)
+            ),
             TextureFormat.BGRA32 => BurstMapSO.Create(
-                new BGRA32(new(data, width, height, mipCount))
+                new BGRA32(new(data, width, height, mipCount), wrap)
             ),
-            TextureFormat.DXT1 => BurstMapSO.Create(new DXT1(new(data, width, height, mipCount))),
-            TextureFormat.DXT5 => BurstMapSO.Create(new DXT5(new(data, width, height, mipCount))),
-            TextureFormat.R8 => BurstMapSO.Create(new R8(new(data, width, height, mipCount))),
-            TextureFormat.R16 => BurstMapSO.Create(new R16(new(data, width, height, mipCount))),
+            TextureFormat.DXT1 => BurstMapSO.Create(
+                new DXT1(new(data, width, height, mipCount), wrap)
+            ),
+            TextureFormat.DXT5 => BurstMapSO.Create(
+                new DXT5(new(data, width, height, mipCount), wrap)
+            ),
+            TextureFormat.R8 => BurstMapSO.Create(new R8(new(data, width, height, mipCount), wrap)),
+            TextureFormat.R16 => BurstMapSO.Create(
+                new R16(new(data, width, height, mipCount), wrap)
+            ),
             TextureFormat.RFloat => BurstMapSO.Create(
-                new RFloat(new(data, width, height, mipCount))
+                new RFloat(new(data, width, height, mipCount), wrap)
             ),
-            TextureFormat.RG16 => BurstMapSO.Create(new RG16(new(data, width, height, mipCount))),
-            TextureFormat.RGB24 => BurstMapSO.Create(new RGB24(new(data, width, height, mipCount))),
+            TextureFormat.RG16 => BurstMapSO.Create(
+                new RG16(new(data, width, height, mipCount), wrap)
+            ),
+            TextureFormat.RGB24 => BurstMapSO.Create(
+                new RGB24(new(data, width, height, mipCount), wrap)
+            ),
             TextureFormat.RGB565 => BurstMapSO.Create(
-                new RGB565(new(data, width, height, mipCount))
+                new RGB565(new(data, width, height, mipCount), wrap)
             ),
             TextureFormat.RGBA32 => BurstMapSO.Create(
-                new RGBA32(new(data, width, height, mipCount))
+                new RGBA32(new(data, width, height, mipCount), wrap)
             ),
             TextureFormat.RGBA4444 => BurstMapSO.Create(
-                new RGBA4444(new(data, width, height, mipCount))
+                new RGBA4444(new(data, width, height, mipCount), wrap)
             ),
             TextureFormat.RGBAFloat => BurstMapSO.Create(
-                new RGBAFloat(new(data, width, height, mipCount))
+                new RGBAFloat(new(data, width, height, mipCount), wrap)
             ),
             TextureFormat.RGBAHalf => BurstMapSO.Create(
-                new RGBAHalf(new(data, width, height, mipCount))
+                new RGBAHalf(new(data, width, height, mipCount), wrap)
             ),
             TextureFormat.RGFloat => BurstMapSO.Create(
-                new RGFloat(new(data, width, height, mipCount))
+                new RGFloat(new(data, width, height, mipCount), wrap)
             ),
             TextureFormat.RGHalf => BurstMapSO.Create(
-                new RGHalf(new(data, width, height, mipCount))
+                new RGHalf(new(data, width, height, mipCount), wrap)
             ),
-            TextureFormat.RHalf => BurstMapSO.Create(new RHalf(new(data, width, height, mipCount))),
+            TextureFormat.RHalf => BurstMapSO.Create(
+                new RHalf(new(data, width, height, mipCount), wrap)
+            ),
             _ => throw new NotSupportedException(
                 $"texture format {texture.format} is not supported by TextureMapSO"
             ),
