@@ -313,13 +313,15 @@ public class TextureMapSOTests : BurstPQSTestBase
     {
         TestUncompressedVsTexture2D(
             TextureFormat.RGBAFloat,
-            (data, w, h) => new TextureMapSO.RGBAFloat(new CPUTexture2D.RGBAFloat(data, w, h, 1), Wrap),
+            (data, w, h) =>
+                new TextureMapSO.RGBAFloat(new CPUTexture2D.RGBAFloat(data, w, h, 1), Wrap),
             "RGBAFloat",
             0.001f
         );
         TestFormat(
             TextureFormat.RGBAFloat,
-            (data, w, h) => new TextureMapSO.RGBAFloat(new CPUTexture2D.RGBAFloat(data, w, h, 1), Wrap),
+            (data, w, h) =>
+                new TextureMapSO.RGBAFloat(new CPUTexture2D.RGBAFloat(data, w, h, 1), Wrap),
             "RGBAFloat",
             0.001f
         );
@@ -354,7 +356,8 @@ public class TextureMapSOTests : BurstPQSTestBase
     {
         TestFormat(
             TextureFormat.RGBAHalf,
-            (data, w, h) => new TextureMapSO.RGBAHalf(new CPUTexture2D.RGBAHalf(data, w, h, 1), Wrap),
+            (data, w, h) =>
+                new TextureMapSO.RGBAHalf(new CPUTexture2D.RGBAHalf(data, w, h, 1), Wrap),
             "RGBAHalf",
             0.002f
         );
@@ -368,7 +371,8 @@ public class TextureMapSOTests : BurstPQSTestBase
         // 4-bit channels -> 1/15 precision
         TestFormat(
             TextureFormat.RGBA4444,
-            (data, w, h) => new TextureMapSO.RGBA4444(new CPUTexture2D.RGBA4444(data, w, h, 1), Wrap),
+            (data, w, h) =>
+                new TextureMapSO.RGBA4444(new CPUTexture2D.RGBA4444(data, w, h, 1), Wrap),
             "RGBA4444",
             0.07f
         );
@@ -379,7 +383,8 @@ public class TextureMapSOTests : BurstPQSTestBase
     {
         TestFormat(
             TextureFormat.ARGB4444,
-            (data, w, h) => new TextureMapSO.ARGB4444(new CPUTexture2D.ARGB4444(data, w, h, 1), Wrap),
+            (data, w, h) =>
+                new TextureMapSO.ARGB4444(new CPUTexture2D.ARGB4444(data, w, h, 1), Wrap),
             "ARGB4444",
             0.07f
         );

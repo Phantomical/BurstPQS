@@ -37,7 +37,10 @@ public class BurstMapSOWrapperTests : BurstPQSTestBase
     {
         var rawData = MakeRGBA32Data();
         var nativeData = new NativeArray<byte>(rawData, Allocator.Persistent);
-        var inner = new TextureMapSO.RGBA32(new CPUTexture2D.RGBA32(nativeData, W, H, 1), TextureWrapMode.Repeat);
+        var inner = new TextureMapSO.RGBA32(
+            new CPUTexture2D.RGBA32(nativeData, W, H, 1),
+            TextureWrapMode.Repeat
+        );
         return (inner, nativeData);
     }
 
