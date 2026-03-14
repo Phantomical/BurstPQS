@@ -28,7 +28,7 @@ public class DepthInterpretationTests : BurstPQSTestBase
     {
         var bytes = new byte[] { R, G, B, A };
         var data = new NativeArray<byte>(bytes, Allocator.Persistent);
-        return (new TextureMapSO.RGBA32(new CPUTexture2D.RGBA32(data, 1, 1, 1)), data);
+        return (new TextureMapSO.RGBA32(new CPUTexture2D.RGBA32(data, 1, 1, 1), TextureWrapMode.Repeat), data);
     }
 
     // ---- Greyscale depth ----

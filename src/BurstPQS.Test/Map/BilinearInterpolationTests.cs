@@ -39,7 +39,7 @@ public class BilinearInterpolationTests : BurstPQSTestBase
         Write(1, 1, c11);
 
         var nativeData = new NativeArray<byte>(data, Allocator.Persistent);
-        return (new TextureMapSO.RGBA32(new CPUTexture2D.RGBA32(nativeData, 2, 2, 1)), nativeData);
+        return (new TextureMapSO.RGBA32(new CPUTexture2D.RGBA32(nativeData, 2, 2, 1), TextureWrapMode.Repeat), nativeData);
     }
 
     [TestInfo("Bilinear_XWrapping")]
