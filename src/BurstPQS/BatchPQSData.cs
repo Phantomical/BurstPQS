@@ -52,7 +52,7 @@ public unsafe struct BuildHeightsData
     readonly double* _latitude;
 
     [NoAlias]
-    readonly double* _height;
+    readonly double* _vertHeight;
 
     [NoAlias]
     internal Color* _vertColor;
@@ -69,7 +69,7 @@ public unsafe struct BuildHeightsData
         _sy = AllocVertexArray<double>();
         _longitude = AllocVertexArray<double>();
         _latitude = AllocVertexArray<double>();
-        _height = AllocVertexArray<double>();
+        _vertHeight = AllocVertexArray<double>();
         _vertColor = AllocVertexArray<Color>();
     }
 
@@ -90,7 +90,7 @@ public unsafe struct BuildHeightsData
     public readonly MemorySpan<Vector3d> directionFromCenter =>
         CreateNativeArray(_directionFromCenter);
 
-    public readonly MemorySpan<double> vertHeight => CreateNativeArray(_height);
+    public readonly MemorySpan<double> vertHeight => CreateNativeArray(_vertHeight);
     public readonly MemorySpan<Color> vertColor => CreateNativeArray(_vertColor);
 
     public readonly MemorySpan<double> u => CreateNativeArray(_u);
