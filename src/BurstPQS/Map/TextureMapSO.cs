@@ -17,7 +17,7 @@ namespace BurstPQS.Map;
 [BurstCompile(FloatMode = FloatMode.Fast)]
 public static partial class TextureMapSO
 {
-    struct FormatMapSO<T>(T texture) : IMapSO
+    readonly struct FormatMapSO<T>(T texture) : IMapSO
         where T : ICPUTexture2D
     {
         readonly T texture = texture;
@@ -42,27 +42,103 @@ public static partial class TextureMapSO
             return new(c.r, c.a);
         }
 
-        public float GetPixelFloat(float x, float y) => MapSODefaults.GetPixelFloat(ref this, x, y);
+        struct BilinearCoords
+        {
+            public int minX,
+                maxX,
+                minY,
+                maxY;
+            public float midX,
+                midY;
+        }
 
-        public float GetPixelFloat(double x, double y) =>
-            MapSODefaults.GetPixelFloat(ref this, x, y);
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        readonly BilinearCoords ConstructBilinearCoords(float x, float y)
+        {
+            var coords = new float2(x, y);
+            var dims = new int2(texture.Width, texture.Height);
 
-        public Color GetPixelColor(float x, float y) => MapSODefaults.GetPixelColor(ref this, x, y);
+            coords = math.abs(coords - math.floor(coords));
+            var min = (int2)math.floor(coords);
+            var center = coords * dims;
+            var max = (int2)math.ceil(center) % dims;
+            var mid = center - min;
 
-        public Color GetPixelColor(double x, double y) =>
-            MapSODefaults.GetPixelColor(ref this, x, y);
+            return new()
+            {
+                minX = min.x,
+                minY = min.y,
+                maxX = max.x,
+                maxY = max.y,
+                midX = mid.x,
+                midY = mid.y,
+            };
+        }
 
-        public Color32 GetPixelColor32(float x, float y) =>
-            MapSODefaults.GetPixelColor32(ref this, x, y);
+        public float GetPixelFloat(float x, float y)
+        {
+            var c = ConstructBilinearCoords(x, y);
+            return Mathf.Lerp(
+                Mathf.Lerp(GetPixelFloat(c.minX, c.minY), GetPixelFloat(c.maxX, c.minY), c.midX),
+                Mathf.Lerp(GetPixelFloat(c.minX, c.maxY), GetPixelFloat(c.maxX, c.maxY), c.midX),
+                c.midY
+            );
+        }
 
-        public Color32 GetPixelColor32(double x, double y) =>
-            MapSODefaults.GetPixelColor32(ref this, x, y);
+        public float GetPixelFloat(double x, double y) => GetPixelFloat((float)x, (float)y);
 
-        public HeightAlpha GetPixelHeightAlpha(float x, float y) =>
-            MapSODefaults.GetPixelHeightAlpha(ref this, x, y);
+        public Color GetPixelColor(float x, float y)
+        {
+            var c = ConstructBilinearCoords(x, y);
+            return Color.Lerp(
+                Color.Lerp(GetPixelColor(c.minX, c.minY), GetPixelColor(c.maxX, c.minY), c.midX),
+                Color.Lerp(GetPixelColor(c.minX, c.maxY), GetPixelColor(c.maxX, c.maxY), c.midX),
+                c.midY
+            );
+        }
+
+        public Color GetPixelColor(double x, double y) => GetPixelColor((float)x, (float)y);
+
+        public Color32 GetPixelColor32(float x, float y)
+        {
+            var c = ConstructBilinearCoords(x, y);
+            return Color32.Lerp(
+                Color32.Lerp(
+                    GetPixelColor32(c.minX, c.minY),
+                    GetPixelColor32(c.maxX, c.minY),
+                    c.midX
+                ),
+                Color32.Lerp(
+                    GetPixelColor32(c.minX, c.maxY),
+                    GetPixelColor32(c.maxX, c.maxY),
+                    c.midX
+                ),
+                c.midY
+            );
+        }
+
+        public Color32 GetPixelColor32(double x, double y) => GetPixelColor32((float)x, (float)y);
+
+        public HeightAlpha GetPixelHeightAlpha(float x, float y)
+        {
+            var c = ConstructBilinearCoords(x, y);
+            return HeightAlpha.Lerp(
+                HeightAlpha.Lerp(
+                    GetPixelHeightAlpha(c.minX, c.minY),
+                    GetPixelHeightAlpha(c.maxX, c.minY),
+                    c.midX
+                ),
+                HeightAlpha.Lerp(
+                    GetPixelHeightAlpha(c.minX, c.maxY),
+                    GetPixelHeightAlpha(c.maxX, c.maxY),
+                    c.midX
+                ),
+                c.midY
+            );
+        }
 
         public HeightAlpha GetPixelHeightAlpha(double x, double y) =>
-            MapSODefaults.GetPixelHeightAlpha(ref this, x, y);
+            GetPixelHeightAlpha((float)x, (float)y);
     }
 
     [StructInherit(typeof(FormatMapSO<CPUTexture2D.Alpha8>), Name = "mapSO")]

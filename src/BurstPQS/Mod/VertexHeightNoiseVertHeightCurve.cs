@@ -1,5 +1,5 @@
-using BurstPQS.CompilerServices;
 using System;
+using BurstPQS.CompilerServices;
 using BurstPQS.Noise;
 using BurstPQS.Util;
 using Unity.Burst;

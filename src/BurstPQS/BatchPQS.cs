@@ -3,7 +3,9 @@ using System.Collections.Generic;
 using BurstPQS.Jobs;
 using BurstPQS.Patches;
 using BurstPQS.Util;
+using Smooth.Collections;
 using Unity.Collections;
+using Unity.Collections.LowLevel.Unsafe;
 using Unity.Jobs;
 using Unity.Profiling;
 using UnityEngine;
@@ -76,6 +78,7 @@ public class BatchPQS : MonoBehaviour
 
     #region UpdateQuads
     static readonly ProfilerMarker UpdateQuadsMarker = new("UpdateQuads");
+    static readonly ProfilerMarker UpdateTargetRelativityMarker = new("UpdateTargetRelativity");
     static readonly ProfilerMarker UpdateSubdivisionMarker = new("UpdateSubdivision");
     static readonly ProfilerMarker CompleteQueuedBuildsMarker = new("CompleteQueuedBuilds");
     static readonly ProfilerMarker UpdateEdgesMarker = new("UpdateEdges");
@@ -88,15 +91,12 @@ public class BatchPQS : MonoBehaviour
         using var scope = UpdateQuadsMarker.Auto();
 
         pqs.isThinking = true;
-        pqs.maxFrameEnd = Time.realtimeSinceStartup + pqs.maxFrameTime;
 
         SortQuadsByDistance(pqs.quads, pqs.relativeTargetPosition);
 
-        using (UpdateSubdivisionMarker.Auto())
-        {
-            for (int i = 0; i < Mathf.Min(pqs.quads.Length, 5); i++)
-                pqs.quads[i].UpdateSubdivision();
-        }
+        var subdivisionUpdate = new SubdivisionUpdate(pqs, activeQuads);
+        subdivisionUpdate.ScheduleJobs();
+        subdivisionUpdate.Complete();
 
         JobHandle.ScheduleBatchedJobs();
 
@@ -150,6 +150,19 @@ public class BatchPQS : MonoBehaviour
             {
                 build.Complete();
                 quad.isBuilt = true;
+
+                // Apply correct edge stitching immediately after build.
+                // PendingBuild.Complete() always builds with cacheIndices[0] (no stitching)
+                // and resets edgeState to Reset. Stock code fixes this every frame via the
+                // recursive UpdateSubdivision walk, but we use selective UpdateVisibility,
+                // so quads would keep the unstitched triangles until their visibility flips.
+                var newEdgeState = quad.GetEdgeState();
+                if (newEdgeState != quad.edgeState)
+                {
+                    quad.mesh.triangles = PQS.cacheIndices[(int)newEdgeState];
+                    quad.edgeState = newEdgeState;
+                }
+
                 quad.QueueForNormalUpdate();
             }
             finally
@@ -225,6 +238,220 @@ public class BatchPQS : MonoBehaviour
         if (cornerPQ.IsNotNullOrDestroyed())
             BuildDeferred(cornerPQ);
     }
+
+    #region SubdivisionUpdate
+    private readonly List<PQ> activeQuads = new(2048);
+
+    struct SubdivisionUpdate(PQS pqs, List<PQ> activeQuads)
+    {
+        static readonly ProfilerMarker CollectActiveQuadsMarker = new("CollectActiveQuads");
+
+        NativeArray<QuadSnapshot> snapshots;
+        NativeArray<QuadResult> results;
+        NativeArray<SubdivisionAction> actions;
+        NativeList<int> subdivideIndices;
+        NativeList<int> collapseIndices;
+        NativeList<int> onUpdateIndices;
+        NativeQueue<int> visibilityChangedQueue;
+        JobHandle subdivideHandle;
+        JobHandle collapseHandle;
+        JobHandle scatterHandle;
+        JobHandle onUpdateHandle;
+
+        public void ScheduleJobs()
+        {
+            using var scope = UpdateTargetRelativityMarker.Auto();
+
+            if (activeQuads.Count == 0)
+                CollectActiveQuads();
+
+            int count = activeQuads.Count;
+            if (count == 0)
+                return;
+
+            snapshots = new NativeArray<QuadSnapshot>(count, Allocator.TempJob);
+
+            var quadsHandle = new ObjectHandle<List<PQ>>(activeQuads);
+
+            // Job 1: Gather managed PQ fields into NativeArray<QuadSnapshot>
+            var gatherHandle = new GatherQuadDataJob
+            {
+                quads = quadsHandle,
+                snapshots = snapshots,
+            }.ScheduleBatch(count, 32);
+            JobHandle.ScheduleBatchedJobs();
+
+            quadsHandle.Dispose(gatherHandle);
+
+            results = new NativeArray<QuadResult>(count, Allocator.TempJob);
+            actions = new NativeArray<SubdivisionAction>(count, Allocator.TempJob);
+            onUpdateIndices = new NativeList<int>(64, Allocator.TempJob);
+            visibilityChangedQueue = new NativeQueue<int>(Allocator.TempJob);
+
+            // Copy threshold arrays into NativeArrays for Burst access
+            var subdivThresholds = new NativeArray<double>(
+                pqs.subdivisionThresholds,
+                Allocator.TempJob
+            );
+            var collapseThresholds = new NativeArray<double>(
+                pqs.collapseThresholds,
+                Allocator.TempJob
+            );
+
+            var pos = pqs.relativeTargetPositionNormalized;
+
+            // Job 2: Burst-compiled computation of gcd1, gcDist, actions, visibility
+            var computeHandle = new ComputeSubdivisionJob
+            {
+                relativeTargetPositionNormalized = new Unity.Mathematics.double3(
+                    pos.x,
+                    pos.y,
+                    pos.z
+                ),
+                radius = pqs.radius,
+                absTargetHeight = Math.Abs(pqs.targetHeight),
+                subdivisionThresholds = subdivThresholds,
+                collapseThresholds = collapseThresholds,
+                maxLevel = pqs.maxLevel,
+                minLevel = pqs.minLevel,
+                maxLevelAtCurrentTgtSpeed = pqs.maxLevelAtCurrentTgtSpeed,
+                visibleRadius = pqs.visibleRadius,
+                snapshots = snapshots,
+                actions = actions,
+                results = results,
+                visibilityChangedQueue = visibilityChangedQueue.AsParallelWriter(),
+            }.ScheduleBatch(count, 128, gatherHandle);
+
+            // Job 3: Scatter gcd1/gcDist back to managed PQ objects
+            var scatterQuadsHandle = new ObjectHandle<List<PQ>>(activeQuads);
+            scatterHandle = new ScatterQuadResultsJob
+            {
+                quads = scatterQuadsHandle,
+                results = results,
+            }.ScheduleBatch(activeQuads.Count, 32, computeHandle);
+
+            // Job 4: Collect indices of quads with onUpdate delegates (Burst, parallel with scatter)
+            onUpdateHandle = new CollectOnUpdateJob
+            {
+                snapshots = snapshots,
+                onUpdateIndices = onUpdateIndices,
+            }.Schedule(gatherHandle);
+
+            // Job 5-6: Collect subdivide/collapse indices (Burst, parallel with scatter/onUpdate)
+            subdivideIndices = new NativeList<int>(64, Allocator.TempJob);
+            collapseIndices = new NativeList<int>(64, Allocator.TempJob);
+
+            subdivideHandle = new CollectActionsJob
+            {
+                actions = actions,
+                target = SubdivisionAction.Subdivide,
+                indices = subdivideIndices,
+            }.Schedule(computeHandle);
+            collapseHandle = new CollectActionsJob
+            {
+                actions = actions,
+                target = SubdivisionAction.Collapse,
+                indices = collapseIndices,
+            }.Schedule(computeHandle);
+
+            scatterQuadsHandle.Dispose(scatterHandle);
+            subdivThresholds.Dispose(computeHandle);
+            collapseThresholds.Dispose(computeHandle);
+            JobHandle.ScheduleBatchedJobs();
+        }
+
+        public void Complete()
+        {
+            using var scope = UpdateSubdivisionMarker.Auto();
+            using var snapshotsGuard = snapshots;
+            using var resultsGuard = results;
+            using var actionsGuard = actions;
+            using var subdivideGuard = subdivideIndices;
+            using var collapseGuard = collapseIndices;
+            using var onUpdateGuard = onUpdateIndices;
+            using var visibilityGuard = visibilityChangedQueue;
+
+            subdivideHandle.Complete();
+            // Subdivide closest-first (ascending index order from DFS collection)
+            for (int i = 0; i < subdivideIndices.Length; i++)
+                activeQuads[subdivideIndices[i]].Subdivide();
+
+            collapseHandle.Complete();
+            // Collapse farthest-first (reverse order for bottom-up)
+            for (int i = collapseIndices.Length - 1; i >= 0; i--)
+                activeQuads[collapseIndices[i]].Collapse();
+
+            bool modified = subdivideIndices.Length != 0 || collapseIndices.Length != 0;
+            if (modified)
+            {
+                // Tree structure changed — edge states may have changed for neighbors,
+                // so we must call UpdateVisibility on all leaf quads to fix T-junctions.
+                for (int i = 0; i < activeQuads.Count; i++)
+                {
+                    var q = activeQuads[i];
+                    if (q.IsNotNullOrDestroyed() && q.isActive && !q.isSubdivided)
+                        q.UpdateVisibility();
+                }
+            }
+            else
+            {
+                // No tree changes — only update quads whose visibility actually flipped.
+                // Edge stitching is stable since no subdivision levels changed.
+                while (visibilityChangedQueue.TryDequeue(out int idx))
+                {
+                    var q = activeQuads[idx];
+                    if (q.IsNotNullOrDestroyed() && q.isActive && !q.isSubdivided)
+                        q.UpdateVisibility();
+                }
+            }
+
+            // Fire onUpdate delegates
+            onUpdateHandle.Complete();
+            for (int i = 0; i < onUpdateIndices.Length; i++)
+            {
+                var q = activeQuads[onUpdateIndices[i]];
+                if (q.IsNotNullOrDestroyed() && q.isActive)
+                    q.onUpdate?.Invoke(q);
+            }
+
+            // Ensure scatter job has finished writing gcd1/gcDist before returning
+            scatterHandle.Complete();
+
+            // Force re-collection next frame if the tree changed
+            if (modified)
+                activeQuads.Clear();
+        }
+
+        void CollectActiveQuads()
+        {
+            using var scope = CollectActiveQuadsMarker.Auto();
+
+            foreach (var quad in pqs.quads)
+            {
+                if (quad.IsNullOrDestroyed() || !quad.isActive)
+                    continue;
+
+                activeQuads.Add(quad);
+            }
+
+            for (int i = 0; i < activeQuads.Count; ++i)
+            {
+                var quad = activeQuads[i];
+
+                if (!quad.isSubdivided)
+                    continue;
+
+                foreach (var subnode in quad.subNodes)
+                {
+                    if (subnode.IsNullOrDestroyed() || !subnode.isActive)
+                        continue;
+
+                    activeQuads.Add(subnode);
+                }
+            }
+        }
+    }
+    #endregion
 
     static void SortQuadsByDistance(PQ[] quads, Vector3d relativeTargetPosition)
     {

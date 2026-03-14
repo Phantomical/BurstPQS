@@ -90,10 +90,7 @@ public class BC7DecoderTests : BurstPQSTestBase
     static (TextureMapSO.BC7 bc7, NativeArray<byte> nativeData) MakeBC7(byte[] block)
     {
         var native = new NativeArray<byte>(block, Allocator.Persistent);
-        return (
-            new TextureMapSO.BC7(new CPUTexture2D.BC7(native, 4, 4, 1)),
-            native
-        );
+        return (new TextureMapSO.BC7(new CPUTexture2D.BC7(native, 4, 4, 1)), native);
     }
 
     void AssertBC7Pixel(
