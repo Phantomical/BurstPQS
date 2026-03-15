@@ -1,5 +1,10 @@
+using System;
+using BurstPQS.Util;
+using Unity.Burst;
+
 namespace BurstPQS.Mod;
 
+[BurstCompile]
 [BatchPQSMod(typeof(PQSROCControl))]
 public class ROCControl(PQSROCControl mod) : BatchPQSMod<PQSROCControl>(mod)
 {
@@ -7,12 +12,13 @@ public class ROCControl(PQSROCControl mod) : BatchPQSMod<PQSROCControl>(mod)
     {
         base.OnQuadPreBuild(quad, jobSet);
 
-        jobSet.Add(new BuildJob { mod = mod, rocsActive = mod.rocsActive });
+        jobSet.Add(new BuildJob { mod = new(mod), rocsActive = mod.rocsActive });
     }
 
-    struct BuildJob : IBatchPQSVertexJob, IBatchPQSMeshBuiltJob
+    [BurstCompile]
+    struct BuildJob : IBatchPQSVertexJob, IBatchPQSMeshBuiltJob, IDisposable
     {
-        public PQSROCControl mod;
+        public ObjectHandle<PQSROCControl> mod;
         public bool rocsActive;
         bool allowROCScatter;
 
@@ -23,6 +29,8 @@ public class ROCControl(PQSROCControl mod) : BatchPQSMod<PQSROCControl>(mod)
 
         public void OnMeshBuilt(PQ quad)
         {
+            var mod = this.mod.Target;
+
             mod.allowROCScatter = allowROCScatter;
 
             // Restore rocsActive so stock OnQuadBuilt sees the value set by
@@ -31,6 +39,11 @@ public class ROCControl(PQSROCControl mod) : BatchPQSMod<PQSROCControl>(mod)
             // quad's stock OnQuadBuilt resets rocsActive to false, causing
             // subsequent quads to skip ROC spawning.
             mod.rocsActive = rocsActive;
+        }
+
+        public void Dispose()
+        {
+            mod.Dispose();
         }
     }
 }
