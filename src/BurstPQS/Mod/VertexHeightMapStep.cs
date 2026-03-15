@@ -1,7 +1,10 @@
-using UnityEngine;
+using System;
+using BurstPQS.Map;
+using Unity.Burst;
 
 namespace BurstPQS.Mod;
 
+[BurstCompile]
 [BatchPQSMod(typeof(PQSMod_VertexHeightMapStep))]
 public class VertexHeightMapStep(PQSMod_VertexHeightMapStep mod)
     : BatchPQSMod<PQSMod_VertexHeightMapStep>(mod)
@@ -13,7 +16,7 @@ public class VertexHeightMapStep(PQSMod_VertexHeightMapStep mod)
         jobSet.Add(
             new BuildJob
             {
-                heightMap = mod.heightMap,
+                heightMap = TextureMapSO.Create(mod.heightMap),
                 coastHeight = mod.coastHeight,
                 heightMapOffset = mod.heightMapOffset,
                 heightDeformity = mod.heightDeformity,
@@ -21,9 +24,10 @@ public class VertexHeightMapStep(PQSMod_VertexHeightMapStep mod)
         );
     }
 
-    struct BuildJob : IBatchPQSHeightJob
+    [BurstCompile]
+    struct BuildJob : IBatchPQSHeightJob, IDisposable
     {
-        public Texture2D heightMap;
+        public BurstMapSO heightMap;
         public double coastHeight;
         public double heightMapOffset;
         public double heightDeformity;
@@ -32,14 +36,17 @@ public class VertexHeightMapStep(PQSMod_VertexHeightMapStep mod)
         {
             for (int i = 0; i < data.VertexCount; ++i)
             {
-                double h = heightMap
-                    .GetPixelBilinear((float)data.sx[i], (float)data.sy[i])
-                    .grayscale;
+                double h = heightMap.GetPixelColor((float)data.sx[i], (float)data.sy[i]).grayscale;
                 if (h >= coastHeight)
                     data.vertHeight[i] += heightMapOffset + h * heightDeformity;
                 else
                     data.vertHeight[i] += heightMapOffset;
             }
+        }
+
+        public void Dispose()
+        {
+            heightMap.Dispose();
         }
     }
 }
