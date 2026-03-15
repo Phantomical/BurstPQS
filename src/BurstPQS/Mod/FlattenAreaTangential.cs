@@ -15,7 +15,12 @@ public class FlattenAreaTangential(PQSMod_FlattenAreaTangential mod)
         base.OnQuadPreBuild(quad, jobSet);
 
         if (!mod.quadActive)
+        {
+            // Reset stock mod state to match what OnQuadBuilt would set. See
+            // MapDecalTangent.OnQuadPreBuild for the full explanation.
+            mod.quadActive = true;
             return;
+        }
 
         jobSet.Add(
             new BuildJob
