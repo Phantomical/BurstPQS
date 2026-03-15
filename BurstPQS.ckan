@@ -2,17 +2,19 @@
 
 tags:
   - plugin
-  - physics
 
 depends:
   - name: ModuleManager
     min_version: 4.2.3
   - name: Harmony2
     min_version: 2.2.1
+  - name: Kopernicus
+    min_version: release-1.12.1-241
+  - name: KSPTextureLoader
+    min_version: 1.0.29
+  - name: KSPBurst
+    min_version: 1.5.5.2
 
-suggests:
-  - name: BackgroundResourceProcessing
-    min_version: 0.2.0
-
-conflicts:
-  - name: PersistentThrust
+recommends:
+  - name: KSPBurst-Full
+    min_version: 1.5.5.2

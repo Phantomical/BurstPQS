@@ -18,6 +18,8 @@ It also makes a whole bunch of optimizations to other parts of the PQS code,
 add up to make regular no-change frame updates about twice as fast.
 
 ## Dependencies
+* [ModuleManager](https://forum.kerbalspaceprogram.com/topic/50533-18x-112x-module-manager-423-july-03th-2023-fireworks-season/)
+* [HarmonyKSP](https://github.com/KSPModdingLibs/HarmonyKSP)
 * [Kopernicus](https://github.com/Kopernicus/Kopernicus)
 * [KSPTextureLoader](https://github.com/Phantomical/KSPTextureLoader)
 * [KSPBurst](https://github.com/KSPModdingLibs/KSPBurst)
