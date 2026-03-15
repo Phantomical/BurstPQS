@@ -239,6 +239,8 @@ public class BatchPQS : MonoBehaviour
             BuildDeferred(cornerPQ);
     }
 
+    internal void ClearActiveQuads() => activeQuads.Clear();
+
     #region SubdivisionUpdate
     private readonly List<PQ> activeQuads = new(2048);
 

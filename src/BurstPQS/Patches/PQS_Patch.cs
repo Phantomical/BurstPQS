@@ -22,6 +22,17 @@ internal static class PQS_SetupMods_Patch
     }
 }
 
+[HarmonyPatch(typeof(PQS), nameof(PQS.StartSphere))]
+internal static class PQS_StartSphere_Patch
+{
+    static void Prefix(PQS __instance)
+    {
+        var batchPQS = __instance.GetComponent<BatchPQS>();
+        if (batchPQS != null)
+            batchPQS.ClearActiveQuads();
+    }
+}
+
 [HarmonyPatch(typeof(PQS), nameof(PQS.BuildQuad))]
 [HarmonyPriority(Priority.VeryLow)]
 internal static class PQS_BuildQuad_Patch
