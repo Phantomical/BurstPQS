@@ -246,6 +246,9 @@ public class BatchPQS : MonoBehaviour
     {
         static readonly ProfilerMarker CollectActiveQuadsMarker = new("CollectActiveQuads");
 
+        readonly PQS pqs = pqs;
+        readonly List<PQ> activeQuads = activeQuads;
+
         NativeArray<QuadSnapshot> snapshots;
         NativeArray<QuadResult> results;
         NativeArray<SubdivisionAction> actions;
