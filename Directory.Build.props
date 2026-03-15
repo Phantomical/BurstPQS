@@ -3,7 +3,7 @@
 <Project ToolsVersion="Current" xmlns="http://schemas.microsoft.com/developer/msbuild/2003">
     <PropertyGroup>
         <!-- The version used for all libraries in this project. -->
-        <Version>0.1.0</Version>
+        <Version>0.1.1</Version>
 
         <TargetFramework>net481</TargetFramework>
         <LangVersion>preview</LangVersion>
