@@ -3,9 +3,7 @@ using System.Collections.Generic;
 using BurstPQS.Jobs;
 using BurstPQS.Patches;
 using BurstPQS.Util;
-using Smooth.Collections;
 using Unity.Collections;
-using Unity.Collections.LowLevel.Unsafe;
 using Unity.Jobs;
 using Unity.Profiling;
 using UnityEngine;
@@ -303,15 +301,11 @@ public class BatchPQS : MonoBehaviour
                 Allocator.TempJob
             );
 
-            var pos = pqs.relativeTargetPositionNormalized;
-
             // Job 2: Burst-compiled computation of gcd1, gcDist, actions, visibility
             var computeHandle = new ComputeSubdivisionJob
             {
-                relativeTargetPositionNormalized = new Unity.Mathematics.double3(
-                    pos.x,
-                    pos.y,
-                    pos.z
+                relativeTargetPositionNormalized = BurstUtil.ConvertVector(
+                    pqs.relativeTargetPositionNormalized
                 ),
                 radius = pqs.radius,
                 absTargetHeight = Math.Abs(pqs.targetHeight),
