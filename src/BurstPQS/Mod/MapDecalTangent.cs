@@ -24,6 +24,15 @@ public class MapDecalTangent(PQSMod_MapDecalTangent mod) : BatchPQSMod<PQSMod_Ma
             colorMap = BurstMapSO.Create(mod.colorMap);
 
         jobSet.Add(new BuildJob(mod) { heightMap = heightMap, colorMap = colorMap });
+
+        // Reset stock mod state to match what OnQuadBuilt would set. The
+        // BuildJob has already captured quadActive/buildHeight, so the batch
+        // build is unaffected. Without this, deferred builds leave the stock
+        // mod with quadActive=false/buildHeight=true, which causes the stock
+        // OnVertexBuildHeight to early-return when GetSurfaceHeight is called
+        // (e.g. by PQSCity.Orientate for static placement).
+        mod.quadActive = true;
+        mod.buildHeight = false;
     }
 
     [BurstCompile]

@@ -25,6 +25,11 @@ public class MapDecal(PQSMod_MapDecal mod) : BatchPQSMod<PQSMod_MapDecal>(mod)
             colorMap = BurstMapSO.Create(mod.colorMap);
 
         jobSet.Add(new BuildJob(mod) { heightMap = heightMap, colorMap = colorMap });
+
+        // Reset stock mod state to match what OnQuadBuilt would set. See
+        // MapDecalTangent.OnQuadPreBuild for the full explanation.
+        mod.quadActive = true;
+        mod.buildHeight = false;
     }
 
     [BurstCompile]
