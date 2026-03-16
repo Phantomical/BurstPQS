@@ -699,6 +699,12 @@ public unsafe struct BurstMapSO : IMapSO, IDisposable
         return factory(mapSO);
     }
 
+    /// <summary>
+    /// Returns <see langword="true"/> if the given <see cref="MapSO"/> instance's type has a
+    /// registered factory function and can be used with <see cref="Create(MapSO)"/>.
+    /// </summary>
+    public static bool IsSupported(MapSO mapSO) => BurstMapSORegistry.IsSupported(mapSO);
+
     public static void RegisterMapSOFactoryFunc<TMapSO>(Func<TMapSO, BurstMapSO> func)
         where TMapSO : MapSO
     {
@@ -958,6 +964,8 @@ internal class BurstMapSORegistry
 
         Registry.Add(typeof(TMapSO), mapSO => func((TMapSO)mapSO));
     }
+
+    internal static bool IsSupported(MapSO mapSO) => Registry.ContainsKey(mapSO.GetType());
 
     internal static Func<MapSO, BurstMapSO> GetFactoryFunc(MapSO mapSO)
     {
