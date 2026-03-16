@@ -862,7 +862,7 @@ public unsafe struct BurstMapSO : IMapSO, IDisposable
     public Color32 GetPixelColor32(float x, float y)
     {
         if (!IsValid)
-            return default;
+            return new Color32(0, 0, 0, 255);
 
         Color32 result;
         if (BurstUtil.IsBurstCompiled)
@@ -880,7 +880,7 @@ public unsafe struct BurstMapSO : IMapSO, IDisposable
     public Color32 GetPixelColor32(double x, double y)
     {
         if (!IsValid)
-            return default;
+            return new Color32(0, 0, 0, 255);
 
         Color32 result;
         if (BurstUtil.IsBurstCompiled)
@@ -959,7 +959,7 @@ internal class BurstMapSORegistry
     {
         if (Registry.ContainsKey(typeof(TMapSO)))
             throw new Exception(
-                $"there is already a BurstMapSO function registered for type `{typeof(TMapSO).Name}"
+                $"there is already a BurstMapSO function registered for type `{typeof(TMapSO).FullName}"
             );
 
         Registry.Add(typeof(TMapSO), mapSO => func((TMapSO)mapSO));
@@ -972,7 +972,7 @@ internal class BurstMapSORegistry
         if (!Registry.TryGetValue(mapSO.GetType(), out var func))
         {
             Debug.LogError(
-                $"No BurstMapSO factory function registered for MapSO type {mapSO.GetType().Name}"
+                $"No BurstMapSO factory function registered for MapSO type {mapSO.GetType().FullName}"
             );
             return CreateEmptyMapSO;
         }
