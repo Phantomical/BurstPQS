@@ -1,5 +1,7 @@
 using System;
 using System.Collections.Generic;
+using BurstPQS.Map;
+using BurstPQS.Util;
 using UnityEngine;
 
 namespace BurstPQS;
@@ -151,6 +153,20 @@ public abstract class BatchPQSMod<T>(T mod) : BatchPQSMod
     public T Mod => mod;
 
     /// <summary>
+    /// Called during BatchPQS setup. You can throw a <see cref="UnsupportedPQSModException"/>
+    /// to indicate that this BatchPQS adapter does not support the provided PQSMod.
+    /// </summary>
+    ///
+    /// <remarks>
+    /// By default this calls <see cref="ValidateMapSOsAreSupported()"/>. If you don't want
+    /// that then override this method and do your own validation.
+    /// </remarks>
+    public override void OnSetup()
+    {
+        ValidateMapSOsAreSupported();
+    }
+
+    /// <summary>
     /// Called before a <see cref="PQ" /> quad is built. Add jobs that you want
     /// to have executed to <paramref name="jobSet"/>.
     /// </summary>
@@ -164,6 +180,19 @@ public abstract class BatchPQSMod<T>(T mod) : BatchPQSMod
     /// </summary>
     /// <param name="quad"></param>
     public override void OnQuadBuilt(PQ quad) => mod.OnQuadBuilt(quad);
+
+    /// <summary>
+    /// Checks that all <see cref="MapSO"/>s contained within <see cref="Mod"/> are
+    /// compatible with BurstPQS.
+    /// </summary>
+    /// <throws>
+    /// An <see cref="UnsupportedPQSModException"/> if any MapSO contained within
+    /// cannot be used with <see cref="BurstMapSO"/>.
+    /// </throws>
+    protected void ValidateMapSOsAreSupported()
+    {
+        MapSOValidator.Validate(mod);
+    }
 
     public override string ToString()
     {
