@@ -7,6 +7,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## Unreleased
 
+## v0.1.3
+### Fixed
+* Some PQSMods were not burst-compiled. All of these cases have been fixed.
+
+### Changed
+* Added a some more documentation for public API items.
+
 ## v0.1.2
 ### Changed
 * Turns out MM was actually necessary.
