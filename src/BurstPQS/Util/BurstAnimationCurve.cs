@@ -6,6 +6,15 @@ using UnityEngine;
 
 namespace BurstPQS.Util;
 
+/// <summary>
+/// A burst-compatible equivalent to <see cref="AnimationCurve"/>.
+/// </summary>
+///
+/// <remarks>
+/// Be aware that every time you construct this type it needs to make a new
+/// allocation. This is expensive so you should prefer to create it once and
+/// keep it around rather than recreating it every time.
+/// </remarks>
 public struct BurstAnimationCurve : IDisposable
 {
     public readonly struct Guard : IDisposable
