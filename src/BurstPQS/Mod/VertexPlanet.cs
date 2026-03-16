@@ -1,16 +1,13 @@
 using System;
 using BurstPQS.Collections;
 using BurstPQS.Noise;
-using BurstPQS.Util;
 using Unity.Burst;
 using Unity.Collections;
 using UnityEngine;
 
 namespace BurstPQS.Mod;
 
-// Burst compilation seems to break this. Instead of trying to figure it out we
-// just avoid burst compiling it altogether.
-// [BurstCompile]
+[BurstCompile]
 [BatchPQSMod(typeof(PQSMod_VertexPlanet))]
 public class VertexPlanet(PQSMod_VertexPlanet mod) : BatchPQSMod<PQSMod_VertexPlanet>(mod)
 {
@@ -204,7 +201,7 @@ public class VertexPlanet(PQSMod_VertexPlanet mod) : BatchPQSMod<PQSMod_VertexPl
                     vHeight = continentialHeight;
                 }
 
-                data.vertHeight[i] += Math.Round(vHeight, 5) * deformity;
+                data.vertHeight[i] += Math.Round(vHeight * 1e5) * 1e-5 * deformity;
                 preSmoothHeights[i] = continentialHeightPreSmooth;
             }
         }
