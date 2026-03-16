@@ -60,7 +60,7 @@ internal static class BurstException
     }
 
     [MethodImpl(MethodImplOptions.NoInlining)]
-    [IgnoreWarning(1310)]
+    [IgnoreWarning(1370)]
     static void ThrowIndexOutOfRangeImpl()
     {
 #if CRASH_ON_EXCEPTION
@@ -83,7 +83,7 @@ internal static class BurstException
     }
 
     [MethodImpl(MethodImplOptions.NoInlining)]
-    [IgnoreWarning(1310)]
+    [IgnoreWarning(1370)]
     static void ThrowArgumentOutOfRangeImpl()
     {
 #if CRASH_ON_EXCEPTION
