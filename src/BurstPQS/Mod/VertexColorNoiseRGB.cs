@@ -23,13 +23,13 @@ public partial class VertexColorNoiseRGB(PQSMod_VertexColorNoiseRGB mod)
         };
 
         if (mod.noiseMap is LibNoise.Perlin perlin)
-            jobSet.Add(new PerlinJob { noise = new(perlin), blend = blend });
+            jobSet.Add(new PerlinJob(new(perlin), blend));
         else if (mod.noiseMap is LibNoise.RidgedMultifractal multi)
-            jobSet.Add(new RidgedMultifractalJob { noise = new(multi), blend = blend });
+            jobSet.Add(new RidgedMultifractalJob(new(multi), blend));
         else if (mod.noiseMap is LibNoise.Billow billow)
-            jobSet.Add(new BillowJob { noise = new(billow), blend = blend });
+            jobSet.Add(new BillowJob(new(billow), blend));
         else
-            jobSet.Add(new FallbackJob { noise = mod.noiseMap, blend = blend });
+            jobSet.Add(new FallbackJob(mod.noiseMap, blend));
     }
 
     struct Blends
@@ -40,11 +40,11 @@ public partial class VertexColorNoiseRGB(PQSMod_VertexColorNoiseRGB mod)
         public float total;
     }
 
-    struct BuildVerticesBase<N>
+    struct BuildVerticesBase<N>(N noise, Blends blend)
         where N : IModule
     {
-        public N noise;
-        public Blends blend;
+        public N noise = noise;
+        public Blends blend = blend;
 
         public readonly void BuildVertices(in BuildVerticesData data)
         {
@@ -57,15 +57,15 @@ public partial class VertexColorNoiseRGB(PQSMod_VertexColorNoiseRGB mod)
         }
     }
 
-    // [BurstCompile]
+    [BurstCompile]
     [StructInherit(typeof(BuildVerticesBase<BurstPerlin>))]
     partial struct PerlinJob : IBatchPQSVertexJob { }
 
-    // [BurstCompile]
+    [BurstCompile]
     [StructInherit(typeof(BuildVerticesBase<BurstRidgedMultifractal>))]
     partial struct RidgedMultifractalJob : IBatchPQSVertexJob { }
 
-    // [BurstCompile]
+    [BurstCompile]
     [StructInherit(typeof(BuildVerticesBase<BurstBillow>))]
     partial struct BillowJob : IBatchPQSVertexJob { }
 

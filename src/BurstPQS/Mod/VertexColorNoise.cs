@@ -6,6 +6,7 @@ using IModule = LibNoise.IModule;
 
 namespace BurstPQS.Mod;
 
+[BurstCompile]
 [BatchPQSMod(typeof(PQSMod_VertexColorNoise))]
 public partial class VertexColorNoise(PQSMod_VertexColorNoise mod)
     : BatchPQSMod<PQSMod_VertexColorNoise>(mod)
@@ -15,20 +16,20 @@ public partial class VertexColorNoise(PQSMod_VertexColorNoise mod)
         base.OnQuadPreBuild(quad, jobSet);
 
         if (mod.noiseMap is LibNoise.Perlin perlin)
-            jobSet.Add(new PerlinJob { noise = new(perlin), blend = mod.blend });
+            jobSet.Add(new PerlinJob(new(perlin), mod.blend));
         else if (mod.noiseMap is LibNoise.RidgedMultifractal multi)
-            jobSet.Add(new RidgedMultifractalJob { noise = new(multi), blend = mod.blend });
+            jobSet.Add(new RidgedMultifractalJob(new(multi), mod.blend));
         else if (mod.noiseMap is LibNoise.Billow billow)
-            jobSet.Add(new BillowJob { noise = new(billow), blend = mod.blend });
+            jobSet.Add(new BillowJob(new(billow), mod.blend));
         else
-            jobSet.Add(new FallbackJob { noise = mod.noiseMap, blend = mod.blend });
+            jobSet.Add(new FallbackJob(mod.noiseMap, mod.blend));
     }
 
-    struct BuildVerticesBase<N>
+    struct BuildVerticesBase<N>(N noise, float blend)
         where N : IModule
     {
-        public N noise;
-        public float blend;
+        public N noise = noise;
+        public float blend = blend;
 
         public readonly void BuildVertices(in BuildVerticesData data)
         {
@@ -41,15 +42,15 @@ public partial class VertexColorNoise(PQSMod_VertexColorNoise mod)
         }
     }
 
-    // [BurstCompile]
+    [BurstCompile]
     [StructInherit(typeof(BuildVerticesBase<BurstPerlin>))]
     partial struct PerlinJob : IBatchPQSVertexJob { }
 
-    // [BurstCompile]
+    [BurstCompile]
     [StructInherit(typeof(BuildVerticesBase<BurstRidgedMultifractal>))]
     partial struct RidgedMultifractalJob : IBatchPQSVertexJob { }
 
-    // [BurstCompile]
+    [BurstCompile]
     [StructInherit(typeof(BuildVerticesBase<BurstBillow>))]
     partial struct BillowJob : IBatchPQSVertexJob { }
 
