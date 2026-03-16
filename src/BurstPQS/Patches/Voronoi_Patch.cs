@@ -1,4 +1,5 @@
 using BurstPQS.Noise;
+using BurstPQS.Util;
 using HarmonyLib;
 using Unity.Burst;
 
@@ -11,9 +12,9 @@ internal static unsafe class Voronoi_GetValue_Patch
 {
     delegate double GetValueDelegate(BurstVoronoi* noise, double x, double y, double z);
 
-    static readonly GetValueDelegate GetValueFp = BurstCompiler
-        .CompileFunctionPointer<GetValueDelegate>(GetValue)
-        .Invoke;
+    static readonly GetValueDelegate GetValueFp = BurstUtil.MaybeCompileDelegate<GetValueDelegate>(
+        GetValue
+    );
 
     static bool Prefix(
         LibNoise.Voronoi __instance,
