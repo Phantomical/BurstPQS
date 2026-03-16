@@ -6,6 +6,7 @@ using IModule = LibNoise.IModule;
 
 namespace BurstPQS.Mod;
 
+[BurstCompile]
 [BatchPQSMod(typeof(PQSMod_VertexHeightNoiseHeightMap))]
 public class VertexHeightNoiseHeightMap(PQSMod_VertexHeightNoiseHeightMap mod)
     : BatchPQSMod<PQSMod_VertexHeightNoiseHeightMap>(mod)
@@ -99,7 +100,7 @@ public class VertexHeightNoiseHeightMap(PQSMod_VertexHeightNoiseHeightMap mod)
         }
     }
 
-    // [BurstCompile]
+    [BurstCompile]
     struct BuildJobPerlin : IBatchPQSHeightJob
     {
         public BurstMapSO heightMap;
@@ -121,6 +122,7 @@ public class VertexHeightNoiseHeightMap(PQSMod_VertexHeightNoiseHeightMap mod)
             );
     }
 
+    [BurstCompile]
     struct BuildJobRidgedMultifractal : IBatchPQSHeightJob
     {
         public BurstMapSO heightMap;
@@ -142,6 +144,7 @@ public class VertexHeightNoiseHeightMap(PQSMod_VertexHeightNoiseHeightMap mod)
             );
     }
 
+    [BurstCompile]
     struct BuildJobBillow : IBatchPQSHeightJob
     {
         public BurstMapSO heightMap;

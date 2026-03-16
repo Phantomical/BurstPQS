@@ -7,7 +7,7 @@ using IModule = LibNoise.IModule;
 
 namespace BurstPQS.Mod;
 
-// [BurstCompile]
+[BurstCompile]
 [BatchPQSMod(typeof(PQSMod_VertexHeightNoiseVertHeightCurve))]
 public partial class VertexHeightNoiseVertHeightCurve(PQSMod_VertexHeightNoiseVertHeightCurve mod)
     : BatchPQSMod<PQSMod_VertexHeightNoiseVertHeightCurve>(mod)
@@ -103,15 +103,15 @@ public partial class VertexHeightNoiseVertHeightCurve(PQSMod_VertexHeightNoiseVe
         public void Dispose() => curve.Dispose();
     }
 
-    // [BurstCompile]
+    [BurstCompile]
     [StructInherit(typeof(BuildHeightsBase<BurstPerlin>))]
     partial struct BuildHeightsPerlinJob : IBatchPQSHeightJob, IDisposable { }
 
-    // [BurstCompile]
+    [BurstCompile]
     [StructInherit(typeof(BuildHeightsBase<BurstRidgedMultifractal>))]
     partial struct BuildHeightsRidgedMultifractalJob : IBatchPQSHeightJob, IDisposable { }
 
-    // [BurstCompile]
+    [BurstCompile]
     [StructInherit(typeof(BuildHeightsBase<BurstBillow>))]
     partial struct BuildHeightsBillowJob : IBatchPQSHeightJob, IDisposable { }
 
