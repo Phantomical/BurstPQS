@@ -657,11 +657,27 @@ public class BatchPQS : MonoBehaviour
             return true;
         }
 
-        static readonly List<VertexAttributeDescriptor> AttrList = [];
-        static readonly VertexAttributeDescriptor[][] AttrArrays =
+        static readonly VertexAttributeDescriptor[] AttrWithoutTangent =
         [
-            new VertexAttributeDescriptor[7],
-            new VertexAttributeDescriptor[8],
+            new(VertexAttribute.Position, VertexAttributeFormat.Float32, 3, 0),
+            new(VertexAttribute.Normal, VertexAttributeFormat.Float32, 3, 1),
+            new(VertexAttribute.Color, VertexAttributeFormat.Float32, 4, 0),
+            new(VertexAttribute.TexCoord0, VertexAttributeFormat.Float32, 2, 0),
+            new(VertexAttribute.TexCoord1, VertexAttributeFormat.Float32, 2, 0),
+            new(VertexAttribute.TexCoord2, VertexAttributeFormat.Float32, 2, 0),
+            new(VertexAttribute.TexCoord3, VertexAttributeFormat.Float32, 2, 0),
+        ];
+
+        static readonly VertexAttributeDescriptor[] AttrWithTangent =
+        [
+            new(VertexAttribute.Position, VertexAttributeFormat.Float32, 3, 0),
+            new(VertexAttribute.Normal, VertexAttributeFormat.Float32, 3, 1),
+            new(VertexAttribute.Tangent, VertexAttributeFormat.Float32, 4, 2),
+            new(VertexAttribute.Color, VertexAttributeFormat.Float32, 4, 0),
+            new(VertexAttribute.TexCoord0, VertexAttributeFormat.Float32, 2, 0),
+            new(VertexAttribute.TexCoord1, VertexAttributeFormat.Float32, 2, 0),
+            new(VertexAttribute.TexCoord2, VertexAttributeFormat.Float32, 2, 0),
+            new(VertexAttribute.TexCoord3, VertexAttributeFormat.Float32, 2, 0),
         ];
 
         public void Complete()
@@ -681,20 +697,11 @@ public class BatchPQS : MonoBehaviour
                 | MeshUpdateFlags.DontResetBoneBounds
                 | MeshUpdateFlags.DontNotifyMeshUsers;
 
-            // Declare vertex layout — attributes must be in VertexAttribute enum order
-            var attrs = AttrList;
-            attrs.Clear();
-            attrs.Add(new(VertexAttribute.Position, VertexAttributeFormat.Float32, 3, 0));
-            attrs.Add(new(VertexAttribute.Normal, VertexAttributeFormat.Float32, 3, 1));
-            if (meshData.tangents.IsCreated)
-                attrs.Add(new(VertexAttribute.Tangent, VertexAttributeFormat.Float32, 4, 2));
-            attrs.Add(new(VertexAttribute.Color, VertexAttributeFormat.Float32, 4, 0));
-            attrs.Add(new(VertexAttribute.TexCoord0, VertexAttributeFormat.Float32, 2, 0));
-            attrs.Add(new(VertexAttribute.TexCoord1, VertexAttributeFormat.Float32, 2, 0));
-            attrs.Add(new(VertexAttribute.TexCoord2, VertexAttributeFormat.Float32, 2, 0));
-            attrs.Add(new(VertexAttribute.TexCoord3, VertexAttributeFormat.Float32, 2, 0));
+            VertexAttributeDescriptor[] attrs = meshData.tangents.IsCreated
+                ? AttrWithTangent
+                : AttrWithoutTangent;
 
-            mesh.SetVertexBufferParams(vertexCount, [.. attrs]);
+            mesh.SetVertexBufferParams(vertexCount, attrs);
             mesh.SetVertexBufferData(meshData.interleaved, 0, 0, vertexCount, 0, flags);
             mesh.SetVertexBufferData(meshData.normals, 0, 0, vertexCount, 1, flags);
             if (meshData.tangents.IsCreated)
