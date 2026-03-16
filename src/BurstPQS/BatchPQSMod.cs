@@ -132,6 +132,17 @@ public abstract class BatchPQSMod : IDisposable
     #endregion
 }
 
+/// <summary>
+/// An adapter that translates the behaviour of a <see cref="PQSMod"/>
+/// <typeparamref name="T"/> to something that is understood by BurstPQS.
+/// </summary>
+/// <typeparam name="T"></typeparam>
+/// <param name="mod"></param>
+///
+/// <remarks>
+/// In order to be used as a BatchPQSMod, any class that derives from this one
+/// must have a single-argument constructor taking a <typeparamref name="T"/>.
+/// </remarks>
 public abstract class BatchPQSMod<T>(T mod) : BatchPQSMod
     where T : PQSMod
 {
@@ -139,8 +150,19 @@ public abstract class BatchPQSMod<T>(T mod) : BatchPQSMod
 
     public T Mod => mod;
 
+    /// <summary>
+    /// Called before a <see cref="PQ" /> quad is built. Add jobs that you want
+    /// to have executed to <paramref name="jobSet"/>.
+    /// </summary>
+    /// <param name="quad"></param>
+    /// <param name="jobSet"></param>
     public override void OnQuadPreBuild(PQ quad, BatchPQSJobSet jobSet) => mod.OnQuadPreBuild(quad);
 
+    /// <summary>
+    /// Called when the quad has finished building, after all BatchPQS job
+    /// callbacks have been made.
+    /// </summary>
+    /// <param name="quad"></param>
     public override void OnQuadBuilt(PQ quad) => mod.OnQuadBuilt(quad);
 
     public override string ToString()

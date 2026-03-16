@@ -3,6 +3,16 @@ using System.Collections.Generic;
 
 namespace BurstPQS;
 
+/// <summary>
+/// A container for PQS jobs that will be in the build job.
+/// </summary>
+///
+/// <remarks>
+/// You get handed a reference to this in
+/// <see cref="BatchPQSMod.OnQuadPreBuild(PQ, BatchPQSJobSet)"/>. Call
+/// <see cref="Add{T}(in T)"/> to add a struct to be executed as part of the
+/// build job.
+/// </remarks>
 public class BatchPQSJobSet : IDisposable
 {
     private static readonly Stack<BatchPQSJobSet> Pool = [];
@@ -18,6 +28,28 @@ public class BatchPQSJobSet : IDisposable
 
     internal BatchPQSJobSet() { }
 
+    /// <summary>
+    /// Add a job to be executed as part of the build job.
+    /// </summary>
+    /// <typeparam name="T"></typeparam>
+    /// <param name="job"></param>
+    ///
+    /// <remarks>
+    /// The struct can implement any one of a number of traits. If it does, then
+    /// the trait methods will be called at various phases in during the quad
+    /// build. The available traits are:
+    ///
+    /// <list type="bullet">
+    ///   <item><see cref="IBatchPQSHeightJob"/></item>
+    ///   <item><see cref="IBatchPQSVertexJob"/></item>
+    ///   <item><see cref="IBatchPQSMeshJob"/></item>
+    ///   <item><see cref="IBatchPQSMeshBuiltJob"/></item>
+    ///   <item><see cref="IDisposable"/></item>
+    /// </list>
+    ///
+    /// See the BurstPQS wiki on github for a full description of what these
+    /// interfaces mean and when you should implement them.
+    /// </remarks>
     public void Add<T>(in T job)
         where T : struct
     {

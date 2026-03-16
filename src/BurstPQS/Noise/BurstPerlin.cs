@@ -4,6 +4,10 @@ using static BurstPQS.Noise.GradientNoiseBasis;
 
 namespace BurstPQS.Noise;
 
+/// <summary>
+/// Burst-compatible perlin noise.
+/// </summary>
+/// <param name="perlin"></param>
 public readonly struct BurstPerlin(LibNoise.Perlin perlin) : IModule
 {
     public readonly double Frequency = perlin.Frequency;

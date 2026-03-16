@@ -6,6 +6,10 @@ using Unity.Mathematics;
 
 namespace BurstPQS.Noise;
 
+/// <summary>
+/// Burst compatible simplex noise. Take care to dispose of it when done or
+/// else you will get a memory leak.
+/// </summary>
 public unsafe struct BurstSimplex : IDisposable
 {
     public double octaves;

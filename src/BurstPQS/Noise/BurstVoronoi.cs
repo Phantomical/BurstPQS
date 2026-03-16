@@ -4,6 +4,9 @@ using static BurstPQS.Noise.ValueNoiseBasis;
 
 namespace BurstPQS.Noise;
 
+/// <summary>
+/// Burst-compatible voronoi noise.
+/// </summary>
 public readonly struct BurstVoronoi : IModule
 {
     public readonly int Seed;

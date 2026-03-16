@@ -9,9 +9,16 @@ using UnityEngine;
 
 namespace BurstPQS;
 
-[AttributeUsage(AttributeTargets.Method, AllowMultiple = false, Inherited = false)]
-public sealed class BurstPQSAutoPatchAttribute : Attribute { }
-
+/// <summary>
+/// Marks this type as being the canonical <see cref="BatchPQSMod"/> adapter
+/// for the type given by <paramref name="pqsMod"/>.
+/// </summary>
+/// <param name="pqsMod"></param>
+///
+/// <remarks>
+/// This attribute will be automatically detected provided that your mod DLL
+/// has a <see cref="KSPAssemblyDependency"/> on BurstPQS.
+/// </remarks>
 [AttributeUsage(AttributeTargets.Class, AllowMultiple = false, Inherited = false)]
 public sealed class BatchPQSModAttribute(Type pqsMod) : Attribute
 {

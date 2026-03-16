@@ -4,6 +4,11 @@ using static BurstPQS.Noise.GradientNoiseBasis;
 
 namespace BurstPQS.Noise;
 
+/// <summary>
+/// Burst-compatible billow noise.
+/// PQS jobs.
+/// </summary>
+/// <param name="noise"></param>
 public readonly struct BurstBillow(LibNoise.Billow noise) : IModule
 {
     public readonly double Frequency = noise.Frequency;

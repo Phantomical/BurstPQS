@@ -11,7 +11,6 @@ using UnityEngine.Rendering;
 
 namespace BurstPQS;
 
-// [BurstCompile]
 public class BatchPQS : MonoBehaviour
 {
     static bool ForceFallback = false;

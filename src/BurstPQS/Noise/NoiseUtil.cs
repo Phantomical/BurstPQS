@@ -1,5 +1,4 @@
 using System;
-using Contracts.Parameters;
 using Unity.Mathematics;
 
 namespace BurstPQS.Noise;

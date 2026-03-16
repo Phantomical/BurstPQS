@@ -3,17 +3,12 @@ using System.Collections.Generic;
 using System.Linq.Expressions;
 using System.Reflection;
 using System.Runtime.CompilerServices;
-using BurstPQS.Collections;
 using BurstPQS.Util;
 using Unity.Burst;
-using Unity.Burst.CompilerServices;
 using Unity.Collections;
 using Unity.Collections.LowLevel.Unsafe;
 using Unity.Jobs.LowLevel.Unsafe;
 using Unity.Profiling;
-using UnityEngine;
-
-#pragma warning disable IDE1006 // Naming Styles
 
 namespace BurstPQS;
 
