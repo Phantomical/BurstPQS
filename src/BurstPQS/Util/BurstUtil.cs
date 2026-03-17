@@ -39,9 +39,12 @@ public static class BurstUtil
         catch (InvalidOperationException e)
         {
             var method = del.Method;
-            Debug.Log(
-                $"[BurstPQS] Could not get compiled function pointer for {method.DeclaringType?.FullName}.{method.Name}: {e.Message}"
-            );
+            if (method.GetCustomAttribute<BurstCompileAttribute>() != null)
+            {
+                Debug.LogWarning(
+                    $"[BurstPQS] Could not get compiled function pointer for {method.DeclaringType?.FullName}.{method.Name}: {e.Message}"
+                );
+            }
 
             return new(Marshal.GetFunctionPointerForDelegate(del));
         }
@@ -54,8 +57,16 @@ public static class BurstUtil
         {
             return BurstCompiler.CompileFunctionPointer(del).Invoke;
         }
-        catch (InvalidOperationException)
+        catch (InvalidOperationException e)
         {
+            var method = del.Method;
+            if (method.GetCustomAttribute<BurstCompileAttribute>() != null)
+            {
+                Debug.LogWarning(
+                    $"[BurstPQS] Could not get compiled function pointer for {method.DeclaringType?.FullName}.{method.Name}: {e.Message}"
+                );
+            }
+
             return del;
         }
     }
