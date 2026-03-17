@@ -7,6 +7,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## Unreleased
 
+## v0.1.5
+### Added
+* Added a warning notification in the main menu if burst compiled methods are
+  not available.
+
 ## v0.1.4
 ### Fixed
 * BurstPQS now validates whether configured MapSOs are supported before
