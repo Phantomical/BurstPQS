@@ -15,7 +15,8 @@ internal static class PQ_SetVisible_Patch
 
         // Quad is already built but now visible - For example going back down a subdivision level.
         //
-        // The other case is handled by the parallax BurstPQS mod.
+        // The newly-built case is handled by PQSMod_Parallax.OnQuadBuilt which we patch to make
+        // the same call.
         ScatterComponent.OnQuadVisible(__instance);
     }
 }

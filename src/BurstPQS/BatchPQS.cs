@@ -22,7 +22,7 @@ public class BatchPQS : MonoBehaviour
     // Are there unsupported mods and do we need to fall back to the stock
     // implementation?
     private bool _fallback = false;
-    private bool Fallback
+    internal bool Fallback
     {
         get => _fallback || ForceFallback;
         set => _fallback = value;

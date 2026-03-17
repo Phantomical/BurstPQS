@@ -17,14 +17,6 @@ public class Parallax(PQSMod_Parallax mod) : BatchPQSMod<PQSMod_Parallax>(mod)
         jobSet.Add(new BuildJob(mod));
     }
 
-    public override void OnQuadBuilt(PQ quad)
-    {
-        base.OnQuadBuilt(quad);
-
-        if (quad.isVisible)
-            ScatterComponent.OnQuadVisibleBuilt(quad);
-    }
-
     [BurstCompile]
     struct BuildJob(PQSMod_Parallax mod) : IBatchPQSVertexJob, IBatchPQSMeshBuiltJob, IDisposable
     {

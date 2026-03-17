@@ -40,7 +40,7 @@ internal static class PQS_BuildQuad_Patch
     static bool Prefix(PQS __instance, PQ quad, ref bool __result)
     {
         var batchPQS = __instance.GetComponent<BatchPQS>();
-        if (batchPQS is null)
+        if (batchPQS is null || batchPQS.Fallback)
             return true;
 
         __result = batchPQS.BuildQuad(quad);
@@ -65,7 +65,7 @@ internal static class PQS_UpdateQuads_Patch
     static bool Prefix(PQS __instance)
     {
         var batchPQS = __instance.GetComponent<BatchPQS>();
-        if (batchPQS is null)
+        if (batchPQS is null || batchPQS.Fallback)
             return true;
 
         batchPQS.UpdateQuads();
