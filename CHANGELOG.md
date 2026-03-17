@@ -7,6 +7,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## Unreleased
 
+### Fixed
+* BurstPQS now validates whether configured MapSOs are supported before
+  activating for a planet.
+* Fixed a case where BurstPQS wasn't properly guarding against burst-compiled
+  function pointers not being available.
+* Silence useless burst compiler warnings about exceptions being thrown.
+
 ## v0.1.3
 ### Fixed
 * Some PQSMods were not burst-compiled. All of these cases have been fixed.
