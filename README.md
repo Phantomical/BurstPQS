@@ -33,3 +33,6 @@ guides there.
 
 ## License
 BurstPQS is available under the MIT license.
+
+The following assets are redistributed as part of BurstPQS:
+* [Warning](https://icons8.com/icon/5tH5sHqq0t2q/warning) icon by [Icons8](https://icons8.com).
