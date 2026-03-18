@@ -3,6 +3,7 @@ using BurstPQS.UI.Components;
 using KSP.UI.Screens.DebugToolbar;
 using KSP.UI.Screens.DebugToolbar.Screens;
 using TMPro;
+using Unity.Burst;
 using UnityEngine;
 using UnityEngine.UI;
 
@@ -40,6 +41,52 @@ internal class BurstDebugScreenRegistrar : MonoBehaviour
 
 internal class BurstDebugScreenContent : MonoBehaviour
 {
+    static readonly Color StatusGood = new(0.35f, 1.0f, 0.35f);
+    static readonly Color StatusBad = new(1.0f, 0.35f, 0.35f);
+    static readonly Color SeparatorColor = new(0.4f, 0.4f, 0.4f);
+
+    const string HeaderSettings = "Settings";
+    const string HeaderPlanets = "Planets";
+    const string LabelBurstCompilation = "Burst Compilation";
+    const string LabelEnabled = "Enabled";
+    const string LabelDisabled = "Disabled";
+    const string LabelBurst = "Burst";
+    const string LabelFallback = "Fallback";
+    const string LabelForceFallback = "Force Fallback Mode";
+    const string TooltipBurstCompilation = """
+        Whether burst compilation is working correctly.
+
+        If this says disabled then many things will be much slower than they
+        are meant to be. This won't break your game but you won't get many of
+        the benefits of BurstPQS.
+
+        To troubleshoot this:
+        * Make sure you have the "Burst Compiler" package installed in CKAN.
+          Manual installs of KSPBurst will have this by default.
+        * If on linux make sure you have mono installed, even if you are running
+          KSP in Proton.
+
+        If none of the above work check the BurstPQS and KSPBurst forum threads
+        for help and the latest advice.
+        """;
+    const string TooltipForceFallback = """
+        Force all planets to use the stock terrain system instead of BurstPQS.
+
+        This is mainly useful for comparing the implementation of PQSMods
+        between BurstPQS and stock. If you're not doing that then you can ignore
+        this option.
+        """;
+    const string TooltipPlanets = """
+        Shows whether BurstPQS is enabled for each planetary body.
+
+        * Burst - Everything is supported for this planet. This is the one you want.
+        * Fallback - Something is not supported and BurstPQS is disabled for this planet.
+
+        There will be a more detailed error message in KSP.log that will
+        say exactly what caused BurstPQS to use the fallback implementation
+        for each planet that is marked as Fallback here.
+        """;
+
     [SerializeField]
     private TableLayoutGroup _planetTable;
 
@@ -54,23 +101,29 @@ internal class BurstDebugScreenContent : MonoBehaviour
 
     private void BuildSettingsSection(Transform parent)
     {
-        DebugUIManager.CreateHeader(parent, "Settings");
+        DebugUIManager.CreateHeader(parent, HeaderSettings);
         CreateSeparator(parent);
+
+        var burstStatusRow = DebugUIManager.CreateHorizontalLayout(parent);
+        burstStatusRow.GetComponent<HorizontalLayoutGroup>().childForceExpandWidth = false;
+        var burstCompilationLabel = DebugUIManager.CreateLabel(
+            burstStatusRow.transform,
+            LabelBurstCompilation
+        );
+        burstCompilationLabel.fontStyle = FontStyles.Normal;
+        var burstEnabled = BurstCompiler.IsEnabled;
+        var burstStatusValue = DebugUIManager.CreateLabel(
+            burstStatusRow.transform,
+            burstEnabled ? LabelEnabled : LabelDisabled
+        );
+        burstStatusValue.color = burstEnabled ? StatusGood : StatusBad;
+        DebugUIManager.CreateHelpButton(burstStatusRow.transform, TooltipBurstCompilation);
 
         var toggleRow = DebugUIManager.CreateHorizontalLayout(parent);
         toggleRow.GetComponent<HorizontalLayoutGroup>().childForceExpandWidth = false;
-        DebugUIManager.CreateToggle<ForceFallbackToggle>(
-            toggleRow.transform,
-            "Force Fallback Mode"
-        );
-        DebugUIManager.CreateHelpButton(
-            toggleRow.transform,
-            "Force all bodies to use the stock PQS terrain builder instead of "
-                + "Burst-compiled jobs. Use this to diagnose terrain rendering issues."
-        );
+        DebugUIManager.CreateToggle<ForceFallbackToggle>(toggleRow.transform, LabelForceFallback);
+        DebugUIManager.CreateHelpButton(toggleRow.transform, TooltipForceFallback);
 
-        var btnRow = DebugUIManager.CreateHorizontalLayout(parent);
-        DebugUIManager.CreateButton<DumpLayoutButton>(btnRow.transform, "Dump Layout");
     }
 
     private void BuildPlanetsSection(Transform parent)
@@ -79,14 +132,8 @@ internal class BurstDebugScreenContent : MonoBehaviour
 
         var headerRow = DebugUIManager.CreateHorizontalLayout(parent);
         headerRow.GetComponent<HorizontalLayoutGroup>().childForceExpandWidth = false;
-        DebugUIManager.CreateHeader(headerRow.transform, "Planets");
-        DebugUIManager.CreateHelpButton(
-            headerRow.transform,
-            "Shows each body's current terrain build mode.\n"
-                + "Burst — terrain is built using Burst-compiled jobs.\n"
-                + "Fallback — terrain is built using the stock PQS method.\n"
-                + "(either forced via the toggle above, or because Burst is unavailable)"
-        );
+        DebugUIManager.CreateHeader(headerRow.transform, HeaderPlanets);
+        DebugUIManager.CreateHelpButton(headerRow.transform, TooltipPlanets);
 
         CreateSeparator(parent);
 
@@ -174,11 +221,9 @@ internal class BurstDebugScreenContent : MonoBehaviour
             DebugUIManager.CreateDirectLabel(_planetTable.transform, name);
             var statusTmp = DebugUIManager.CreateDirectLabel(
                 _planetTable.transform,
-                fallback ? "Fallback" : "Burst"
+                fallback ? LabelFallback : LabelBurst
             );
-            statusTmp.color = fallback
-                ? new Color(1.0f, 0.35f, 0.35f)
-                : new Color(0.35f, 1.0f, 0.35f);
+            statusTmp.color = fallback ? StatusBad : StatusGood;
         }
     }
 
@@ -194,7 +239,7 @@ internal class BurstDebugScreenContent : MonoBehaviour
         var go = new GameObject("Separator", typeof(RectTransform));
         go.transform.SetParent(parent, false);
         var img = go.AddComponent<Image>();
-        img.color = new Color(0.4f, 0.4f, 0.4f);
+        img.color = SeparatorColor;
         var le = go.AddComponent<LayoutElement>();
         le.preferredHeight = 1f;
         le.flexibleWidth = 1f;
