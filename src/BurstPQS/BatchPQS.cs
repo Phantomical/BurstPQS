@@ -13,7 +13,7 @@ namespace BurstPQS;
 
 public class BatchPQS : MonoBehaviour
 {
-    static bool ForceFallback = false;
+    internal static bool ForceFallback = false;
     static readonly ProfilerMarker BuildQuadMarker = new("BatchPQS.BuildQuad");
 
     private PQS pqs;
