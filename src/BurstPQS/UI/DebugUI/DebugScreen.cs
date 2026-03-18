@@ -50,7 +50,7 @@ internal class BurstDebugScreenContent : MonoBehaviour
     const string LabelBurstCompilation = "Burst Compilation";
     const string LabelEnabled = "Enabled";
     const string LabelDisabled = "Disabled";
-    const string LabelBurst = "Burst";
+    const string LabelBurst = "BurstPQS";
     const string LabelFallback = "Fallback";
     const string LabelForceFallback = "Force Fallback Mode";
     const string TooltipBurstCompilation = """
@@ -123,7 +123,6 @@ internal class BurstDebugScreenContent : MonoBehaviour
         toggleRow.GetComponent<HorizontalLayoutGroup>().childForceExpandWidth = false;
         DebugUIManager.CreateToggle<ForceFallbackToggle>(toggleRow.transform, LabelForceFallback);
         DebugUIManager.CreateHelpButton(toggleRow.transform, TooltipForceFallback);
-
     }
 
     private void BuildPlanetsSection(Transform parent)

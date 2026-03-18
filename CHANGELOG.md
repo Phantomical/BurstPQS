@@ -7,6 +7,16 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## Unreleased
 
+## v0.1.7
+### Added
+* Added a BurstPQS entry to the Alt+F12 that shows useful info for debugging.
+
+### Fixed
+* Fixed an issue causing parallax scatters to not show up when a planet is in
+  fallback mode.
+* Fallback mode is now a lot closer to stock and will now spread out PQS work
+  across multiple frames, just like stock does.
+
 ## v0.1.6
 ### Fixed
 * Actually include the guard fix that was supposed to be in v0.1.4.
