@@ -58,18 +58,6 @@ internal class TableLayoutGroup : LayoutGroup
     }
 
     [SerializeField]
-    bool flexibleColumnWidth = true;
-
-    /// <summary>
-    /// Expand columns to fit the cell with the highest preferred width?
-    /// </summary>
-    public bool FlexibleColumnWidth
-    {
-        get { return flexibleColumnWidth; }
-        set { SetProperty(ref flexibleColumnWidth, value); }
-    }
-
-    [SerializeField]
     float columnSpacing = 0f;
 
     /// <summary>
@@ -93,8 +81,8 @@ internal class TableLayoutGroup : LayoutGroup
         set { SetProperty(ref rowSpacing, value); }
     }
 
-    // Temporarily stores data generated during CalculateLayoutInputHorizontal for use in SetLayoutHorizontal
-    private float[] preferredColumnWidths;
+    // Stores column count computed in CalculateLayoutInputHorizontal for use in SetLayoutHorizontal
+    private int _columnCount;
 
     public override void CalculateLayoutInputHorizontal()
     {
@@ -104,65 +92,12 @@ internal class TableLayoutGroup : LayoutGroup
             rowHeights = [0f];
 
         int rowCount = rowHeights.Length;
-        int columnCount = Mathf.CeilToInt(rectChildren.Count / (float)rowCount);
+        _columnCount = Mathf.CeilToInt(rectChildren.Count / (float)rowCount);
 
-        preferredColumnWidths = new float[columnCount];
+        float spacingWidth = _columnCount > 1 ? (_columnCount - 1) * columnSpacing : 0f;
+        float totalMinWidth = padding.horizontal + spacingWidth + _columnCount * minimumColumnWidth;
 
-        float totalMinWidth = padding.horizontal;
-        float totalPreferredWidth = padding.horizontal;
-
-        if (columnCount > 1)
-        {
-            float widthFromSpacing = (columnCount - 1) * columnSpacing;
-            totalMinWidth += widthFromSpacing;
-            totalPreferredWidth += widthFromSpacing;
-        }
-
-        if (flexibleColumnWidth)
-        {
-            // Find the max value for minimum and preferred widths in each column
-            for (int j = 0; j < columnCount; j++)
-            {
-                float maxMinimumWidthInColumn = minimumColumnWidth;
-                float maxPreferredWidthInColumn = minimumColumnWidth;
-
-                for (int i = 0; i < rowCount; i++)
-                {
-                    int childIndex = (i * columnCount) + j;
-
-                    // Safeguard against tables with incomplete columns
-                    if (childIndex >= rectChildren.Count)
-                        break;
-
-                    maxPreferredWidthInColumn = Mathf.Max(
-                        LayoutUtility.GetPreferredWidth(rectChildren[childIndex]),
-                        maxPreferredWidthInColumn
-                    );
-                    maxMinimumWidthInColumn = Mathf.Max(
-                        LayoutUtility.GetMinWidth(rectChildren[childIndex]),
-                        maxMinimumWidthInColumn
-                    );
-                }
-
-                totalMinWidth += maxMinimumWidthInColumn;
-                totalPreferredWidth += maxPreferredWidthInColumn;
-
-                // Cache calculated column width for reuse in SetLayoutHorizontal()
-                preferredColumnWidths[j] = maxPreferredWidthInColumn;
-            }
-        }
-        else
-        {
-            // Use minimumColumnWidth for all columns
-            for (int j = 0; j < columnCount; j++)
-                preferredColumnWidths[j] = minimumColumnWidth;
-
-            totalMinWidth += columnCount * minimumColumnWidth;
-            totalPreferredWidth = totalMinWidth;
-        }
-
-        totalPreferredWidth = Mathf.Max(totalMinWidth, totalPreferredWidth);
-        SetLayoutInputForAxis(totalMinWidth, totalPreferredWidth, 1, 0);
+        SetLayoutInputForAxis(totalMinWidth, totalMinWidth, 1, 0);
     }
 
     public override void CalculateLayoutInputVertical()
@@ -192,22 +127,21 @@ internal class TableLayoutGroup : LayoutGroup
         if (rowHeights.Length == 0)
             rowHeights = [0f];
 
-        int columnCount = preferredColumnWidths.Length;
+        int columnCount = _columnCount;
+        if (columnCount == 0)
+            return;
+
         int cornerX = (int)startCorner % 2;
 
-        float requiredSizeWithoutPadding = 0;
-        for (int j = 0; j < columnCount; j++)
-        {
-            requiredSizeWithoutPadding += preferredColumnWidths[j];
-            requiredSizeWithoutPadding += columnSpacing;
-        }
-        if (columnCount > 0)
-            requiredSizeWithoutPadding -= columnSpacing;
+        float spacingWidth = columnCount > 1 ? (columnCount - 1) * columnSpacing : 0f;
+        float availableWidth = rectTransform.rect.width - padding.horizontal - spacingWidth;
+        float columnWidth = Mathf.Max(minimumColumnWidth, availableWidth / columnCount);
 
-        float startOffset = GetStartOffset(0, requiredSizeWithoutPadding);
+        float totalWidth = columnCount * columnWidth + spacingWidth;
+        float startOffset = GetStartOffset(0, totalWidth);
 
         if (cornerX == 1)
-            startOffset += requiredSizeWithoutPadding;
+            startOffset += totalWidth;
 
         float positionX = startOffset;
 
@@ -215,23 +149,19 @@ internal class TableLayoutGroup : LayoutGroup
         {
             int currentColumnIndex = i % columnCount;
 
-            // If it's the first cell in the row, reset positionX
             if (currentColumnIndex == 0)
                 positionX = startOffset;
 
             if (cornerX == 1)
-                positionX -= preferredColumnWidths[currentColumnIndex];
+                positionX -= columnWidth;
 
-            SetChildAlongAxis(rectChildren[i], 0, positionX, preferredColumnWidths[currentColumnIndex]);
+            SetChildAlongAxis(rectChildren[i], 0, positionX, columnWidth);
 
             if (cornerX == 1)
                 positionX -= columnSpacing;
             else
-                positionX += preferredColumnWidths[currentColumnIndex] + columnSpacing;
+                positionX += columnWidth + columnSpacing;
         }
-
-        // Free memory
-        preferredColumnWidths = null;
     }
 
     public override void SetLayoutVertical()
