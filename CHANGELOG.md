@@ -7,6 +7,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## Unreleased
 
+## v0.1.8
+### Fixed
+* Control locks are now properly released when closing the warning popup window.
+* Fixed an issue where BurstPQS was breaking burst-compilation in KSPBurst.
+
 ## v0.1.7
 ### Added
 * Added a BurstPQS entry to the Alt+F12 that shows useful info for debugging.
