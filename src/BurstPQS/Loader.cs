@@ -28,14 +28,10 @@ public sealed class BatchPQSModAttribute(Type pqsMod) : Attribute
 [KSPAddon(KSPAddon.Startup.Instantly, once: true)]
 internal class BurstLoader : MonoBehaviour
 {
-    internal static readonly Harmony Harmony = new("BurstPQS");
-
     static readonly List<Assembly> Assemblies = [typeof(BurstLoader).Assembly];
 
     void Awake()
     {
-        Harmony.PatchAll();
-
         Assemblies.AddAll(
             AssemblyLoader
                 .loadedAssemblies.Where(assembly =>
@@ -86,4 +82,17 @@ internal class BurstLoader : MonoBehaviour
 
     static BurstMapSO CreateStockMapSO(MapSO mapSO) =>
         BurstMapSO.Create(new StockBurstMapSO(mapSO));
+}
+
+// Apply patches in PSystemSpawn so that the static initializers on the noise
+// patches don't break KSPBurst.
+[KSPAddon(KSPAddon.Startup.PSystemSpawn, once: true)]
+internal class BurstHarmonyPatcher : MonoBehaviour
+{
+    readonly Harmony harmony = new("BurstPQS");
+
+    void Awake()
+    {
+        harmony.PatchAll();
+    }
 }
