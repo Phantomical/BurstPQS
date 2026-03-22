@@ -7,7 +7,6 @@ using HarmonyLib;
 namespace BurstPQS.Patches;
 
 [HarmonyPatch]
-[HarmonyDebug]
 internal static class PQ_BuildDeferred_Patch
 {
     static IEnumerable<MethodInfo> TargetMethods()
