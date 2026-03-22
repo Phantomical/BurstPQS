@@ -14,6 +14,7 @@ internal class BurstErrorPopup : MonoBehaviour
 {
     private ApplicationLauncherButton _button;
     private GameObject _window;
+    private GameObject _prefab;
 
     void Awake()
     {
@@ -67,24 +68,33 @@ internal class BurstErrorPopup : MonoBehaviour
 
     private void OnButtonTrue()
     {
+        if (_prefab == null)
+            _prefab = BuildWindowPrefab();
+
         if (_window == null)
-            _window = BuildWindow(MainCanvasUtil.MainCanvas.transform);
-        else
-            _window.SetActive(true);
+            _window = Instantiate(_prefab, MainCanvasUtil.MainCanvas.transform);
+
+        _window.SetActive(true);
     }
 
     private void OnButtonFalse()
     {
         if (_window != null)
-            _window.SetActive(false);
+            Destroy(_window);
+        _window = null;
     }
 
-    private GameObject BuildWindow(Transform parent)
+    internal void OnWindowClose()
+    {
+        _button.SetFalse();
+    }
+
+    private GameObject BuildWindowPrefab()
     {
         var skin = UISkinManager.defaultSkin;
 
         // Root window
-        var windowGo = Object.Instantiate(UIBuilder.Prefab("UIBoxPrefab"), parent);
+        var windowGo = Instantiate(UIBuilder.Prefab("UIBoxPrefab"));
         windowGo.name = "BurstPQSErrorWindow";
 
         var windowRect = windowGo.GetComponent<RectTransform>();
@@ -105,6 +115,9 @@ internal class BurstErrorPopup : MonoBehaviour
         windowGo.AddComponent<CanvasGroup>();
         windowGo.AddComponent<DragPanel>();
 
+        var notifier = windowGo.AddComponent<PopupCloseNotifier>();
+        notifier.popup = this;
+
         var inputLock = windowGo.AddComponent<DialogMouseEnterControlLock>();
         inputLock.lockName = "BurstPQS_ErrorWindow";
 
@@ -122,7 +135,7 @@ internal class BurstErrorPopup : MonoBehaviour
             Localizer.Format("#BurstPQS_UI_BurstError_Title"),
             windowGo,
             skin,
-            hideOnClose: true
+            hideOnClose: false
         );
 
         // Warning message
@@ -137,7 +150,16 @@ internal class BurstErrorPopup : MonoBehaviour
         messageLE.flexibleWidth = 1;
         messageLE.flexibleHeight = 1;
 
-        windowGo.SetActive(true);
         return windowGo;
+    }
+}
+
+internal class PopupCloseNotifier : MonoBehaviour
+{
+    public BurstErrorPopup popup;
+
+    void OnDestroy()
+    {
+        popup?.OnWindowClose();
     }
 }
