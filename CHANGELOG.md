@@ -7,6 +7,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## Unreleased
 
+## v0.1.9
+### Fixed
+* Fix harmony.log.txt from appearing on the desktop.
+
 ## v0.1.8
 ### Fixed
 * Control locks are now properly released when closing the warning popup window.
