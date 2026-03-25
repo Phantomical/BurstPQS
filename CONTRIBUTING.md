@@ -8,10 +8,10 @@ along with your current mod list. For best results, follow the instructions at
 [0]: https://forum.kerbalspaceprogram.com/topic/163863-how-to-get-support/
 
 ## Installing Dependencies
-Background Thrust has integrations with some other mods. Some of these conflict
-so they cannot all be installed in the same installation. As such, there is a
-script that installs these dependencies into a few fake CKAN installs that you
-will need to run before you can build anything.
+BurstPQS has integrations with some other mods. You don't necessarily want to
+always install these on the KSP installation you're referencing so BurstPQS
+provides a script to automatically download and install them under `deps`.
+You will need to run one of the options below before you can build anything:
 
 On Windows, run
 ```powershell
