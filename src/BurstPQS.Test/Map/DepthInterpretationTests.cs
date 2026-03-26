@@ -8,9 +8,8 @@ using UnityEngine;
 namespace BurstPQS.Test.Map;
 
 /// <summary>
-/// Tests that depth interpretation (Greyscale, HeightAlpha, RGB, RGBA) produces
-/// correct results for GetPixelFloat, GetPixelColor, GetPixelColor32, and GetPixelHeightAlpha.
-/// Uses a known RGBA32 pixel to verify each interpretation.
+/// Tests that TextureMapSO pixel accessors return correct raw values for an RGBA32 texture.
+/// TextureMapSO matches Unity Texture2D behavior (no stock MapSO depth interpretation).
 /// </summary>
 public class DepthInterpretationTests : BurstPQSTestBase
 {
@@ -24,6 +23,9 @@ public class DepthInterpretationTests : BurstPQSTestBase
     const float Bf = B / 255f;
     const float Af = A / 255f;
 
+    // Unity's Color.grayscale = 0.299*r + 0.587*g + 0.114*b
+    static readonly float Grayscale = 0.299f * Rf + 0.587f * Gf + 0.114f * Bf;
+
     static (TextureMapSO.RGBA32 map, NativeArray<byte> data) MakeSinglePixelRGBA32()
     {
         var bytes = new byte[] { R, G, B, A };
@@ -34,16 +36,13 @@ public class DepthInterpretationTests : BurstPQSTestBase
         );
     }
 
-    // ---- Greyscale depth ----
-
-    [TestInfo("Depth_Greyscale_Float")]
-    public void TestGreyscaleFloat()
+    [TestInfo("RGBA32_Float")]
+    public void TestFloat()
     {
         var (map, data) = MakeSinglePixelRGBA32();
         try
         {
-            // Greyscale: float = R
-            assertFloatEquals("Greyscale.Float", map.GetPixelFloat(0, 0), Rf);
+            assertFloatEquals("RGBA32.Float", map.GetPixelFloat(0, 0), Grayscale);
         }
         finally
         {
@@ -51,17 +50,16 @@ public class DepthInterpretationTests : BurstPQSTestBase
         }
     }
 
-    [TestInfo("Depth_Greyscale_Color")]
-    public void TestGreyscaleColor()
+    [TestInfo("RGBA32_Color")]
+    public void TestColor()
     {
         var (map, data) = MakeSinglePixelRGBA32();
         try
         {
-            // Greyscale: Color = (R, R, R, 1)
             assertColorEquals(
-                "Greyscale.Color",
+                "RGBA32.Color",
                 map.GetPixelColor(0, 0),
-                new Color(Rf, Rf, Rf, 1f)
+                new Color(Rf, Gf, Bf, Af)
             );
         }
         finally
@@ -70,17 +68,16 @@ public class DepthInterpretationTests : BurstPQSTestBase
         }
     }
 
-    [TestInfo("Depth_Greyscale_Color32")]
-    public void TestGreyscaleColor32()
+    [TestInfo("RGBA32_Color32")]
+    public void TestColor32()
     {
         var (map, data) = MakeSinglePixelRGBA32();
         try
         {
-            // Greyscale: Color32 = (R, R, R, 255)
             assertColor32Equals(
-                "Greyscale.Color32",
+                "RGBA32.Color32",
                 map.GetPixelColor32(0, 0),
-                new Color32(R, R, R, 255)
+                new Color32(R, G, B, A)
             );
         }
         finally
@@ -89,225 +86,14 @@ public class DepthInterpretationTests : BurstPQSTestBase
         }
     }
 
-    [TestInfo("Depth_Greyscale_HeightAlpha")]
-    public void TestGreyscaleHeightAlpha()
+    [TestInfo("RGBA32_HeightAlpha")]
+    public void TestHeightAlpha()
     {
         var (map, data) = MakeSinglePixelRGBA32();
         try
         {
-            // Greyscale: HeightAlpha = (R, 1)
             assertHeightAlphaEquals(
-                "Greyscale.HA",
-                map.GetPixelHeightAlpha(0, 0),
-                new HeightAlpha(Rf, 1f)
-            );
-        }
-        finally
-        {
-            data.Dispose();
-        }
-    }
-
-    // ---- HeightAlpha depth ----
-
-    [TestInfo("Depth_HeightAlpha_Float")]
-    public void TestHeightAlphaFloat()
-    {
-        var (map, data) = MakeSinglePixelRGBA32();
-        try
-        {
-            // HeightAlpha: float = (R + A) * 0.5
-            assertFloatEquals("HeightAlpha.Float", map.GetPixelFloat(0, 0), (Rf + Af) * 0.5f);
-        }
-        finally
-        {
-            data.Dispose();
-        }
-    }
-
-    [TestInfo("Depth_HeightAlpha_Color")]
-    public void TestHeightAlphaColor()
-    {
-        var (map, data) = MakeSinglePixelRGBA32();
-        try
-        {
-            // HeightAlpha: Color = (R, R, R, A)
-            assertColorEquals(
-                "HeightAlpha.Color",
-                map.GetPixelColor(0, 0),
-                new Color(Rf, Rf, Rf, Af)
-            );
-        }
-        finally
-        {
-            data.Dispose();
-        }
-    }
-
-    [TestInfo("Depth_HeightAlpha_Color32")]
-    public void TestHeightAlphaColor32()
-    {
-        var (map, data) = MakeSinglePixelRGBA32();
-        try
-        {
-            // HeightAlpha: Color32 = (R, R, R, A)
-            assertColor32Equals(
-                "HeightAlpha.Color32",
-                map.GetPixelColor32(0, 0),
-                new Color32(R, R, R, A)
-            );
-        }
-        finally
-        {
-            data.Dispose();
-        }
-    }
-
-    [TestInfo("Depth_HeightAlpha_HA")]
-    public void TestHeightAlphaHA()
-    {
-        var (map, data) = MakeSinglePixelRGBA32();
-        try
-        {
-            // HeightAlpha: HeightAlpha = (R, A)
-            assertHeightAlphaEquals(
-                "HeightAlpha.HA",
-                map.GetPixelHeightAlpha(0, 0),
-                new HeightAlpha(Rf, Af)
-            );
-        }
-        finally
-        {
-            data.Dispose();
-        }
-    }
-
-    // ---- RGB depth ----
-
-    [TestInfo("Depth_RGB_Float")]
-    public void TestRGBFloat()
-    {
-        var (map, data) = MakeSinglePixelRGBA32();
-        try
-        {
-            // RGB: float = (R + G + B) / 3
-            assertFloatEquals("RGB.Float", map.GetPixelFloat(0, 0), (Rf + Gf + Bf) * (1f / 3f));
-        }
-        finally
-        {
-            data.Dispose();
-        }
-    }
-
-    [TestInfo("Depth_RGB_Color")]
-    public void TestRGBColor()
-    {
-        var (map, data) = MakeSinglePixelRGBA32();
-        try
-        {
-            // RGB: Color = (R, G, B, 1)
-            assertColorEquals("RGB.Color", map.GetPixelColor(0, 0), new Color(Rf, Gf, Bf, 1f));
-        }
-        finally
-        {
-            data.Dispose();
-        }
-    }
-
-    [TestInfo("Depth_RGB_Color32")]
-    public void TestRGBColor32()
-    {
-        var (map, data) = MakeSinglePixelRGBA32();
-        try
-        {
-            // RGB: Color32 = (R, G, B, 255)
-            assertColor32Equals(
-                "RGB.Color32",
-                map.GetPixelColor32(0, 0),
-                new Color32(R, G, B, 255)
-            );
-        }
-        finally
-        {
-            data.Dispose();
-        }
-    }
-
-    [TestInfo("Depth_RGB_HeightAlpha")]
-    public void TestRGBHeightAlpha()
-    {
-        var (map, data) = MakeSinglePixelRGBA32();
-        try
-        {
-            // RGB: HeightAlpha = (R, 1)
-            assertHeightAlphaEquals(
-                "RGB.HA",
-                map.GetPixelHeightAlpha(0, 0),
-                new HeightAlpha(Rf, 1f)
-            );
-        }
-        finally
-        {
-            data.Dispose();
-        }
-    }
-
-    // ---- RGBA depth ----
-
-    [TestInfo("Depth_RGBA_Float")]
-    public void TestRGBAFloat()
-    {
-        var (map, data) = MakeSinglePixelRGBA32();
-        try
-        {
-            // RGBA: float = (R + G + B + A) / 4
-            assertFloatEquals("RGBA.Float", map.GetPixelFloat(0, 0), (Rf + Gf + Bf + Af) * 0.25f);
-        }
-        finally
-        {
-            data.Dispose();
-        }
-    }
-
-    [TestInfo("Depth_RGBA_Color")]
-    public void TestRGBAColor()
-    {
-        var (map, data) = MakeSinglePixelRGBA32();
-        try
-        {
-            // RGBA: Color = (R, G, B, A)
-            assertColorEquals("RGBA.Color", map.GetPixelColor(0, 0), new Color(Rf, Gf, Bf, Af));
-        }
-        finally
-        {
-            data.Dispose();
-        }
-    }
-
-    [TestInfo("Depth_RGBA_Color32")]
-    public void TestRGBAColor32()
-    {
-        var (map, data) = MakeSinglePixelRGBA32();
-        try
-        {
-            // RGBA: Color32 = (R, G, B, A)
-            assertColor32Equals("RGBA.Color32", map.GetPixelColor32(0, 0), new Color32(R, G, B, A));
-        }
-        finally
-        {
-            data.Dispose();
-        }
-    }
-
-    [TestInfo("Depth_RGBA_HeightAlpha")]
-    public void TestRGBAHeightAlpha()
-    {
-        var (map, data) = MakeSinglePixelRGBA32();
-        try
-        {
-            // RGBA: HeightAlpha = (R, A)
-            assertHeightAlphaEquals(
-                "RGBA.HA",
+                "RGBA32.HA",
                 map.GetPixelHeightAlpha(0, 0),
                 new HeightAlpha(Rf, Af)
             );

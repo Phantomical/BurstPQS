@@ -80,11 +80,42 @@ public class BilinearInterpolationTests : BurstPQSTestBase
         }
     }
 
+    static (TextureMapSO.RGBA32 map, NativeArray<byte> nativeData) Make2x2Clamped(
+        Color32 c00,
+        Color32 c10,
+        Color32 c01,
+        Color32 c11
+    )
+    {
+        var data = new byte[2 * 2 * 4];
+        void Write(int x, int y, Color32 c)
+        {
+            int i = (y * 2 + x) * 4;
+            data[i] = c.r;
+            data[i + 1] = c.g;
+            data[i + 2] = c.b;
+            data[i + 3] = c.a;
+        }
+        Write(0, 0, c00);
+        Write(1, 0, c10);
+        Write(0, 1, c01);
+        Write(1, 1, c11);
+
+        var nativeData = new NativeArray<byte>(data, Allocator.Persistent);
+        return (
+            new TextureMapSO.RGBA32(
+                new CPUTexture2D.RGBA32(nativeData, 2, 2, 1),
+                TextureWrapMode.Clamp
+            ),
+            nativeData
+        );
+    }
+
     [TestInfo("Bilinear_YClamping")]
     public void TestYClamping()
     {
-        // Y coordinate should clamp (Kopernicus behavior): y<0 clamps to 0, y>1 clamps to 1
-        var (map, nativeData) = Make2x2(
+        // Y coordinate clamps when wrap mode is Clamp
+        var (map, nativeData) = Make2x2Clamped(
             new Color32(100, 0, 0, 255), // (0,0)
             new Color32(100, 0, 0, 255), // (1,0)
             new Color32(0, 200, 0, 255), // (0,1)
