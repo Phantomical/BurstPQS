@@ -137,7 +137,9 @@ internal struct BuildQuadJob : IJob
                 var vert = new Vector3(halfSize - x * spacing, 0f, halfSize - y * spacing);
                 var globalV = quadMatrix.MultiplyPoint3x4(vert);
 
-                data.directionFromCenter[i] = globalV.normalized;
+                // This needs to be normalized as a double otherwise some acos
+                // calls in mods end up returning NaN.
+                data.directionFromCenter[i] = ((Vector3d)globalV).Normalized();
             }
         }
 
