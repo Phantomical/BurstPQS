@@ -14,6 +14,9 @@ public class MapDecal(PQSMod_MapDecal mod) : BatchPQSMod<PQSMod_MapDecal>(mod)
 {
     public override void OnQuadPreBuild(PQ quad, BatchPQSJobSet jobSet)
     {
+        // Make sure to reset mod state so that it doesn't get stuck in a
+        // disabled state.
+        using var guard = new RestoreGuard(mod);
         base.OnQuadPreBuild(quad, jobSet);
 
         BurstMapSO? heightMap = null;
@@ -25,11 +28,6 @@ public class MapDecal(PQSMod_MapDecal mod) : BatchPQSMod<PQSMod_MapDecal>(mod)
             colorMap = BurstMapSO.Create(mod.colorMap);
 
         jobSet.Add(new BuildJob(mod) { heightMap = heightMap, colorMap = colorMap });
-
-        // Reset stock mod state to match what OnQuadBuilt would set. See
-        // MapDecalTangent.OnQuadPreBuild for the full explanation.
-        mod.quadActive = true;
-        mod.buildHeight = false;
     }
 
     [BurstCompile]
@@ -216,6 +214,15 @@ public class MapDecal(PQSMod_MapDecal mod) : BatchPQSMod<PQSMod_MapDecal>(mod)
                 smoothV = 1f;
 
             return Mathf.Min(smoothU, smoothV);
+        }
+    }
+
+    readonly struct RestoreGuard(PQSMod_MapDecal mod) : IDisposable
+    {
+        public void Dispose()
+        {
+            mod.quadActive = true;
+            mod.buildHeight = false;
         }
     }
 }

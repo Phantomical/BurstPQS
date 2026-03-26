@@ -12,15 +12,13 @@ public class FlattenAreaTangential(PQSMod_FlattenAreaTangential mod)
 {
     public override void OnQuadPreBuild(PQ quad, BatchPQSJobSet jobSet)
     {
+        // Make sure to reset mod state so that it doesn't get stuck in a
+        // disabled state.
+        using var guard = new RestoreGuard(mod);
         base.OnQuadPreBuild(quad, jobSet);
 
         if (!mod.quadActive)
-        {
-            // Reset stock mod state to match what OnQuadBuilt would set. See
-            // MapDecalTangent.OnQuadPreBuild for the full explanation.
-            mod.quadActive = true;
             return;
-        }
 
         jobSet.Add(
             new BuildJob
@@ -86,5 +84,10 @@ public class FlattenAreaTangential(PQSMod_FlattenAreaTangential mod)
                 }
             }
         }
+    }
+
+    readonly struct RestoreGuard(PQSMod_FlattenAreaTangential mod) : IDisposable
+    {
+        public void Dispose() => mod.quadActive = true;
     }
 }

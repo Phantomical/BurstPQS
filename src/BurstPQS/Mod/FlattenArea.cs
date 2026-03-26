@@ -11,18 +11,13 @@ public class FlattenArea(PQSMod_FlattenArea mod) : BatchPQSMod<PQSMod_FlattenAre
 {
     public override void OnQuadPreBuild(PQ quad, BatchPQSJobSet jobSet)
     {
+        // Need to make sure quadActive is always set to true so that we don't
+        // break other builds.
+        using var guard = new RestoreGuard(mod);
         base.OnQuadPreBuild(quad, jobSet);
 
         if (!mod.overrideQuadBuildCheck && !mod.quadActive)
-        {
-            // Reset stock mod state to match what OnQuadBuilt would set.
-            // Without this, deferred builds leave the stock mod with
-            // quadActive=false, which causes the stock OnVertexBuildHeight
-            // to early-return when GetSurfaceHeight is called (e.g. by
-            // PreciseUpdateSubQuadsPosition for quad repositioning).
-            mod.quadActive = true;
             return;
-        }
 
         jobSet.Add(
             new BuildJob
@@ -92,5 +87,10 @@ public class FlattenArea(PQSMod_FlattenArea mod) : BatchPQSMod<PQSMod_FlattenAre
                     data.vertColor[i] = Color.Lerp(Color.blue, Color.yellow, (float)aDelta);
             }
         }
+    }
+
+    readonly struct RestoreGuard(PQSMod_FlattenArea mod) : IDisposable
+    {
+        public void Dispose() => mod.quadActive = true;
     }
 }
