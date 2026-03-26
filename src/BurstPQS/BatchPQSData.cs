@@ -57,6 +57,9 @@ public unsafe struct BuildHeightsData
     [NoAlias]
     internal Color* _vertColor;
 
+    [NoAlias]
+    internal bool* _allowScatter;
+
     internal BuildHeightsData(SphereData sphere, int vertexCount)
     {
         this.sphere = sphere;
@@ -71,6 +74,7 @@ public unsafe struct BuildHeightsData
         _latitude = AllocVertexArray<double>();
         _vertHeight = AllocVertexArray<double>();
         _vertColor = AllocVertexArray<Color>();
+        _allowScatter = AllocVertexArray<bool>();
     }
 
     internal readonly T* AllocVertexArray<T>()
@@ -101,6 +105,8 @@ public unsafe struct BuildHeightsData
 
     public readonly MemorySpan<double> longitude => CreateNativeArray(_longitude);
     public readonly MemorySpan<double> latitude => CreateNativeArray(_latitude);
+
+    public readonly MemorySpan<bool> allowScatter => CreateNativeArray(_allowScatter);
 
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
     private readonly MemorySpan<T> CreateNativeArray<T>(T* data)
@@ -153,9 +159,6 @@ public unsafe struct BuildVerticesData
     [NoAlias]
     internal double* _v4;
 
-    [NoAlias]
-    internal bool* _allowScatter;
-
     internal BuildVerticesData(BuildHeightsData data)
     {
         this.data = data;
@@ -166,7 +169,6 @@ public unsafe struct BuildVerticesData
         _v3 = AllocVertexArray<double>();
         _u4 = AllocVertexArray<double>();
         _v4 = AllocVertexArray<double>();
-        _allowScatter = AllocVertexArray<bool>();
     }
 
     internal readonly T* AllocVertexArray<T>()
@@ -181,7 +183,7 @@ public unsafe struct BuildVerticesData
     public readonly MemorySpan<double> v2 => CreateNativeArray(_v2);
     public readonly MemorySpan<double> v3 => CreateNativeArray(_v3);
     public readonly MemorySpan<double> v4 => CreateNativeArray(_v4);
-    public readonly MemorySpan<bool> allowScatter => CreateNativeArray(_allowScatter);
+    public readonly MemorySpan<bool> allowScatter => data.allowScatter;
     #endregion
 
     [MethodImpl(MethodImplOptions.AggressiveInlining)]

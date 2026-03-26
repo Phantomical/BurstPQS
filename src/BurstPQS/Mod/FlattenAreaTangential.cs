@@ -38,7 +38,7 @@ public class FlattenAreaTangential(PQSMod_FlattenAreaTangential mod)
     }
 
     [BurstCompile(FloatMode = FloatMode.Fast)]
-    struct BuildJob : IBatchPQSVertexJob
+    struct BuildJob : IBatchPQSHeightJob
     {
         public bool DEBUG_showColors;
         public double flattenToRadius;
@@ -49,7 +49,7 @@ public class FlattenAreaTangential(PQSMod_FlattenAreaTangential mod)
         public double angleDelta;
         public Vector3d posNorm;
 
-        public readonly void BuildVertices(in BuildVerticesData data)
+        public readonly void BuildHeights(in BuildHeightsData data)
         {
             for (int i = 0; i < data.VertexCount; ++i)
             {
