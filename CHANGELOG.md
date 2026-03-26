@@ -7,6 +7,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## Unreleased
 
+## v0.1.10
+### Fixed
+* Fixed a bug where `FlattenArea` PQSMods would sometimes not apply when setting
+  the quad height, but would otherwise work.
+* Fixed a bug where the terrain height would be wrong at the very centre of
+  the area for a `FlattenArea` PQSMod.
+
 ## v0.1.9
 ### Fixed
 * Fix harmony.log.txt from appearing on the desktop.
