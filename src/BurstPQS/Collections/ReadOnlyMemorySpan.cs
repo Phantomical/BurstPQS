@@ -28,7 +28,7 @@ public readonly unsafe struct ReadOnlyMemorySpan<T>(MemorySpan<T> span) : IEnume
         get
         {
             // Hint.Assume(index >= 0 && index < Length);
-            if (Hint.Unlikely(index < 0 || index > Length))
+            if (Hint.Unlikely((uint)index > (uint)Length))
                 BurstException.ThrowIndexOutOfRange();
 
             return ref data[index];
@@ -46,6 +46,8 @@ public readonly unsafe struct ReadOnlyMemorySpan<T>(MemorySpan<T> span) : IEnume
     public ReadOnlyMemorySpan<T> Slice(int start, int length) => new(span.Slice(start, length));
 
     public static implicit operator ReadOnlyMemorySpan<T>(MemorySpan<T> span) => new(span);
+
+    public T* GetUncheckedPointer() => data;
 
     #region IEnumerator
     public readonly Enumerator GetEnumerator() => new(this);
