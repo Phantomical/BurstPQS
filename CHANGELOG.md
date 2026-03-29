@@ -7,6 +7,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## Unreleased
 
+## v0.1.11
+### Added
+* Added a tooltip to the debug window that will show why a planet is in fallback mode.
+
+### Changed
+* Optimized BurstAnimationCurve.
+
 ## v0.1.10
 ### Fixed
 * Fixed a bug where `FlattenArea` PQSMods would sometimes not apply when setting
