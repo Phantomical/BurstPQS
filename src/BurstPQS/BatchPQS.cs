@@ -1,5 +1,6 @@
 using System;
 using System.Collections.Generic;
+using System.Text;
 using BurstPQS.Jobs;
 using BurstPQS.Patches;
 using BurstPQS.Util;
@@ -27,6 +28,7 @@ public class BatchPQS : MonoBehaviour
         get => _fallback || ForceFallback;
         set => _fallback = value;
     }
+    internal string FallbackMessage { get; private set; }
 
     private readonly Dictionary<PQ, PendingBuild> pending = [];
     private readonly Queue<PQ> buildQueue = [];
@@ -542,6 +544,8 @@ public class BatchPQS : MonoBehaviour
     #region Method Injections
     internal void PostSetupMods()
     {
+        var fallbackMessage = new StringBuilder();
+
         List<BatchPQSMod> batchMods = new(pqs.mods.Length);
         foreach (var mod in pqs.mods)
         {
@@ -556,16 +560,13 @@ public class BatchPQS : MonoBehaviour
                 Debug.LogWarning(
                     $"[BurstPQS] PQSMod {mod.GetType().Name} is not supported by BatchPQS"
                 );
+                fallbackMessage.AppendFormat(
+                    "PQSMod {} is not supported by BatchPQS\n",
+                    mod.GetType().Name
+                );
                 Fallback = true;
             }
         }
-
-        if (Fallback)
-            Debug.LogWarning(
-                $"[BurstPQS] BatchPQS not supported for surface {pqs.name}. Falling back to regular PQS"
-            );
-        else
-            Debug.Log($"[BurstPQS] BatchPQS enabled for surface {pqs.name}");
 
         this.mods = [.. batchMods];
 
@@ -582,9 +583,28 @@ public class BatchPQS : MonoBehaviour
                     Debug.LogWarning(
                         $"[BatchPQS] PQSMod {mod.GetType().Name} is not supported by BatchPQS: {e.Message}"
                     );
+                    fallbackMessage.AppendFormat(
+                        "PQSMod {} is not supported by BatchPQS: {}\n",
+                        mod.GetType().Name,
+                        e.Message
+                    );
                     Fallback = true;
                 }
             }
+        }
+
+        if (Fallback)
+        {
+            Debug.LogWarning(
+                $"[BurstPQS] BatchPQS not supported for surface {pqs.name}. Falling back to regular PQS"
+            );
+
+            FallbackMessage = fallbackMessage.ToString();
+        }
+        else
+        {
+            Debug.Log($"[BurstPQS] BatchPQS enabled for surface {pqs.name}");
+            FallbackMessage = "This planet is supported by BurstPQS";
         }
     }
     #endregion

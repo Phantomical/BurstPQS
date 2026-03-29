@@ -198,31 +198,49 @@ internal class BurstDebugScreenContent : MonoBehaviour
         if (FlightGlobals.Bodies == null)
             return;
 
-        var bodies = new System.Collections.Generic.List<(string name, bool fallback)>();
+        var bodies = new System.Collections.Generic.List<(
+            string name,
+            bool fallback,
+            string fallbackMessage
+        )>();
         foreach (var body in FlightGlobals.Bodies)
         {
             if (body.pqsController == null)
                 continue;
             var batchPQS = body.pqsController.GetComponent<BatchPQS>();
-            bodies.Add(
-                (body.bodyDisplayName.Replace("^N", ""), batchPQS == null || batchPQS.Fallback)
-            );
+            bodies.Add((
+                body.bodyDisplayName.Replace("^N", ""),
+                batchPQS == null || batchPQS.Fallback,
+                batchPQS?.FallbackMessage
+            ));
         }
 
         // Set row heights before adding children so TableLayoutGroup knows the row count.
         var heights = new float[bodies.Count];
         for (int i = 0; i < heights.Length; i++)
-            heights[i] = 20f;
+            heights[i] = 24f;
         _planetTable.RowHeights = heights;
 
-        foreach (var (name, fallback) in bodies)
+        foreach (var (name, fallback, fallbackMessage) in bodies)
         {
             DebugUIManager.CreateDirectLabel(_planetTable.transform, name);
+
+            var statusRow = DebugUIManager.CreateHorizontalLayout(_planetTable.transform);
+            var hlg = statusRow.GetComponent<HorizontalLayoutGroup>();
+            hlg.childForceExpandWidth = false;
+            statusRow.GetComponent<LayoutElement>().minHeight = -1f;
             var statusTmp = DebugUIManager.CreateDirectLabel(
-                _planetTable.transform,
+                statusRow.transform,
                 fallback ? LabelFallback : LabelBurst
             );
             statusTmp.color = fallback ? StatusBad : StatusGood;
+
+            var spacer = new GameObject("FlexSpacer", typeof(RectTransform));
+            spacer.transform.SetParent(statusRow.transform, false);
+            var spacerLE = spacer.AddComponent<LayoutElement>();
+            spacerLE.flexibleWidth = 1f;
+
+            DebugUIManager.CreateHelpButton(statusRow.transform, fallbackMessage);
         }
     }
 
