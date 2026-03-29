@@ -94,8 +94,56 @@ internal class BurstDebugScreenContent : MonoBehaviour
     {
         var rt = DebugUIManager.CreateScreenPrefab<BurstDebugScreenContent>("BurstPQS_DebugScreen");
         var content = rt.GetComponent<BurstDebugScreenContent>();
-        content.BuildSettingsSection(rt);
-        content.BuildPlanetsSection(rt);
+
+        // Replace the root VLG with a ScrollRect that wraps all content.
+        var rootVlg = rt.GetComponent<VerticalLayoutGroup>();
+        var rootPadding = rootVlg.padding;
+        var rootSpacing = rootVlg.spacing;
+        Object.DestroyImmediate(rootVlg);
+
+        var scrollRect = rt.gameObject.AddComponent<ScrollRect>();
+        scrollRect.horizontal = false;
+        scrollRect.vertical = true;
+        scrollRect.scrollSensitivity = 20f;
+        scrollRect.movementType = ScrollRect.MovementType.Clamped;
+
+        var viewportGo = new GameObject("Viewport", typeof(RectTransform));
+        viewportGo.transform.SetParent(rt, false);
+        var vp = viewportGo.GetComponent<RectTransform>();
+        vp.anchorMin = Vector2.zero;
+        vp.anchorMax = Vector2.one;
+        vp.offsetMin = Vector2.zero;
+        vp.offsetMax = Vector2.zero;
+        viewportGo.AddComponent<Image>();
+        viewportGo.AddComponent<Mask>().showMaskGraphic = false;
+        scrollRect.viewport = vp;
+
+        var contentGo = new GameObject("Content", typeof(RectTransform));
+        contentGo.transform.SetParent(viewportGo.transform, false);
+        var cr = contentGo.GetComponent<RectTransform>();
+        cr.anchorMin = new Vector2(0, 1);
+        cr.anchorMax = new Vector2(1, 1);
+        cr.pivot = new Vector2(0.5f, 1f);
+        cr.offsetMin = Vector2.zero;
+        cr.offsetMax = Vector2.zero;
+
+        var contentVlg = contentGo.AddComponent<VerticalLayoutGroup>();
+        contentVlg.childAlignment = TextAnchor.UpperLeft;
+        contentVlg.childControlWidth = true;
+        contentVlg.childControlHeight = true;
+        contentVlg.childForceExpandWidth = true;
+        contentVlg.childForceExpandHeight = false;
+        contentVlg.spacing = rootSpacing;
+        contentVlg.padding = rootPadding;
+
+        var csf = contentGo.AddComponent<ContentSizeFitter>();
+        csf.verticalFit = ContentSizeFitter.FitMode.PreferredSize;
+        scrollRect.content = cr;
+
+        DebugUIManager.CreateScrollbar(rt, scrollRect);
+
+        content.BuildSettingsSection(cr);
+        content.BuildPlanetsSection(cr);
         return rt;
     }
 
@@ -136,49 +184,12 @@ internal class BurstDebugScreenContent : MonoBehaviour
 
         CreateSeparator(parent);
 
-        // ScrollRect — fixed height, scrolls the planet list
-        var scrollGo = new GameObject("PlanetsScroll", typeof(RectTransform));
-        scrollGo.transform.SetParent(parent, false);
-        var scrollLE = scrollGo.AddComponent<LayoutElement>();
-        scrollLE.preferredHeight = 220f;
-        scrollLE.flexibleHeight = 1f;
-        scrollLE.flexibleWidth = 1f;
-
-        var scrollRect = scrollGo.AddComponent<ScrollRect>();
-        scrollRect.horizontal = false;
-        scrollRect.vertical = true;
-        scrollRect.scrollSensitivity = 20f;
-        scrollRect.movementType = ScrollRect.MovementType.Clamped;
-
-        var viewportGo = new GameObject("Viewport", typeof(RectTransform));
-        viewportGo.transform.SetParent(scrollGo.transform, false);
-        var vp = viewportGo.GetComponent<RectTransform>();
-        vp.anchorMin = Vector2.zero;
-        vp.anchorMax = Vector2.one;
-        vp.pivot = new Vector2(0, 0.5f);
-        vp.offsetMin = Vector2.zero;
-        vp.offsetMax = Vector2.zero;
-        viewportGo.AddComponent<Image>();
-        viewportGo.AddComponent<Mask>().showMaskGraphic = false;
-        scrollRect.viewport = vp;
-
-        var contentGo = new GameObject("Content", typeof(RectTransform));
-        contentGo.transform.SetParent(viewportGo.transform, false);
-        var cr = contentGo.GetComponent<RectTransform>();
-        cr.anchorMin = new Vector2(0, 1);
-        cr.anchorMax = new Vector2(1, 1);
-        cr.pivot = new Vector2(0.5f, 1f);
-        cr.offsetMin = Vector2.zero;
-        cr.offsetMax = Vector2.zero;
-        var tlg = contentGo.AddComponent<TableLayoutGroup>();
+        var tableGo = new GameObject("PlanetTable", typeof(RectTransform));
+        tableGo.transform.SetParent(parent, false);
+        var tlg = tableGo.AddComponent<TableLayoutGroup>();
         tlg.MinimumColumnWidth = 0f;
         tlg.ColumnSpacing = 8f;
         tlg.RowSpacing = 2f;
-        var ccsf = contentGo.AddComponent<ContentSizeFitter>();
-        ccsf.verticalFit = ContentSizeFitter.FitMode.PreferredSize;
-        scrollRect.content = cr;
-
-        DebugUIManager.CreateScrollbar(scrollGo.transform, scrollRect);
 
         _planetTable = tlg;
     }
