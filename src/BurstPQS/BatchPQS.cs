@@ -545,6 +545,7 @@ public class BatchPQS : MonoBehaviour
     internal void PostSetupMods()
     {
         var fallbackMessage = new StringBuilder();
+        Fallback = false;
 
         List<BatchPQSMod> batchMods = new(pqs.mods.Length);
         foreach (var mod in pqs.mods)
@@ -560,9 +561,8 @@ public class BatchPQS : MonoBehaviour
                 Debug.LogWarning(
                     $"[BurstPQS] PQSMod {mod.GetType().Name} is not supported by BatchPQS"
                 );
-                fallbackMessage.AppendFormat(
-                    "PQSMod {} is not supported by BatchPQS\n",
-                    mod.GetType().Name
+                fallbackMessage.AppendLine(
+                    $"PQSMod {mod.GetType().Name} is not supported by BatchPQS"
                 );
                 Fallback = true;
             }
@@ -583,10 +583,8 @@ public class BatchPQS : MonoBehaviour
                     Debug.LogWarning(
                         $"[BatchPQS] PQSMod {mod.GetType().Name} is not supported by BatchPQS: {e.Message}"
                     );
-                    fallbackMessage.AppendFormat(
-                        "PQSMod {} is not supported by BatchPQS: {}\n",
-                        mod.GetType().Name,
-                        e.Message
+                    fallbackMessage.AppendLine(
+                        $"PQSMod {mod.GetType().Name} is not supported by BatchPQS: {e.Message}"
                     );
                     Fallback = true;
                 }
