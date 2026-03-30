@@ -7,6 +7,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## Unreleased
 
+## v0.1.12
+### Fixed
+* Fixed a bug introduced when collecting errors for unsupported planets.
+
 ## v0.1.11
 ### Added
 * Added a tooltip to the debug window that will show why a planet is in fallback mode.
