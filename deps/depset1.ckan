@@ -14,7 +14,8 @@
         { "name": "KSPBurst-Lite" },
         { "name": "ParallaxContinued" },
         { "name": "Kopernicus" },
-        { "name": "VertexHeightOblateAdvanced" }
+        { "name": "VertexHeightOblateAdvanced" },
+        { "name": "VertexMitchellNetravaliHeightMap" }
     ],
     "recommends": [
         { "name": "KSPCommunityFixes" },
