@@ -1,0 +1,70 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <PropertyGroup>
+    <Description>BurstPQS integration for VertexHeightOblateAdvanced</Description>
+
+    <KSPBT_ModRoot>$(GameDataOutDir)</KSPBT_ModRoot>
+    <KSPBT_ModPluginFolder>Plugins</KSPBT_ModPluginFolder>
+
+    <!-- Nothing we can do about this warning -->
+    <ResolveAssemblyWarnOrErrorOnTargetArchitectureMismatch>None</ResolveAssemblyWarnOrErrorOnTargetArchitectureMismatch>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\BurstPQS\BurstPQS.csproj">
+      <Private>false</Private>
+      <KSPAssemblyName>BurstPQS</KSPAssemblyName>
+      <KSPAssemblyVersion>$(Version)</KSPAssemblyVersion>
+      <GenerateDependencyAttribute>true</GenerateDependencyAttribute>
+    </ProjectReference>
+
+    <PackageReference Include="KSPBuildTools" Version="1.1.0" />
+    <PackageReference Include="Krafs.Publicizer" Version="2.3.0">
+      <IncludeAssets>runtime; build; native; contentfiles; analyzers; buildtransitive</IncludeAssets>
+      <PrivateAssets>all</PrivateAssets>
+    </PackageReference>
+
+    <Reference Include="HarmonyKSP">
+      <HintPath>$(DepSet1)/000_Harmony/0Harmony.dll</HintPath>
+      <Private>false</Private>
+      <KSPAssemblyName>HarmonyKSP</KSPAssemblyName>
+      <KSPAssemblyVersion>0.0.0</KSPAssemblyVersion>
+      <GenerateDependencyAttribute>true</GenerateDependencyAttribute>
+    </Reference>
+
+    <Reference Include="KSPBurst">
+      <HintPath>$(DepSet1)/000_KSPBurst/Plugins/Unity.Burst.dll</HintPath>
+      <Private>false</Private>
+      <KSPAssemblyName>KSPBurst</KSPAssemblyName>
+      <KSPAssemblyVersion>1.5.5</KSPAssemblyVersion>
+      <GenerateDependencyAttribute>true</GenerateDependencyAttribute>
+    </Reference>
+
+    <Reference Include="$(DepSet1)/000_KSPBurst/Plugins/Unity.*.dll">
+      <Private>false</Private>
+    </Reference>
+    <Reference Include="$(DepSet1)/000_KSPBurst/Plugins/System.Runtime.CompilerServices.Unsafe.dll">
+      <Private>false</Private>
+    </Reference>
+
+    <Reference Include="VertexHeightOblateAdvanced">
+      <Private>false</Private>
+      <HintPath>$(DepSet1)/001_DuckweedUtils/VertexHeightOblateAdvanced/VertexHeightOblateAdvanced.dll</HintPath>
+      <KSPAssemblyName>VertexHeightOblateAdvanced</KSPAssemblyName>
+      <KSPAssemblyVersion>0.0.0</KSPAssemblyVersion>
+      <GenerateDependencyAttribute>true</GenerateDependencyAttribute>
+    </Reference>
+  </ItemGroup>
+  
+  <ItemGroup>
+    <Publicize Include="VertexHeightOblateAdvanced" />
+  </ItemGroup>
+
+  <Target Name="CopyExtrasToPluginFolder" AfterTargets="KSPBT_CopyDLLsToPluginFolder">
+    <ItemGroup>
+      <_ExtrasToCopy Include="$(TargetDir)/**/*.pdb" />
+      <_ExtrasToCopy Include="$(TargetDir)/**/*.xml" />
+    </ItemGroup>
+
+    <Copy SourceFiles="@(_ExtrasToCopy)" DestinationFolder="$(KSPBT_ModRoot)/$(KSPBT_ModPluginFolder)/%(RecursiveDir)" />
+  </Target>
+</Project>

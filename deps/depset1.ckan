@@ -13,7 +13,8 @@
         { "name": "Harmony2" },
         { "name": "KSPBurst-Lite" },
         { "name": "ParallaxContinued" },
-        { "name": "Kopernicus" }
+        { "name": "Kopernicus" },
+        { "name": "VertexHeightOblateAdvanced" }
     ],
     "recommends": [
         { "name": "KSPCommunityFixes" },

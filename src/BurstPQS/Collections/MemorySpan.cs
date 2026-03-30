@@ -160,12 +160,12 @@ public readonly unsafe struct MemorySpan<T> : IEnumerable<T>
 
 public static class MemorySpanExt
 {
-    public static unsafe double4 GetVec4(this MemorySpan<double> span, int index)
+    public static unsafe ref double4 GetVec4(this MemorySpan<double> span, int index)
     {
         if (Hint.Unlikely(index < 0 || index + 4 > span.Length))
             BurstException.ThrowIndexOutOfRange();
 
-        return *(double4*)&span.GetDataPtr()[index];
+        return ref *(double4*)&span.GetDataPtr()[index];
     }
 
     public static unsafe void SetVec4(this MemorySpan<double> span, int index, double4 v)
