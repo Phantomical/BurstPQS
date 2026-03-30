@@ -204,26 +204,33 @@ internal class BurstDebugScreenContent : MonoBehaviour
         PopulatePlanetTable();
     }
 
+    struct TableEntry
+    {
+        public string name;
+        public bool fallback;
+        public string tooltip;
+    }
+
     private void PopulatePlanetTable()
     {
         if (FlightGlobals.Bodies == null)
             return;
 
-        var bodies = new System.Collections.Generic.List<(
-            string name,
-            bool fallback,
-            string fallbackMessage
-        )>();
+        var bodies = new System.Collections.Generic.List<TableEntry>();
         foreach (var body in FlightGlobals.Bodies)
         {
             if (body.pqsController == null)
                 continue;
             var batchPQS = body.pqsController.GetComponent<BatchPQS>();
-            bodies.Add((
-                body.bodyDisplayName.Replace("^N", ""),
-                batchPQS == null || batchPQS.Fallback,
-                batchPQS?.FallbackMessage
-            ));
+            bodies.Add(
+                new TableEntry
+                {
+                    name = body.bodyDisplayName.Replace("^N", ""),
+                    fallback = batchPQS == null || batchPQS.Fallback,
+                    tooltip =
+                        batchPQS?.FallbackMessage ?? "No BatchPQS instance found for this planet",
+                }
+            );
         }
 
         // Set row heights before adding children so TableLayoutGroup knows the row count.
@@ -232,9 +239,9 @@ internal class BurstDebugScreenContent : MonoBehaviour
             heights[i] = 24f;
         _planetTable.RowHeights = heights;
 
-        foreach (var (name, fallback, fallbackMessage) in bodies)
+        foreach (var entry in bodies)
         {
-            DebugUIManager.CreateDirectLabel(_planetTable.transform, name);
+            DebugUIManager.CreateDirectLabel(_planetTable.transform, entry.name);
 
             var statusRow = DebugUIManager.CreateHorizontalLayout(_planetTable.transform);
             var hlg = statusRow.GetComponent<HorizontalLayoutGroup>();
@@ -242,16 +249,16 @@ internal class BurstDebugScreenContent : MonoBehaviour
             statusRow.GetComponent<LayoutElement>().minHeight = -1f;
             var statusTmp = DebugUIManager.CreateDirectLabel(
                 statusRow.transform,
-                fallback ? LabelFallback : LabelBurst
+                entry.fallback ? LabelFallback : LabelBurst
             );
-            statusTmp.color = fallback ? StatusBad : StatusGood;
+            statusTmp.color = entry.fallback ? StatusBad : StatusGood;
 
             var spacer = new GameObject("FlexSpacer", typeof(RectTransform));
             spacer.transform.SetParent(statusRow.transform, false);
             var spacerLE = spacer.AddComponent<LayoutElement>();
             spacerLE.flexibleWidth = 1f;
 
-            DebugUIManager.CreateHelpButton(statusRow.transform, fallbackMessage);
+            DebugUIManager.CreateHelpButton(statusRow.transform, entry.tooltip);
         }
     }
 
