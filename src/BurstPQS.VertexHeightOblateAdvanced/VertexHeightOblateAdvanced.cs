@@ -106,7 +106,7 @@ class VertexHeightOblateAdvanced(PQSMod_VertexHeightOblateAdvanced mod)
 
         readonly double CalculateDeformityPointEquipotential(double theta)
         {
-            if (theta <= 0.0 || theta >= Math.PI)
+            if (theta <= 0.0 || theta >= Math.PI || criticality == 0.0)
                 return 1.0;
 
             double sintheta = math.sin(theta);
@@ -127,8 +127,8 @@ class VertexHeightOblateAdvanced(PQSMod_VertexHeightOblateAdvanced mod)
 
             double sin2theta = sin2.y;
             double cos2theta = cos2.y;
-            double sin2phi = sin.x;
-            double cos2phi = cos.x;
+            double sin2phi = sin2.x;
+            double cos2phi = cos2.x;
 
             double term1 = sin2theta * cos2phi / (a * a);
             double term2 = sin2theta * sin2phi / (b * b);
