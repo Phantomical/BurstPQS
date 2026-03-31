@@ -46,9 +46,9 @@ class VertexMitchellNetravaliHeightMap(PQSMod_VertexMitchellNetravaliHeightMap m
             for (int i = 0; i < data.VertexCount; ++i)
             {
                 var uv = new double2(data.u[i], data.v[i]);
-                var xy0 = (int2)math.floor(uv * wh);
-                var uv0 = uv / wh;
-                var uvD = (uv - uv0) * wh;
+                var uvWh = uv * wh;
+                var xy0 = (int2)math.floor(uvWh);
+                var uvD = uvWh - (double2)xy0;
 
                 double4 PX = default;
                 double4 PY = default;
