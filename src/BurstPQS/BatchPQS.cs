@@ -77,10 +77,40 @@ public class BatchPQS : MonoBehaviour
 
     #region UpdateQuads
     static readonly ProfilerMarker UpdateQuadsMarker = new("UpdateQuads");
+    static readonly ProfilerMarker UpdateQuadsInitMarker = new("UpdateQuadsInit");
     static readonly ProfilerMarker UpdateTargetRelativityMarker = new("UpdateTargetRelativity");
     static readonly ProfilerMarker UpdateSubdivisionMarker = new("UpdateSubdivision");
     static readonly ProfilerMarker CompleteQueuedBuildsMarker = new("CompleteQueuedBuilds");
     static readonly ProfilerMarker UpdateEdgesMarker = new("UpdateEdges");
+
+    public void UpdateQuadsInit()
+    {
+        using var scope = UpdateQuadsInitMarker.Auto();
+
+        pqs.CreateQuads();
+        pqs.isThinking = true;
+        pqs.quadAllowBuild = false;
+
+        int prev = -1;
+        while (prev != pqs.quadCount)
+        {
+            prev = pqs.quadCount;
+            foreach (var quad in pqs.quads)
+                quad.UpdateSubdivisionInit();
+        }
+
+        pqs.quadAllowBuild = true;
+
+        var subdivisionUpdate = new SubdivisionUpdate(pqs, activeQuads);
+        subdivisionUpdate.ScheduleJobs();
+        subdivisionUpdate.Complete();
+
+        JobHandle.ScheduleBatchedJobs();
+        CompleteQueuedBuilds();
+        JobHandle.ScheduleBatchedJobs();
+
+        pqs.isThinking = false;
+    }
 
     public void UpdateQuads()
     {

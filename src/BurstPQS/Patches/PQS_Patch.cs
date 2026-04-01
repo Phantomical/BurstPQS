@@ -76,11 +76,15 @@ internal static class PQS_UpdateQuads_Patch
 [HarmonyPatch(typeof(PQS), nameof(PQS.UpdateQuadsInit))]
 internal static class PQS_UpdateQuadsInit_Patch
 {
-    static readonly ProfilerMarker Marker = new(nameof(PQS.UpdateQuadsInit));
+    static bool Prefix(PQS __instance)
+    {
+        var batchPQS = __instance.GetComponent<BatchPQS>();
+        if (batchPQS is null || batchPQS.Fallback)
+            return true;
 
-    static void Prefix(out ProfilerMarker.AutoScope __state) => __state = Marker.Auto();
-
-    static void Postfix(ProfilerMarker.AutoScope __state) => __state.Dispose();
+        batchPQS.UpdateQuadsInit();
+        return false;
+    }
 }
 
 [BurstCompile]
