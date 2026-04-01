@@ -7,6 +7,15 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## Unreleased
 
+## v0.1.13
+### Added
+* Added support for VertexMitchellNetravaliHeightMap
+* Added support for VertexHeightOblateAdvanced
+
+### Fixed
+* Fixed a bug where the terrain would be corrupted after a scene switch under
+  certain conditions.
+
 ## v0.1.12
 ### Fixed
 * Fixed a bug introduced when collecting errors for unsupported planets.
