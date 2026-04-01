@@ -71,8 +71,8 @@ public abstract class BatchPQSMod : IDisposable
         if (ModTypes.TryGetValue(mod, out var prev))
         {
             Debug.LogWarning($"Multiple BatchPQSMods registered for PQSMod {mod.Name}:");
-            Debug.LogWarning($"  - {prev.Name}");
-            Debug.LogWarning($"  - {batchMod.Name}");
+            Debug.LogWarning($"  - {prev.FullName}");
+            Debug.LogWarning($"  - {batchMod.FullName}");
             return;
         }
 
