@@ -7,6 +7,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## Unreleased
 
+## v0.1.14
+### Added
+* Added support for Kerbal Konstructs.
+
 ## v0.1.13
 ### Added
 * Added support for VertexMitchellNetravaliHeightMap
