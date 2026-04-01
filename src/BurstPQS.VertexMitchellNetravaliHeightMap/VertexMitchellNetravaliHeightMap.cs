@@ -55,7 +55,7 @@ class VertexMitchellNetravaliHeightMap(PQSMod_VertexMitchellNetravaliHeightMap m
 
                 for (int iy = -1; iy < 3; ++iy)
                 {
-                    int y = math.clamp(xy0.y + iy, 0, wh.y);
+                    int y = math.clamp(xy0.y + iy, 0, wh.y - 1);
                     for (int ix = -1; ix < 3; ++ix)
                     {
                         int x = ClampLoop(xy0.x + ix, 0, wh.x);
