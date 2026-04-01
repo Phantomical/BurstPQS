@@ -15,7 +15,8 @@
         { "name": "ParallaxContinued" },
         { "name": "Kopernicus" },
         { "name": "VertexHeightOblateAdvanced" },
-        { "name": "VertexMitchellNetravaliHeightMap" }
+        { "name": "VertexMitchellNetravaliHeightMap" },
+        { "name": "KerbalKonstructs" }
     ],
     "recommends": [
         { "name": "KSPCommunityFixes" },

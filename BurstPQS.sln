@@ -19,6 +19,8 @@ Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "BurstPQS.VertexHeightOblate
 EndProject
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "BurstPQS.VertexMitchellNetravaliHeightMap", "src\BurstPQS.VertexMitchellNetravaliHeightMap\BurstPQS.VertexMitchellNetravaliHeightMap.csproj", "{C5F6E327-29BE-4BCC-B4E2-8950F6E9A865}"
 EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "BurstPQS.KerbalKonstructs", "src\BurstPQS.KerbalKonstructs\BurstPQS.KerbalKonstructs.csproj", "{89ABF471-88D1-4DB6-B678-A30D93A7EEAA}"
+EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
 		Debug|Any CPU = Debug|Any CPU
@@ -113,6 +115,18 @@ Global
 		{C5F6E327-29BE-4BCC-B4E2-8950F6E9A865}.Release|x64.Build.0 = Release|Any CPU
 		{C5F6E327-29BE-4BCC-B4E2-8950F6E9A865}.Release|x86.ActiveCfg = Release|Any CPU
 		{C5F6E327-29BE-4BCC-B4E2-8950F6E9A865}.Release|x86.Build.0 = Release|Any CPU
+		{89ABF471-88D1-4DB6-B678-A30D93A7EEAA}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{89ABF471-88D1-4DB6-B678-A30D93A7EEAA}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{89ABF471-88D1-4DB6-B678-A30D93A7EEAA}.Debug|x64.ActiveCfg = Debug|Any CPU
+		{89ABF471-88D1-4DB6-B678-A30D93A7EEAA}.Debug|x64.Build.0 = Debug|Any CPU
+		{89ABF471-88D1-4DB6-B678-A30D93A7EEAA}.Debug|x86.ActiveCfg = Debug|Any CPU
+		{89ABF471-88D1-4DB6-B678-A30D93A7EEAA}.Debug|x86.Build.0 = Debug|Any CPU
+		{89ABF471-88D1-4DB6-B678-A30D93A7EEAA}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{89ABF471-88D1-4DB6-B678-A30D93A7EEAA}.Release|Any CPU.Build.0 = Release|Any CPU
+		{89ABF471-88D1-4DB6-B678-A30D93A7EEAA}.Release|x64.ActiveCfg = Release|Any CPU
+		{89ABF471-88D1-4DB6-B678-A30D93A7EEAA}.Release|x64.Build.0 = Release|Any CPU
+		{89ABF471-88D1-4DB6-B678-A30D93A7EEAA}.Release|x86.ActiveCfg = Release|Any CPU
+		{89ABF471-88D1-4DB6-B678-A30D93A7EEAA}.Release|x86.Build.0 = Release|Any CPU
 	EndGlobalSection
 	GlobalSection(SolutionProperties) = preSolution
 		HideSolutionNode = FALSE
@@ -125,6 +139,7 @@ Global
 		{C1D2E3F4-A5B6-7890-CDEF-345678901234} = {827E0CD3-B72D-47B6-A68D-7590B98EB39B}
 		{F60B1CF9-E2D6-4337-9414-609DEE62391A} = {827E0CD3-B72D-47B6-A68D-7590B98EB39B}
 		{C5F6E327-29BE-4BCC-B4E2-8950F6E9A865} = {827E0CD3-B72D-47B6-A68D-7590B98EB39B}
+		{89ABF471-88D1-4DB6-B678-A30D93A7EEAA} = {827E0CD3-B72D-47B6-A68D-7590B98EB39B}
 	EndGlobalSection
 	GlobalSection(ExtensibilityGlobals) = postSolution
 		SolutionGuid = {D9B233F0-AFF7-419E-A4EE-04E26A75F140}
