@@ -91,12 +91,15 @@ public class BatchPQS : MonoBehaviour
         pqs.isThinking = true;
         pqs.quadAllowBuild = false;
 
-        int prev = -1;
-        while (prev != pqs.quadCount)
+        // Match stock iteration: reverse order (5→0) and require multiple
+        // consecutive stable iterations to ensure the tree fully converges.
+        int stable = 0;
+        while (stable < 10)
         {
-            prev = pqs.quadCount;
-            foreach (var quad in pqs.quads)
-                quad.UpdateSubdivisionInit();
+            int prev = pqs.quadCount;
+            for (int i = pqs.quads.Length - 1; i >= 0; i--)
+                pqs.quads[i].UpdateSubdivisionInit();
+            stable = prev == pqs.quadCount ? stable + 1 : 0;
         }
 
         pqs.quadAllowBuild = true;
@@ -404,12 +407,20 @@ public class BatchPQS : MonoBehaviour
             subdivideHandle.Complete();
             // Subdivide closest-first (ascending index order from DFS collection)
             for (int i = 0; i < subdivideIndices.Length; i++)
-                activeQuads[subdivideIndices[i]].Subdivide();
+            {
+                var q = activeQuads[subdivideIndices[i]];
+                if (q.IsSafeToSubdivide())
+                    q.Subdivide();
+            }
 
             collapseHandle.Complete();
             // Collapse farthest-first (reverse order for bottom-up)
             for (int i = collapseIndices.Length - 1; i >= 0; i--)
-                activeQuads[collapseIndices[i]].Collapse();
+            {
+                var q = activeQuads[collapseIndices[i]];
+                if (q.IsSafeToCollapse())
+                    q.Collapse();
+            }
 
             bool modified = subdivideIndices.Length != 0 || collapseIndices.Length != 0;
             if (modified)
