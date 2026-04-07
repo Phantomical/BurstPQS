@@ -104,13 +104,26 @@ public class BatchPQS : MonoBehaviour
 
         pqs.quadAllowBuild = true;
 
-        var subdivisionUpdate = new SubdivisionUpdate(pqs, activeQuads);
+        var subdivisionUpdate = new SubdivisionUpdate(this, activeQuads);
         subdivisionUpdate.ScheduleJobs();
         subdivisionUpdate.Complete();
 
         JobHandle.ScheduleBatchedJobs();
         CompleteQueuedBuilds();
         JobHandle.ScheduleBatchedJobs();
+
+        // Forcibly disable all mesh renderers for subdivided quads.
+        //
+        // This doesn't get properly set-up during UpdateSubdivisionInit.
+        // In stock, KSP sets enabled every single frame so it gets fixed during
+        // the next UpdateQuads call. We don't do that, so this is a one-time
+        // fix to make sure that everything is in the right state.
+        CollectActiveQuads();
+        foreach (var q in activeQuads)
+        {
+            if (q.IsNotNullOrDestroyed() && q.isSubdivided)
+                q.meshRenderer.enabled = false;
+        }
 
         pqs.isThinking = false;
     }
@@ -126,7 +139,7 @@ public class BatchPQS : MonoBehaviour
 
         SortQuadsByDistance(pqs.quads, pqs.relativeTargetPosition);
 
-        var subdivisionUpdate = new SubdivisionUpdate(pqs, activeQuads);
+        var subdivisionUpdate = new SubdivisionUpdate(this, activeQuads);
         subdivisionUpdate.ScheduleJobs();
         subdivisionUpdate.Complete();
 
@@ -276,11 +289,10 @@ public class BatchPQS : MonoBehaviour
     #region SubdivisionUpdate
     private readonly List<PQ> activeQuads = new(2048);
 
-    struct SubdivisionUpdate(PQS pqs, List<PQ> activeQuads)
+    struct SubdivisionUpdate(BatchPQS batchPQS, List<PQ> activeQuads)
     {
-        static readonly ProfilerMarker CollectActiveQuadsMarker = new("CollectActiveQuads");
-
-        readonly PQS pqs = pqs;
+        readonly PQS pqs = batchPQS.pqs;
+        readonly BatchPQS batchPQS = batchPQS;
         readonly List<PQ> activeQuads = activeQuads;
 
         NativeArray<QuadSnapshot> snapshots;
@@ -300,7 +312,7 @@ public class BatchPQS : MonoBehaviour
             using var scope = UpdateTargetRelativityMarker.Auto();
 
             if (activeQuads.Count == 0)
-                CollectActiveQuads();
+                batchPQS.CollectActiveQuads();
 
             int count = activeQuads.Count;
             if (count == 0)
@@ -462,35 +474,6 @@ public class BatchPQS : MonoBehaviour
             if (modified)
                 activeQuads.Clear();
         }
-
-        void CollectActiveQuads()
-        {
-            using var scope = CollectActiveQuadsMarker.Auto();
-
-            foreach (var quad in pqs.quads)
-            {
-                if (quad.IsNullOrDestroyed() || !quad.isActive)
-                    continue;
-
-                activeQuads.Add(quad);
-            }
-
-            for (int i = 0; i < activeQuads.Count; ++i)
-            {
-                var quad = activeQuads[i];
-
-                if (!quad.isSubdivided)
-                    continue;
-
-                foreach (var subnode in quad.subNodes)
-                {
-                    if (subnode.IsNullOrDestroyed() || !subnode.isActive)
-                        continue;
-
-                    activeQuads.Add(subnode);
-                }
-            }
-        }
     }
     #endregion
 
@@ -511,6 +494,37 @@ public class BatchPQS : MonoBehaviour
                 j--;
             }
             quads[j + 1] = pQ;
+        }
+    }
+
+    static readonly ProfilerMarker CollectActiveQuadsMarker = new("CollectActiveQuads");
+
+    void CollectActiveQuads()
+    {
+        using var scope = CollectActiveQuadsMarker.Auto();
+
+        foreach (var quad in pqs.quads)
+        {
+            if (quad.IsNullOrDestroyed() || !quad.isActive)
+                continue;
+
+            activeQuads.Add(quad);
+        }
+
+        for (int i = 0; i < activeQuads.Count; ++i)
+        {
+            var quad = activeQuads[i];
+
+            if (!quad.isSubdivided)
+                continue;
+
+            foreach (var subnode in quad.subNodes)
+            {
+                if (subnode.IsNullOrDestroyed() || !subnode.isActive)
+                    continue;
+
+                activeQuads.Add(subnode);
+            }
         }
     }
     #endregion
