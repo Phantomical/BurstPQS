@@ -7,6 +7,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## Unreleased
 
+## v0.1.15
+### Fixed
+* Fixed an occasional null reference exception when switching scenes.
+* Fixed a typo in the "burst compilation not enabled" error window.
+* Fixed a bug where low-resolution PQS quads would not be properly made
+  invisible when switching scenes.
+
 ## v0.1.14
 ### Added
 * Added support for Kerbal Konstructs.
