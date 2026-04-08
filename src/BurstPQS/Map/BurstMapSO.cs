@@ -533,6 +533,7 @@ internal static unsafe class MapSOVTable<T>
 
     internal static readonly MapSOVTable VTable;
     internal static readonly MapSOVTableManaged VTableManaged;
+    internal static readonly MapSOVTable* VTablePtr;
 
     static MapSOVTable()
     {
@@ -601,6 +602,14 @@ internal static unsafe class MapSOVTable<T>
 
         VTable = MapSOVTable.Create<T>();
         VTableManaged = VTable.ToManaged();
+
+        var ptr = (MapSOVTable*)UnsafeUtility.Malloc(
+            UnsafeUtility.SizeOf<MapSOVTable>(),
+            UnsafeUtility.AlignOf<MapSOVTable>(),
+            Allocator.Persistent
+        );
+        *ptr = VTable;
+        VTablePtr = ptr;
     }
 }
 
@@ -648,9 +657,7 @@ public unsafe struct BurstMapSO : IMapSO, IDisposable
         var height = mapSO.Height;
         var depth = mapSO.Depth;
 
-        // This is probably wildly unsafe, but mono never moves static readonly fields
-        // so it is ok
-        var vtable = (MapSOVTable*)Unsafe.AsPointer(ref Unsafe.AsRef(in MapSOVTable<T>.VTable));
+        var vtable = MapSOVTable<T>.VTablePtr;
         var managed = new ObjectHandle<MapSOVTableManaged>(MapSOVTable<T>.VTableManaged);
 
         // Avoid creating a managed allocation if we can.
