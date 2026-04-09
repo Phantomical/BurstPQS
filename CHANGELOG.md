@@ -7,6 +7,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## Unreleased
 
+## v0.1.16
+### Fixed
+* Fixed an occasional crash when building a PQS quad.
+
 ## v0.1.15
 ### Fixed
 * Fixed an occasional null reference exception when switching scenes.
