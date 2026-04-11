@@ -7,6 +7,15 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## Unreleased
 
+## v0.1.17
+### Changed
+* BurstPQS.dll now always has an AssemblyVersion of 1.0.0.0.
+  KSPBurst needs the assembly version to match otherwise it won't be able
+  to find the compiled methods.
+
+### Addedd
+* The Alt+F12 debug menu now has a texture exporter window.
+
 ## v0.1.16
 ### Fixed
 * Fixed an occasional crash when building a PQS quad.
