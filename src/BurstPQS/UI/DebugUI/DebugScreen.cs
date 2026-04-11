@@ -1,5 +1,6 @@
 using System.Text;
 using BurstPQS.UI.Components;
+using KSP.Localization;
 using KSP.UI.Screens.DebugToolbar;
 using KSP.UI.Screens.DebugToolbar.Screens;
 using TMPro;
@@ -17,18 +18,28 @@ internal class BurstDebugScreenRegistrar : MonoBehaviour
         if (!DebugUIManager.Initialize())
             return;
 
-        var prefab = BurstDebugScreenContent.CreatePrefab();
+        var screens = DebugScreenSpawner.Instance.debugScreens.screens;
 
         // Add to debugScreens.screens instead of calling DebugScreen.AddContentScreen directly.
         // AddDebugScreens.Start() processes this list into DebugScreen.treeItems after all
         // KSPAddon Start() methods have run, so this ends up after the stock screens in the tree.
-        DebugScreenSpawner.Instance.debugScreens.screens.Add(
+        screens.Add(
             new BurstScreenWrapper
             {
                 parentName = null,
                 name = "BurstPQS",
                 text = "BurstPQS",
-                screen = prefab,
+                screen = BurstDebugScreenContent.CreatePrefab(),
+            }
+        );
+
+        screens.Add(
+            new BurstScreenWrapper
+            {
+                parentName = "BurstPQS",
+                name = "Texture Exporter",
+                text = "Texture Exporter",
+                screen = TextureExporterScreen.CreatePrefab(),
             }
         );
     }
@@ -225,7 +236,7 @@ internal class BurstDebugScreenContent : MonoBehaviour
             bodies.Add(
                 new TableEntry
                 {
-                    name = body.bodyDisplayName.Replace("^N", ""),
+                    name = body.bodyDisplayName.LocalizeRemoveGender(),
                     fallback = batchPQS == null || batchPQS.Fallback,
                     tooltip =
                         batchPQS?.FallbackMessage ?? "No BatchPQS instance found for this planet",

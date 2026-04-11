@@ -596,6 +596,18 @@ public class BatchPQS : MonoBehaviour
         pending.Remove(quad);
     }
 
+    /// <summary>
+    /// Creates a <see cref="BatchPQSJobSet"/> by calling <see cref="BatchPQSMod.OnQuadPreBuild"/>
+    /// on all mods for the given quad. The caller is responsible for disposing the returned job set.
+    /// </summary>
+    internal BatchPQSJobSet CreateJobSet(PQ quad)
+    {
+        var jobSet = BatchPQSJobSet.Acquire();
+        foreach (var mod in mods)
+            mod.OnQuadPreBuild(quad, jobSet);
+        return jobSet;
+    }
+
     #region Method Injections
     internal void PostSetupMods()
     {

@@ -5,6 +5,16 @@
         <!-- The version used for all libraries in this project. -->
         <Version>0.1.16</Version>
 
+        <!--
+            Pin AssemblyVersion so that the .NET assembly identity doesn't change
+            between releases. The Burst compiler uses version-qualified assembly
+            names to look up job producer types, so a version mismatch between a
+            plugin compiled against an older BurstPQS and the current one causes
+            Burst to silently skip all of that plugin's jobs.
+        -->
+        <AssemblyVersion>1.0.0.0</AssemblyVersion>
+        <FileVersion>$(Version)</FileVersion>
+
         <TargetFramework>net481</TargetFramework>
         <LangVersion>preview</LangVersion>
 

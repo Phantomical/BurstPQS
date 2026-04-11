@@ -17,6 +17,7 @@ internal static class DebugUIManager
     static GameObject _labelPrefab;
     static GameObject _buttonPrefab;
     static GameObject _togglePrefab;
+    static GameObject _inputFieldPrefab;
     static GameObject _scrollbarPrefab;
     static GameObject _spacerPrefab;
 
@@ -84,13 +85,17 @@ internal static class DebugUIManager
             Object.DontDestroyOnLoad(_spacerPrefab);
         }
 
-        _initialized = _labelPrefab != null && _buttonPrefab != null && _togglePrefab != null;
+        _initialized =
+            _labelPrefab != null
+            && _buttonPrefab != null
+            && _togglePrefab != null
+            && _inputFieldPrefab != null;
 
         if (!_initialized)
             Debug.LogWarning(
                 $"[BurstPQS] DebugUIManager: Failed to find all prefabs. "
                     + $"label={_labelPrefab != null}, button={_buttonPrefab != null}, "
-                    + $"toggle={_togglePrefab != null}"
+                    + $"toggle={_togglePrefab != null}, inputField={_inputFieldPrefab != null}"
             );
 
         return _initialized;
@@ -101,16 +106,26 @@ internal static class DebugUIManager
     /// </summary>
     static void FindConsolePrefabs(GameObject root)
     {
-        if (_buttonPrefab != null)
-            return;
-
         var bottomBar = root.transform.Find("BottomBar");
         if (bottomBar == null)
             return;
 
-        var buttonGo = bottomBar.Find("Button");
-        if (buttonGo != null)
-            _buttonPrefab = ClonePrefab(buttonGo.gameObject, "BurstPQS_ButtonPrefab");
+        if (_buttonPrefab == null)
+        {
+            var buttonGo = bottomBar.Find("Button");
+            if (buttonGo != null)
+                _buttonPrefab = ClonePrefab(buttonGo.gameObject, "BurstPQS_ButtonPrefab");
+        }
+
+        if (_inputFieldPrefab == null)
+        {
+            var inputFieldGo = bottomBar.Find("InputField");
+            if (inputFieldGo != null)
+                _inputFieldPrefab = ClonePrefab(
+                    inputFieldGo.gameObject,
+                    "BurstPQS_InputFieldPrefab"
+                );
+        }
     }
 
     /// <summary>
@@ -276,6 +291,34 @@ internal static class DebugUIManager
         return component;
     }
 
+    public static Toggle CreateToggle(Transform parent, string label)
+    {
+        var go = Object.Instantiate(_togglePrefab, parent, false);
+        go.name = "Toggle";
+
+        var layout = go.GetComponent<LayoutElement>();
+        if (layout != null)
+        {
+            layout.preferredWidth = -1;
+            layout.flexibleWidth = 1;
+        }
+
+        StretchToggleChild(go);
+        go.SetActive(true);
+
+        var toggle = go.GetComponentInChildren<Toggle>();
+
+        var labelTransform = toggle?.transform.Find("Label");
+        if (labelTransform != null)
+        {
+            var tmp = labelTransform.GetComponent<TextMeshProUGUI>();
+            if (tmp != null)
+                tmp.text = label;
+        }
+
+        return toggle;
+    }
+
     public static GameObject CreateHelpButton(Transform parent, string tooltip)
     {
         var go = Object.Instantiate(_buttonPrefab, parent, false);
@@ -338,6 +381,35 @@ internal static class DebugUIManager
         }
     }
 
+    public static TMP_InputField CreateInputField(Transform parent)
+    {
+        var go = Object.Instantiate(_inputFieldPrefab, parent, false);
+        go.SetActive(true);
+        go.name = "InputField";
+
+        SetupInputFieldPrefab(go);
+
+        var input = go.GetComponent<TMP_InputField>();
+        input.text = "";
+
+        return input;
+    }
+
+    static void SetupInputFieldPrefab(GameObject go)
+    {
+        var layout = go.GetComponent<LayoutElement>();
+        if (layout != null)
+        {
+            layout.preferredWidth = -1;
+            layout.flexibleWidth = 1;
+            layout.minHeight = 30f;
+        }
+
+        var input = go.GetComponent<TMP_InputField>();
+        if (input?.textComponent != null)
+            input.textComponent.alignment = TextAlignmentOptions.Left;
+    }
+
     public static void CreateSpacer(Transform parent, float height = 8f)
     {
         var go = Object.Instantiate(_spacerPrefab, parent, false);
@@ -387,5 +459,4 @@ internal static class DebugUIManager
 
         return scrollbar;
     }
-
 }

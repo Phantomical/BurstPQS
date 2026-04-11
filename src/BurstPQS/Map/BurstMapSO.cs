@@ -603,11 +603,12 @@ internal static unsafe class MapSOVTable<T>
         VTable = MapSOVTable.Create<T>();
         VTableManaged = VTable.ToManaged();
 
-        var ptr = (MapSOVTable*)UnsafeUtility.Malloc(
-            UnsafeUtility.SizeOf<MapSOVTable>(),
-            UnsafeUtility.AlignOf<MapSOVTable>(),
-            Allocator.Persistent
-        );
+        var ptr = (MapSOVTable*)
+            UnsafeUtility.Malloc(
+                UnsafeUtility.SizeOf<MapSOVTable>(),
+                UnsafeUtility.AlignOf<MapSOVTable>(),
+                Allocator.Persistent
+            );
         *ptr = VTable;
         VTablePtr = ptr;
     }

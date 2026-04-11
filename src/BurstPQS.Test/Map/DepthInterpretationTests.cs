@@ -56,11 +56,7 @@ public class DepthInterpretationTests : BurstPQSTestBase
         var (map, data) = MakeSinglePixelRGBA32();
         try
         {
-            assertColorEquals(
-                "RGBA32.Color",
-                map.GetPixelColor(0, 0),
-                new Color(Rf, Gf, Bf, Af)
-            );
+            assertColorEquals("RGBA32.Color", map.GetPixelColor(0, 0), new Color(Rf, Gf, Bf, Af));
         }
         finally
         {
