@@ -131,6 +131,14 @@ internal static class TextureExporter
             handle = new ObjectHandle<BatchPQSJobSet>(jobSet);
         }
 
+        public static JobSetGuard CreateEmpty()
+        {
+            var guard = default(JobSetGuard);
+            guard.jobSet = BatchPQSJobSet.Acquire();
+            guard.handle = new ObjectHandle<BatchPQSJobSet>(guard.jobSet);
+            return guard;
+        }
+
         public void Dispose()
         {
             if (handle.IsAllocated)
@@ -228,17 +236,22 @@ internal static class TextureExporter
             hasOcean = body.ocean && pqs.ChildSpheres is { Length: > 0 };
             PQS oceanPQS = hasOcean ? pqs.ChildSpheres[0] : null;
             BatchPQS oceanBatchPQS = oceanPQS?.GetComponent<BatchPQS>();
-            hasOcean = hasOcean && oceanBatchPQS != null && !oceanBatchPQS.Fallback;
+            hasOcean = hasOcean && oceanBatchPQS != null;
+            bool oceanFallback = hasOcean && oceanBatchPQS.Fallback;
 
-            using var oceanGoGuard = hasOcean
-                ? new GameObjectGuard(new GameObject("BurstPQS_TextureExportOceanQuad"))
-                : default;
+            using var oceanGoGuard =
+                hasOcean && !oceanFallback
+                    ? new GameObjectGuard(new GameObject("BurstPQS_TextureExportOceanQuad"))
+                    : default;
             PQ oceanQuad = null;
-            if (hasOcean)
+            if (hasOcean && !oceanFallback)
             {
                 oceanGoGuard.GameObject.SetActive(false);
                 oceanQuad = oceanGoGuard.AddPQ(oceanPQS);
+            }
 
+            if (hasOcean)
+            {
                 oceanHeights = new NativeArray<float>(
                     pixelCount,
                     Allocator.Persistent,
@@ -359,7 +372,9 @@ internal static class TextureExporter
 
                     if (hasOcean)
                     {
-                        block.oceanJobSetGuard = new JobSetGuard(oceanBatchPQS, oceanQuad);
+                        block.oceanJobSetGuard = oceanFallback
+                            ? JobSetGuard.CreateEmpty()
+                            : new JobSetGuard(oceanBatchPQS, oceanQuad);
 
                         // Ocean PQS
                         var oceanBlockHeights = new NativeArray<float>(
