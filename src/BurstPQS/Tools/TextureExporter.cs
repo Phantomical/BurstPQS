@@ -687,6 +687,21 @@ internal static class TextureExporter
             if (!Directory.Exists(exportDir))
                 Directory.CreateDirectory(exportDir);
 
+            // Write info.txt with height metadata.
+
+            var infoPath = Path.Combine(exportDir, "info.txt");
+            using (var writer = new StreamWriter(infoPath))
+            {
+                writer.WriteLine($"planet: {body.name}");
+                writer.WriteLine($"min height: {minH}");
+                writer.WriteLine($"max height: {maxH}");
+                if (hasOcean)
+                {
+                    writer.WriteLine($"ocean min height: {oceanMinH}");
+                    writer.WriteLine($"ocean max height: {oceanMaxH}");
+                }
+            }
+
             if (options.exportNormal)
             {
                 var normalHandle = SaveColors(
