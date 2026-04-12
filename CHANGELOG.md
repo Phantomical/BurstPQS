@@ -7,6 +7,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## Unreleased
 
+## v0.1.18
+### Fixed
+* Normals in exported textures are now pointed outwards instead of inwards.
+
 ## v0.1.17
 ### Changed
 * BurstPQS.dll now always has an AssemblyVersion of 1.0.0.0.
