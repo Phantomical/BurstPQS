@@ -138,7 +138,7 @@ internal struct TextureExportOceanBlockJob() : IJob
 
                 var edge1 = (posRight - pos).Normalized();
                 var edge2 = (posDown - pos).Normalized();
-                var worldNormal = (Vector3)Vector3d.Cross(edge1, edge2).Normalized();
+                var worldNormal = (Vector3)Vector3d.Cross(edge2, edge1).Normalized();
 
                 blockNormals[oIdx] = Vector3.Normalize(tbn.MultiplyVector(worldNormal));
             }
