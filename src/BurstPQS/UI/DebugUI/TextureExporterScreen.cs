@@ -173,7 +173,10 @@ internal class TextureExporterScreen : MonoBehaviour
     {
         int resolution = 4096;
         if (_resolutionInput != null && int.TryParse(_resolutionInput.text, out int parsed))
-            resolution = Mathf.Clamp(parsed, 64, 16384);
+        {
+            resolution = Mathf.Clamp(parsed, 128, 16384);
+            resolution = (resolution + 127) / 128 * 128;
+        }
 
         return new TextureExportOptions
         {
