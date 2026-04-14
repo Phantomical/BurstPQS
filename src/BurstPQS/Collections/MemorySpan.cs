@@ -34,7 +34,7 @@ public readonly unsafe struct MemorySpan<T> : IEnumerable<T>
         get
         {
             // Hint.Assume(index >= 0 && index < Length);
-            if (Hint.Unlikely(index < 0 || index > Length))
+            if (Hint.Unlikely(index < 0 || index >= Length))
                 BurstException.ThrowIndexOutOfRange();
 
             return ref data[index];
