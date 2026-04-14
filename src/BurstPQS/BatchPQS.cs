@@ -104,9 +104,11 @@ public class BatchPQS : MonoBehaviour
 
         pqs.quadAllowBuild = true;
 
-        var subdivisionUpdate = new SubdivisionUpdate(this, activeQuads);
-        subdivisionUpdate.ScheduleJobs();
-        subdivisionUpdate.Complete();
+        using (var subdivisionUpdate = new SubdivisionUpdate(this, activeQuads))
+        {
+            subdivisionUpdate.ScheduleJobs();
+            subdivisionUpdate.Complete();
+        }
 
         JobHandle.ScheduleBatchedJobs();
         CompleteQueuedBuilds();
@@ -139,7 +141,7 @@ public class BatchPQS : MonoBehaviour
 
         SortQuadsByDistance(pqs.quads, pqs.relativeTargetPosition);
 
-        var subdivisionUpdate = new SubdivisionUpdate(this, activeQuads);
+        using var subdivisionUpdate = new SubdivisionUpdate(this, activeQuads);
         subdivisionUpdate.ScheduleJobs();
         subdivisionUpdate.Complete();
 
@@ -289,7 +291,7 @@ public class BatchPQS : MonoBehaviour
     #region SubdivisionUpdate
     private readonly List<PQ> activeQuads = new(2048);
 
-    struct SubdivisionUpdate(BatchPQS batchPQS, List<PQ> activeQuads)
+    struct SubdivisionUpdate(BatchPQS batchPQS, List<PQ> activeQuads) : IDisposable
     {
         readonly PQS pqs = batchPQS.pqs;
         readonly BatchPQS batchPQS = batchPQS;
@@ -408,13 +410,9 @@ public class BatchPQS : MonoBehaviour
         public void Complete()
         {
             using var scope = UpdateSubdivisionMarker.Auto();
-            using var snapshotsGuard = snapshots;
-            using var resultsGuard = results;
-            using var actionsGuard = actions;
-            using var subdivideGuard = subdivideIndices;
-            using var collapseGuard = collapseIndices;
-            using var onUpdateGuard = onUpdateIndices;
-            using var visibilityGuard = visibilityChangedQueue;
+
+            if (!subdivideIndices.IsCreated)
+                return;
 
             subdivideHandle.Complete();
             // Subdivide closest-first (ascending index order from DFS collection)
@@ -473,6 +471,21 @@ public class BatchPQS : MonoBehaviour
             // Force re-collection next frame if the tree changed
             if (modified)
                 activeQuads.Clear();
+        }
+
+        public void Dispose()
+        {
+            snapshots.Dispose();
+            results.Dispose();
+            actions.Dispose();
+            if (subdivideIndices.IsCreated)
+                subdivideIndices.Dispose();
+            if (collapseIndices.IsCreated)
+                collapseIndices.Dispose();
+            if (onUpdateIndices.IsCreated)
+                onUpdateIndices.Dispose();
+            if (visibilityChangedQueue.IsCreated)
+                visibilityChangedQueue.Dispose();
         }
     }
     #endregion

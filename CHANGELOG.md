@@ -7,6 +7,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## Unreleased
 
+### Fixed
+* Fixed a NRE in UpdateQuadsInit when run on a disabled PQS sphere.
+
 ## v0.1.18
 ### Fixed
 * Normals in exported textures are now pointed outwards instead of inwards.
