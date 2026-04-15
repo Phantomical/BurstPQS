@@ -1,5 +1,6 @@
 using System;
 using System.Collections.Generic;
+using System.Net;
 using System.Runtime.CompilerServices;
 using BurstPQS.Map.Detail;
 using BurstPQS.Util;
@@ -749,6 +750,20 @@ public unsafe struct BurstMapSO : IMapSO, IDisposable
     }
 
     /// <summary>
+    /// Get the factory func for constructing a BurstMapSO from an instance of
+    /// type <typeparamref name="T"/>.
+    /// </summary>
+    public static Func<MapSO, BurstMapSO> GetFactoryFunc<T>()
+        where T : MapSO => BurstMapSORegistry.GetFactoryFunc(typeof(T));
+
+    /// <summary>
+    /// Get the factory func for constructing a BurstMapSO from an instance of
+    /// <paramref name="type"/>.
+    /// </summary>
+    public static Func<MapSO, BurstMapSO> GetFactoryFunc(Type type) =>
+        BurstMapSORegistry.GetFactoryFunc(type);
+
+    /// <summary>
     /// Returns <see langword="true"/> if the given <see cref="MapSO"/> instance's type has a
     /// registered factory function and can be used with <see cref="Create(MapSO)"/>.
     /// </summary>
@@ -1016,12 +1031,15 @@ internal class BurstMapSORegistry
 
     internal static bool IsSupported(MapSO mapSO) => Registry.ContainsKey(mapSO.GetType());
 
-    internal static Func<MapSO, BurstMapSO> GetFactoryFunc(MapSO mapSO)
+    internal static Func<MapSO, BurstMapSO> GetFactoryFunc(MapSO mapSO) =>
+        GetFactoryFunc(mapSO.GetType());
+
+    internal static Func<MapSO, BurstMapSO> GetFactoryFunc(Type type)
     {
-        if (!Registry.TryGetValue(mapSO.GetType(), out var func))
+        if (!Registry.TryGetValue(type, out var func))
         {
             Debug.LogError(
-                $"No BurstMapSO factory function registered for MapSO type {mapSO.GetType().FullName}"
+                $"No BurstMapSO factory function registered for MapSO type {type.FullName}"
             );
             return CreateEmptyMapSO;
         }
