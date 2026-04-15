@@ -53,9 +53,9 @@ public class UVPlanetRelativePosition(PQSMod_UVPlanetRelativePosition mod)
 
     internal static unsafe void UpdateQuadNormals(PQ quad)
     {
-        UpdateQuadNormalsFunc ??= BurstUtil
-            .MaybeCompileFunctionPointer<UpdateQuadNormalsDelegate>(UpdateQuadNormalsBurst)
-            .Invoke;
+        UpdateQuadNormalsFunc ??= BurstUtil.MaybeCompileDelegate<UpdateQuadNormalsDelegate>(
+            UpdateQuadNormalsBurst
+        );
 
         if (quad.vertNormals.Length != quad.verts.Length)
             throw new IndexOutOfRangeException(

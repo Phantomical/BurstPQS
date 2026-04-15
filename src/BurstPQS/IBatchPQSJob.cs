@@ -148,7 +148,7 @@ internal sealed unsafe class JobData<T>(in T job) : JobData
             var executeDel = (BuildHeightsDelegate)
                 Delegate.CreateDelegate(typeof(BuildHeightsDelegate), executeFn);
 
-            BuildHeightsFunc = BurstUtil.MaybeCompileFunctionPointer(executeDel).Invoke;
+            BuildHeightsFunc = BurstUtil.MaybeCompileDelegate(executeDel);
         }
 
         if (typeof(IBatchPQSVertexJob).IsAssignableFrom(type))
@@ -159,7 +159,7 @@ internal sealed unsafe class JobData<T>(in T job) : JobData
             var executeDel = (BuildVerticesDelegate)
                 Delegate.CreateDelegate(typeof(BuildVerticesDelegate), executeFn);
 
-            BuildVerticesFunc = BurstUtil.MaybeCompileFunctionPointer(executeDel).Invoke;
+            BuildVerticesFunc = BurstUtil.MaybeCompileDelegate(executeDel);
         }
 
         if (typeof(IBatchPQSMeshJob).IsAssignableFrom(type))
@@ -170,7 +170,7 @@ internal sealed unsafe class JobData<T>(in T job) : JobData
             var executeDel = (BuildMeshDelegate)
                 Delegate.CreateDelegate(typeof(BuildMeshDelegate), executeFn);
 
-            BuildMeshFunc = BurstUtil.MaybeCompileFunctionPointer(executeDel).Invoke;
+            BuildMeshFunc = BurstUtil.MaybeCompileDelegate(executeDel);
         }
 
         if (typeof(IBatchPQSMeshBuiltJob).IsAssignableFrom(type))

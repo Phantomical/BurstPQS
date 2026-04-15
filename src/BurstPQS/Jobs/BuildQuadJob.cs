@@ -550,20 +550,16 @@ internal static unsafe class BuildQuadJobExt
     static BuildQuadJobExt()
     {
         InitHeightDataFunc = BurstUtil
-            .MaybeCompileFunctionPointer<InitHeightDataDelegate>(InitHeightDataBurst)
-            .Invoke;
+            .MaybeCompileDelegate<InitHeightDataDelegate>(InitHeightDataBurst);
 
         InitVertexDataFunc = BurstUtil
-            .MaybeCompileFunctionPointer<InitVertexDataDelegate>(InitVertexDataBurst)
-            .Invoke;
+            .MaybeCompileDelegate<InitVertexDataDelegate>(InitVertexDataBurst);
 
         InitMeshDataFunc = BurstUtil
-            .MaybeCompileFunctionPointer<InitMeshDataDelegate>(InitMeshDataBurst)
-            .Invoke;
+            .MaybeCompileDelegate<InitMeshDataDelegate>(InitMeshDataBurst);
 
         BuildMeshFunc = BurstUtil
-            .MaybeCompileFunctionPointer<BuildMeshDelegate>(BuildMeshBurst)
-            .Invoke;
+            .MaybeCompileDelegate<BuildMeshDelegate>(BuildMeshBurst);
     }
 
     // We need to use the Unsafe.AsRef/fixed dance below as otherwise the proper address

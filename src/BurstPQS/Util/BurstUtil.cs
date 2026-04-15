@@ -27,15 +27,25 @@ public static class BurstUtil
         }
     }
 
-    internal static FunctionPointer<F> MaybeCompileFunctionPointer<F>(F del)
+    /// <summary>
+    /// Compile a function pointer and also return a rooted managed delegate.
+    /// </summary>
+    /// <remarks>
+    /// This returns a <typeparamref name="F"/> delegate as the out parameter
+    /// <paramref name="managed"/> for use in managed call sites. If that delegate
+    /// is GCed then the unmanaged function pointer might be invalidated, so make
+    /// sure to keep it around for as long as the native function pointer remains
+    /// in use.
+    /// </remarks>
+    internal static FunctionPointer<F> MaybeCompileFunctionPointer<F>(F del, out F managed)
         where F : Delegate
     {
         try
         {
-            return BurstCompiler.CompileFunctionPointer(del);
+            var fp = BurstCompiler.CompileFunctionPointer(del);
+            managed = fp.Invoke;
+            return fp;
         }
-        // If the delegate is not a valid burst-compiled function then we just get
-        // a normal function pointer for it.
         catch (InvalidOperationException e)
         {
             var method = del.Method;
@@ -46,6 +56,7 @@ public static class BurstUtil
                 );
             }
 
+            managed = del;
             return new(Marshal.GetFunctionPointerForDelegate(del));
         }
     }

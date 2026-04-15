@@ -202,13 +202,10 @@ internal static unsafe class TextureExportBlockJobExt
 
     static TextureExportBlockJobExt()
     {
-        InitGridDataFunc = BurstUtil
-            .MaybeCompileFunctionPointer<InitGridDataDelegate>(InitGridDataBurst)
-            .Invoke;
-
-        BuildBlockOutputFunc = BurstUtil
-            .MaybeCompileFunctionPointer<BuildBlockOutputDelegate>(BuildBlockOutputBurst)
-            .Invoke;
+        InitGridDataFunc = BurstUtil.MaybeCompileDelegate<InitGridDataDelegate>(InitGridDataBurst);
+        BuildBlockOutputFunc = BurstUtil.MaybeCompileDelegate<BuildBlockOutputDelegate>(
+            BuildBlockOutputBurst
+        );
     }
 
     internal static void Init() { }
