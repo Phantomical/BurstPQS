@@ -7,8 +7,17 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## Unreleased
 
+## v0.1.19
 ### Fixed
 * Fixed a NRE in UpdateQuadsInit when run on a disabled PQS sphere.
+* Fixed an occasional crash when a BatchPQSMod is running in fallback mode
+  and it's function pointer gets garbage collected.
+* Fixed an off-by-one error in MemorySpan bounds checks.
+
+### Changed
+* The texture exporter now properly clamps resolutions to multiples of 128.
+* The texture exporter now writes out an info.txt file with min/max heights
+  of all emitted heightmaps.
 
 ## v0.1.18
 ### Fixed
