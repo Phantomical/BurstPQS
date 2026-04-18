@@ -61,12 +61,20 @@ internal static class BurstException
         Hint.Assume(false);
     }
 
+    public static void ThrowIndexOutOfRange(int start, int count, int length)
+    {
+        if (start < 0 || start >= length)
+            ThrowIndexOutOfRange(start, length);
+
+        ThrowIndexOutOfRange(start + count, length);
+    }
+
     [MethodImpl(MethodImplOptions.NoInlining)]
     [IgnoreWarning(1370)]
     static void ThrowIndexOutOfRangeImpl(int index, int length)
     {
 #if CRASH_ON_EXCEPTION
-        Debug.LogError($"Array index was out of range (expected {index} < {length})");
+        Debug.LogError($"Array index {index} was out of range (expected 0 < {index} < {length})");
         throw new IndexOutOfRangeException();
 #else
         VTable.ThrowIndexOutOfRange.Invoke(index, length);
@@ -76,7 +84,7 @@ internal static class BurstException
     [BurstDiscard]
     static void ThrowIndexOutOfRangeManaged(int index, int length) =>
         throw new IndexOutOfRangeException(
-            $"Array index was out of range (expected {index} < {length})"
+            $"Array index {index} was out of range (expected 0 < {index} < {length})"
         );
 
     public static void ThrowArgumentOutOfRange()

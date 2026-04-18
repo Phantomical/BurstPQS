@@ -84,7 +84,7 @@ public readonly unsafe struct MemorySpan<T> : IEnumerable<T>
     public MemorySpan<T> Slice(int start)
     {
         if ((uint)start > Length)
-            BurstException.ThrowIndexOutOfRange();
+            BurstException.ThrowIndexOutOfRange(start, Length);
 
         return new(data + start, Length - start);
     }
@@ -92,7 +92,7 @@ public readonly unsafe struct MemorySpan<T> : IEnumerable<T>
     public MemorySpan<T> Slice(int start, int length)
     {
         if ((uint)start > Length || (uint)length > (Length - start))
-            BurstException.ThrowIndexOutOfRange();
+            BurstException.ThrowIndexOutOfRange(start, length, Length);
 
         return new(data + start, length);
     }
@@ -163,7 +163,7 @@ public static class MemorySpanExt
     public static unsafe ref double4 GetVec4(this MemorySpan<double> span, int index)
     {
         if (Hint.Unlikely(index < 0 || index + 4 > span.Length))
-            BurstException.ThrowIndexOutOfRange();
+            BurstException.ThrowIndexOutOfRange(index, 4, span.Length);
 
         return ref *(double4*)&span.GetDataPtr()[index];
     }
@@ -171,7 +171,7 @@ public static class MemorySpanExt
     public static unsafe void SetVec4(this MemorySpan<double> span, int index, double4 v)
     {
         if (Hint.Unlikely(index < 0 || index + 4 > span.Length))
-            BurstException.ThrowIndexOutOfRange();
+            BurstException.ThrowIndexOutOfRange(index, 4, span.Length);
 
         *(double4*)&span.GetDataPtr()[index] = v;
     }

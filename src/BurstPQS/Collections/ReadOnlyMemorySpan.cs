@@ -29,7 +29,7 @@ public readonly unsafe struct ReadOnlyMemorySpan<T>(MemorySpan<T> span) : IEnume
         {
             // Hint.Assume(index >= 0 && index < Length);
             if (Hint.Unlikely((uint)index > (uint)Length))
-                BurstException.ThrowIndexOutOfRange();
+                BurstException.ThrowIndexOutOfRange(index, Length);
 
             return ref data[index];
         }

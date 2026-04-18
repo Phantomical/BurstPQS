@@ -53,7 +53,7 @@ public struct FixedArray30<T>
         readonly get
         {
             if (Hint.Unlikely((uint)index >= Length))
-                BurstException.ThrowIndexOutOfRange();
+                BurstException.ThrowIndexOutOfRange(index, Length);
 
             fixed (FixedArray30<T>* array = &this)
                 return ((T*)array)[index];
@@ -61,7 +61,7 @@ public struct FixedArray30<T>
         set
         {
             if ((uint)index >= Length)
-                BurstException.ThrowIndexOutOfRange();
+                BurstException.ThrowIndexOutOfRange(index, Length);
 
             fixed (FixedArray30<T>* array = &this)
                 ((T*)array)[index] = value;

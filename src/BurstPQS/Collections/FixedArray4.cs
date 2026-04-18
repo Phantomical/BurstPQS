@@ -22,7 +22,7 @@ public struct FixedArray4<T> : IEnumerable<T>
         readonly get
         {
             if ((uint)index >= Length)
-                BurstException.ThrowIndexOutOfRange();
+                BurstException.ThrowIndexOutOfRange(index, Length);
 
             ref T slot = ref Unsafe.Add(
                 ref Unsafe.As<FixedArray4<T>, T>(ref Unsafe.AsRef(in this)),
@@ -34,7 +34,7 @@ public struct FixedArray4<T> : IEnumerable<T>
         set
         {
             if ((uint)index >= Length)
-                BurstException.ThrowIndexOutOfRange();
+                BurstException.ThrowIndexOutOfRange(index, Length);
 
             ref T slot = ref Unsafe.Add(ref Unsafe.As<FixedArray4<T>, T>(ref this), index);
             slot = value;

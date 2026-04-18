@@ -49,7 +49,7 @@ internal struct BitSpan(MemorySpan<ulong> bits) : IEnumerable<int>
         get
         {
             if (key < 0 || key >= Capacity)
-                BurstException.ThrowIndexOutOfRange();
+                BurstException.ThrowIndexOutOfRange(key, Capacity);
 
             var word = key / ULongBits;
             var bit = key % ULongBits;
@@ -60,7 +60,7 @@ internal struct BitSpan(MemorySpan<ulong> bits) : IEnumerable<int>
         set
         {
             if (key < 0 || key >= Capacity)
-                BurstException.ThrowIndexOutOfRange();
+                BurstException.ThrowIndexOutOfRange(key, Capacity);
 
             var word = key / ULongBits;
             var bit = key % ULongBits;
@@ -133,7 +133,7 @@ internal struct BitSpan(MemorySpan<ulong> bits) : IEnumerable<int>
     public void ClearUpFrom(int index)
     {
         if (index < 0)
-            BurstException.ThrowIndexOutOfRange();
+            BurstException.ThrowIndexOutOfRange(index, Capacity);
 
         var word = index / ULongBits;
         var bit = index % ULongBits;
@@ -151,7 +151,7 @@ internal struct BitSpan(MemorySpan<ulong> bits) : IEnumerable<int>
     public void ClearUpTo(int index)
     {
         if (index < 0)
-            BurstException.ThrowIndexOutOfRange();
+            BurstException.ThrowIndexOutOfRange(index, Capacity);
 
         var word = index / ULongBits;
         var bit = index % ULongBits;
@@ -172,11 +172,11 @@ internal struct BitSpan(MemorySpan<ulong> bits) : IEnumerable<int>
     public void ClearOutsideRange(int start, int end)
     {
         if (start < 0)
-            BurstException.ThrowIndexOutOfRange();
+            BurstException.ThrowIndexOutOfRange(start, Capacity);
         if (end < start)
-            BurstException.ThrowIndexOutOfRange();
+            BurstException.ThrowIndexOutOfRange(end, start);
         if (end > Capacity)
-            BurstException.ThrowIndexOutOfRange();
+            BurstException.ThrowIndexOutOfRange(end, Capacity);
 
         int sword = start / ULongBits;
         int eword = end / ULongBits;
@@ -206,7 +206,7 @@ internal struct BitSpan(MemorySpan<ulong> bits) : IEnumerable<int>
     public void SetUpTo(int index)
     {
         if (index < 0 || index > Capacity)
-            BurstException.ThrowIndexOutOfRange();
+            BurstException.ThrowIndexOutOfRange(index, Capacity);
 
         var word = index / ULongBits;
         var bit = index % ULongBits;
