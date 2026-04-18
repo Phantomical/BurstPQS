@@ -2,6 +2,7 @@ using System;
 using System.Collections.Generic;
 using System.Net;
 using System.Runtime.CompilerServices;
+using System.Runtime.InteropServices;
 using BurstPQS.Map.Detail;
 using BurstPQS.Util;
 using Unity.Burst;
@@ -379,9 +380,9 @@ internal unsafe struct MapSOVTable
 /// <summary>
 /// A managed version of <see cref="MapSOVTable"/> that stores pre-cached delegates
 /// to avoid allocations from <see cref="FunctionPointer{T}.Invoke"/> calling
-/// <see cref="System.Runtime.InteropServices.Marshal.GetDelegateForFunctionPointer"/>.
+/// <see cref="Marshal.GetDelegateForFunctionPointer"/>.
 /// </summary>
-internal unsafe class MapSOVTableManaged(
+internal unsafe readonly struct MapSOVTableManaged(
     MapSOVTableDelegates.GetPixelFloat_Int_Fn getPixelFloat_Int,
     MapSOVTableDelegates.GetPixelFloat_Float_Fn getPixelFloat_Float,
     MapSOVTableDelegates.GetPixelFloat_Double_Fn getPixelFloat_Double,
@@ -532,9 +533,11 @@ internal static unsafe class MapSOVTable<T>
     internal static readonly FunctionPointer<MapSOVTableDelegates.GetPixelHeightAlpha_Double_Fn> GetPixelHeightAlpha_Double_Fp;
     internal static readonly FunctionPointer<MapSOVTableDelegates.DisposeFn> Dispose_Fp;
 
+    [FixedAddressValueType]
     internal static readonly MapSOVTable VTable;
+
+    [FixedAddressValueType]
     internal static readonly MapSOVTableManaged VTableManaged;
-    internal static readonly MapSOVTable* VTablePtr;
 
     static MapSOVTable()
     {
@@ -644,15 +647,6 @@ internal static unsafe class MapSOVTable<T>
             gphad_del,
             dispose_del
         );
-
-        var ptr = (MapSOVTable*)
-            UnsafeUtility.Malloc(
-                UnsafeUtility.SizeOf<MapSOVTable>(),
-                UnsafeUtility.AlignOf<MapSOVTable>(),
-                Allocator.Persistent
-            );
-        *ptr = VTable;
-        VTablePtr = ptr;
     }
 }
 
@@ -677,16 +671,20 @@ internal static unsafe class MapSOVTable<T>
 /// <c>GetPixel</c> functions, though not <c>Dispose</c>.
 /// </para>
 /// </remarks>
+#pragma warning disable CS8500 // This takes the address of, gets the size of, or declares a pointer to a managed type
 public unsafe struct BurstMapSO : IMapSO, IDisposable
 {
     void* data;
     MapSOVTable* vtable;
-    ObjectHandle<MapSOVTableManaged> managed;
+    void* vpmanaged;
     ulong gchandle;
 
     int width;
     int height;
     MapSO.MapDepth depth;
+
+    private readonly ref MapSOVTable VTable => ref *vtable;
+    private readonly ref MapSOVTableManaged Managed => ref *(MapSOVTableManaged*)vpmanaged;
 
     public readonly bool IsValid => data is not null;
     public readonly int Width => width;
@@ -700,8 +698,15 @@ public unsafe struct BurstMapSO : IMapSO, IDisposable
         var height = mapSO.Height;
         var depth = mapSO.Depth;
 
-        var vtable = MapSOVTable<T>.VTablePtr;
-        var managed = new ObjectHandle<MapSOVTableManaged>(MapSOVTable<T>.VTableManaged);
+        MapSOVTable* vtable;
+        MapSOVTableManaged* managed;
+
+        // Both of these are marked with [FixedAddressValueType] so it is safe
+        // let the pointer escape the fixed block.
+        fixed (MapSOVTable* p = &MapSOVTable<T>.VTable)
+            vtable = p;
+        fixed (MapSOVTableManaged* p = &MapSOVTable<T>.VTableManaged)
+            managed = p;
 
         // Avoid creating a managed allocation if we can.
         if (UnsafeUtility.IsUnmanaged<T>())
@@ -717,7 +722,7 @@ public unsafe struct BurstMapSO : IMapSO, IDisposable
             {
                 data = data,
                 vtable = vtable,
-                managed = managed,
+                vpmanaged = managed,
                 width = width,
                 height = height,
                 depth = depth,
@@ -734,7 +739,7 @@ public unsafe struct BurstMapSO : IMapSO, IDisposable
             {
                 data = data,
                 vtable = vtable,
-                managed = managed,
+                vpmanaged = managed,
                 gchandle = gchandle,
                 width = width,
                 height = height,
@@ -779,12 +784,10 @@ public unsafe struct BurstMapSO : IMapSO, IDisposable
     {
         try
         {
-            using var guard = managed;
-
             if (data is null)
                 return;
 
-            managed.Target.Dispose(data);
+            Managed.Dispose(data);
 
             if (gchandle != 0)
                 UnsafeUtility.ReleaseGCObject(gchandle);
@@ -804,7 +807,7 @@ public unsafe struct BurstMapSO : IMapSO, IDisposable
 
         float result;
         if (BurstUtil.IsBurstCompiled)
-            result = vtable->GetPixelFloat(data, x, y);
+            result = VTable.GetPixelFloat(data, x, y);
         else
             GetPixelFloatManaged(x, y, out result);
         return result;
@@ -813,7 +816,7 @@ public unsafe struct BurstMapSO : IMapSO, IDisposable
     [BurstDiscard]
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
     private void GetPixelFloatManaged(int x, int y, out float result) =>
-        result = managed.Target.GetPixelFloat(data, x, y);
+        result = Managed.GetPixelFloat(data, x, y);
 
     public float GetPixelFloat(float x, float y)
     {
@@ -822,7 +825,7 @@ public unsafe struct BurstMapSO : IMapSO, IDisposable
 
         float result;
         if (BurstUtil.IsBurstCompiled)
-            result = vtable->GetPixelFloat(data, x, y);
+            result = VTable.GetPixelFloat(data, x, y);
         else
             GetPixelFloatManaged(x, y, out result);
         return result;
@@ -831,7 +834,7 @@ public unsafe struct BurstMapSO : IMapSO, IDisposable
     [BurstDiscard]
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
     private void GetPixelFloatManaged(float x, float y, out float result) =>
-        result = managed.Target.GetPixelFloat(data, x, y);
+        result = Managed.GetPixelFloat(data, x, y);
 
     public float GetPixelFloat(double x, double y)
     {
@@ -840,7 +843,7 @@ public unsafe struct BurstMapSO : IMapSO, IDisposable
 
         float result;
         if (BurstUtil.IsBurstCompiled)
-            result = vtable->GetPixelFloat(data, x, y);
+            result = VTable.GetPixelFloat(data, x, y);
         else
             GetPixelFloatManaged(x, y, out result);
         return result;
@@ -849,7 +852,7 @@ public unsafe struct BurstMapSO : IMapSO, IDisposable
     [BurstDiscard]
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
     private void GetPixelFloatManaged(double x, double y, out float result) =>
-        result = managed.Target.GetPixelFloat(data, x, y);
+        result = Managed.GetPixelFloat(data, x, y);
 
     public Color GetPixelColor(int x, int y)
     {
@@ -858,7 +861,7 @@ public unsafe struct BurstMapSO : IMapSO, IDisposable
 
         Color result;
         if (BurstUtil.IsBurstCompiled)
-            result = vtable->GetPixelColor(data, x, y);
+            result = VTable.GetPixelColor(data, x, y);
         else
             GetPixelColorManaged(x, y, out result);
         return result;
@@ -867,7 +870,7 @@ public unsafe struct BurstMapSO : IMapSO, IDisposable
     [BurstDiscard]
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
     private void GetPixelColorManaged(int x, int y, out Color result) =>
-        result = managed.Target.GetPixelColor(data, x, y);
+        result = Managed.GetPixelColor(data, x, y);
 
     public Color GetPixelColor(float x, float y)
     {
@@ -876,7 +879,7 @@ public unsafe struct BurstMapSO : IMapSO, IDisposable
 
         Color result;
         if (BurstUtil.IsBurstCompiled)
-            result = vtable->GetPixelColor(data, x, y);
+            result = VTable.GetPixelColor(data, x, y);
         else
             GetPixelColorManaged(x, y, out result);
         return result;
@@ -885,7 +888,7 @@ public unsafe struct BurstMapSO : IMapSO, IDisposable
     [BurstDiscard]
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
     private void GetPixelColorManaged(float x, float y, out Color result) =>
-        result = managed.Target.GetPixelColor(data, x, y);
+        result = Managed.GetPixelColor(data, x, y);
 
     public Color GetPixelColor(double x, double y)
     {
@@ -894,7 +897,7 @@ public unsafe struct BurstMapSO : IMapSO, IDisposable
 
         Color result;
         if (BurstUtil.IsBurstCompiled)
-            result = vtable->GetPixelColor(data, x, y);
+            result = VTable.GetPixelColor(data, x, y);
         else
             GetPixelColorManaged(x, y, out result);
         return result;
@@ -903,7 +906,7 @@ public unsafe struct BurstMapSO : IMapSO, IDisposable
     [BurstDiscard]
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
     private void GetPixelColorManaged(double x, double y, out Color result) =>
-        result = managed.Target.GetPixelColor(data, x, y);
+        result = Managed.GetPixelColor(data, x, y);
 
     public Color32 GetPixelColor32(int x, int y)
     {
@@ -912,7 +915,7 @@ public unsafe struct BurstMapSO : IMapSO, IDisposable
 
         Color32 result;
         if (BurstUtil.IsBurstCompiled)
-            result = vtable->GetPixelColor32(data, x, y);
+            result = VTable.GetPixelColor32(data, x, y);
         else
             GetPixelColor32Managed(x, y, out result);
         return result;
@@ -921,7 +924,7 @@ public unsafe struct BurstMapSO : IMapSO, IDisposable
     [BurstDiscard]
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
     private void GetPixelColor32Managed(int x, int y, out Color32 result) =>
-        result = managed.Target.GetPixelColor32(data, x, y);
+        result = Managed.GetPixelColor32(data, x, y);
 
     public Color32 GetPixelColor32(float x, float y)
     {
@@ -930,7 +933,7 @@ public unsafe struct BurstMapSO : IMapSO, IDisposable
 
         Color32 result;
         if (BurstUtil.IsBurstCompiled)
-            result = vtable->GetPixelColor32(data, x, y);
+            result = VTable.GetPixelColor32(data, x, y);
         else
             GetPixelColor32Managed(x, y, out result);
         return result;
@@ -939,7 +942,7 @@ public unsafe struct BurstMapSO : IMapSO, IDisposable
     [BurstDiscard]
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
     private void GetPixelColor32Managed(float x, float y, out Color32 result) =>
-        result = managed.Target.GetPixelColor32(data, x, y);
+        result = Managed.GetPixelColor32(data, x, y);
 
     public Color32 GetPixelColor32(double x, double y)
     {
@@ -948,7 +951,7 @@ public unsafe struct BurstMapSO : IMapSO, IDisposable
 
         Color32 result;
         if (BurstUtil.IsBurstCompiled)
-            result = vtable->GetPixelColor32(data, x, y);
+            result = VTable.GetPixelColor32(data, x, y);
         else
             GetPixelColor32Managed(x, y, out result);
         return result;
@@ -957,7 +960,7 @@ public unsafe struct BurstMapSO : IMapSO, IDisposable
     [BurstDiscard]
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
     private void GetPixelColor32Managed(double x, double y, out Color32 result) =>
-        result = managed.Target.GetPixelColor32(data, x, y);
+        result = Managed.GetPixelColor32(data, x, y);
 
     public HeightAlpha GetPixelHeightAlpha(int x, int y)
     {
@@ -966,7 +969,7 @@ public unsafe struct BurstMapSO : IMapSO, IDisposable
 
         HeightAlpha result;
         if (BurstUtil.IsBurstCompiled)
-            result = vtable->GetPixelHeightAlpha(data, x, y);
+            result = VTable.GetPixelHeightAlpha(data, x, y);
         else
             GetPixelHeightAlphaManaged(x, y, out result);
         return result;
@@ -975,7 +978,7 @@ public unsafe struct BurstMapSO : IMapSO, IDisposable
     [BurstDiscard]
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
     private void GetPixelHeightAlphaManaged(int x, int y, out HeightAlpha result) =>
-        result = managed.Target.GetPixelHeightAlpha(data, x, y);
+        result = Managed.GetPixelHeightAlpha(data, x, y);
 
     public HeightAlpha GetPixelHeightAlpha(float x, float y)
     {
@@ -984,7 +987,7 @@ public unsafe struct BurstMapSO : IMapSO, IDisposable
 
         HeightAlpha result;
         if (BurstUtil.IsBurstCompiled)
-            result = vtable->GetPixelHeightAlpha(data, x, y);
+            result = VTable.GetPixelHeightAlpha(data, x, y);
         else
             GetPixelHeightAlphaManaged(x, y, out result);
         return result;
@@ -993,7 +996,7 @@ public unsafe struct BurstMapSO : IMapSO, IDisposable
     [BurstDiscard]
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
     private void GetPixelHeightAlphaManaged(float x, float y, out HeightAlpha result) =>
-        result = managed.Target.GetPixelHeightAlpha(data, x, y);
+        result = Managed.GetPixelHeightAlpha(data, x, y);
 
     public HeightAlpha GetPixelHeightAlpha(double x, double y)
     {
@@ -1002,7 +1005,7 @@ public unsafe struct BurstMapSO : IMapSO, IDisposable
 
         HeightAlpha result;
         if (BurstUtil.IsBurstCompiled)
-            result = vtable->GetPixelHeightAlpha(data, x, y);
+            result = VTable.GetPixelHeightAlpha(data, x, y);
         else
             GetPixelHeightAlphaManaged(x, y, out result);
         return result;
@@ -1011,8 +1014,9 @@ public unsafe struct BurstMapSO : IMapSO, IDisposable
     [BurstDiscard]
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
     private void GetPixelHeightAlphaManaged(double x, double y, out HeightAlpha result) =>
-        result = managed.Target.GetPixelHeightAlpha(data, x, y);
+        result = Managed.GetPixelHeightAlpha(data, x, y);
 }
+#pragma warning restore CS8500 // This takes the address of, gets the size of, or declares a pointer to a managed type
 
 internal class BurstMapSORegistry
 {

@@ -9,10 +9,10 @@ namespace BurstPQS.Util;
 /// A helper struct that allows you to pass managed objects to jobs.
 /// </summary>
 /// <typeparam name="T"></typeparam>
-public struct ObjectHandle<T>(T value) : IDisposable
+public struct ObjectHandle<T>(T value, GCHandleType type) : IDisposable
     where T : class
 {
-    GCHandle handle = GCHandle.Alloc(value);
+    GCHandle handle = GCHandle.Alloc(value, type);
 
     public T Target
     {
@@ -21,6 +21,9 @@ public struct ObjectHandle<T>(T value) : IDisposable
     }
 
     public bool IsAllocated => handle.IsAllocated;
+
+    public ObjectHandle(T value)
+        : this(value, GCHandleType.Normal) { }
 
     public void Dispose() => handle.Free();
 

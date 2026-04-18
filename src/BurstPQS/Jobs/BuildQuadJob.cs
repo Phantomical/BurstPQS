@@ -549,17 +549,17 @@ internal static unsafe class BuildQuadJobExt
 
     static BuildQuadJobExt()
     {
-        InitHeightDataFunc = BurstUtil
-            .MaybeCompileDelegate<InitHeightDataDelegate>(InitHeightDataBurst);
+        InitHeightDataFunc = BurstUtil.MaybeCompileDelegate<InitHeightDataDelegate>(
+            InitHeightDataBurst
+        );
 
-        InitVertexDataFunc = BurstUtil
-            .MaybeCompileDelegate<InitVertexDataDelegate>(InitVertexDataBurst);
+        InitVertexDataFunc = BurstUtil.MaybeCompileDelegate<InitVertexDataDelegate>(
+            InitVertexDataBurst
+        );
 
-        InitMeshDataFunc = BurstUtil
-            .MaybeCompileDelegate<InitMeshDataDelegate>(InitMeshDataBurst);
+        InitMeshDataFunc = BurstUtil.MaybeCompileDelegate<InitMeshDataDelegate>(InitMeshDataBurst);
 
-        BuildMeshFunc = BurstUtil
-            .MaybeCompileDelegate<BuildMeshDelegate>(BuildMeshBurst);
+        BuildMeshFunc = BurstUtil.MaybeCompileDelegate<BuildMeshDelegate>(BuildMeshBurst);
     }
 
     // We need to use the Unsafe.AsRef/fixed dance below as otherwise the proper address
