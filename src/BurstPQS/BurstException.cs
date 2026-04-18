@@ -6,6 +6,7 @@ using System.Runtime.InteropServices;
 using BackgroundResourceProcessing.Shim;
 using Unity.Burst;
 using Unity.Burst.CompilerServices;
+using UnityEngine;
 using static BurstPQS.Util.BurstUtil;
 
 namespace BurstPQS;
@@ -13,10 +14,11 @@ namespace BurstPQS;
 internal static class BurstException
 {
     delegate void ThrowException0Delegate();
+    delegate void ThrowIndexOutOfRangeDelegate(int index, int length);
 
     struct BurstExceptionVTable
     {
-        public FunctionPointer<ThrowException0Delegate> ThrowIndexOutOfRange;
+        public FunctionPointer<ThrowIndexOutOfRangeDelegate> ThrowIndexOutOfRange;
         public FunctionPointer<ThrowException0Delegate> ThrowArgumentOutOfRange;
 
         [BurstDiscard]
@@ -49,11 +51,11 @@ internal static class BurstException
     [ModuleInitializer]
     internal static void ModuleInit() { }
 
-    public static void ThrowIndexOutOfRange()
+    public static void ThrowIndexOutOfRange(int index, int length)
     {
         if (!IsBurstCompiled)
-            ThrowIndexOutOfRangeManaged();
-        ThrowIndexOutOfRangeImpl();
+            ThrowIndexOutOfRangeManaged(index, length);
+        ThrowIndexOutOfRangeImpl(index, length);
 
         // Indicate to LLVM that ThrowIndexOutOfRange does not return.
         Hint.Assume(false);
@@ -61,17 +63,21 @@ internal static class BurstException
 
     [MethodImpl(MethodImplOptions.NoInlining)]
     [IgnoreWarning(1370)]
-    static void ThrowIndexOutOfRangeImpl()
+    static void ThrowIndexOutOfRangeImpl(int index, int length)
     {
 #if CRASH_ON_EXCEPTION
+        Debug.LogError($"Array index was out of range (expected {index} < {length})");
         throw new IndexOutOfRangeException();
 #else
-        VTable.ThrowIndexOutOfRange.Invoke();
+        VTable.ThrowIndexOutOfRange.Invoke(index, length);
 #endif
     }
 
     [BurstDiscard]
-    static void ThrowIndexOutOfRangeManaged() => throw new IndexOutOfRangeException();
+    static void ThrowIndexOutOfRangeManaged(int index, int length) =>
+        throw new IndexOutOfRangeException(
+            $"Array index was out of range (expected {index} < {length})"
+        );
 
     public static void ThrowArgumentOutOfRange()
     {
