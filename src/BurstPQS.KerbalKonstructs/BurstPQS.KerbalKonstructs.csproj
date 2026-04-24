@@ -18,11 +18,20 @@
     </ProjectReference>
 
     <PackageReference Include="KSPBuildTools" Version="1.1.0" />
+
     <Reference Include="KerbalKonstructs">
       <Private>false</Private>
       <HintPath>$(DepSet1)/KerbalKonstructs/KerbalKonstructs.dll</HintPath>
       <KSPAssemblyName>KerbalKonstructs</KSPAssemblyName>
       <KSPAssemblyVersion>0.0.0</KSPAssemblyVersion>
+      <GenerateDependencyAttribute>true</GenerateDependencyAttribute>
+    </Reference>
+
+    <Reference Include="CustomPreLaunchChecks">
+      <Private>false</Private>
+      <HintPath>$(DepSet1)/CustomPreLaunchChecks/CustomPreLaunchChecks.dll</HintPath>
+      <KSPAssemblyName>CustomPreLaunchChecks</KSPAssemblyName>
+      <KSPAssemblyVersion>1.0.0</KSPAssemblyVersion>
       <GenerateDependencyAttribute>true</GenerateDependencyAttribute>
     </Reference>
   </ItemGroup>
