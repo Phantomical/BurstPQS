@@ -18,7 +18,6 @@
     </ProjectReference>
 
     <PackageReference Include="KSPBuildTools" Version="1.1.0" />
-
     <Reference Include="KerbalKonstructs">
       <Private>false</Private>
       <HintPath>$(DepSet1)/KerbalKonstructs/KerbalKonstructs.dll</HintPath>

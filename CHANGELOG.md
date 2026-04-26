@@ -7,6 +7,16 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## Unreleased
 
+## v0.1.20
+### Fixed
+* Fixed a performance issue when using a `BurstMapSO` from a non-burst-compiled
+  BatchPQSMod. Turns out that `GCHandle.Target` is quite slow when being hammered
+  by multiple threads at the same time.
+* The kerbal konstructs integration now also has a `KSPAssemblyDependency` on
+  CustomPreLaunchChecks so that BurstPQS doesn't get blamed if dependencies for
+  kerbal konstructs are missing.
+* The kopernicus dependency on CKAN now includes the correct epoch.
+
 ## v0.1.19
 ### Fixed
 * Fixed a NRE in UpdateQuadsInit when run on a disabled PQS sphere.
@@ -29,7 +39,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   KSPBurst needs the assembly version to match otherwise it won't be able
   to find the compiled methods.
 
-### Addedd
+### Added
 * The Alt+F12 debug menu now has a texture exporter window.
 
 ## v0.1.16
