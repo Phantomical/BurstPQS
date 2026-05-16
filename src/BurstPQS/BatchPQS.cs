@@ -82,6 +82,7 @@ public class BatchPQS : MonoBehaviour
     static readonly ProfilerMarker UpdateSubdivisionMarker = new("UpdateSubdivision");
     static readonly ProfilerMarker CompleteQueuedBuildsMarker = new("CompleteQueuedBuilds");
     static readonly ProfilerMarker UpdateEdgesMarker = new("UpdateEdges");
+    static readonly ProfilerMarker UpdateMeshRenderersMarker = new("UpdateMeshRenderers");
 
     public void UpdateQuadsInit()
     {
@@ -143,6 +144,7 @@ public class BatchPQS : MonoBehaviour
 
         using var subdivisionUpdate = new SubdivisionUpdate(this, activeQuads);
         subdivisionUpdate.ScheduleJobs();
+        subdivisionUpdate.UpdateMeshRenderers();
         subdivisionUpdate.Complete();
 
         JobHandle.ScheduleBatchedJobs();
@@ -290,6 +292,7 @@ public class BatchPQS : MonoBehaviour
 
     #region SubdivisionUpdate
     private readonly List<PQ> activeQuads = new(2048);
+    private int activeQuadWalkIndex = 0;
 
     struct SubdivisionUpdate(BatchPQS batchPQS, List<PQ> activeQuads) : IDisposable
     {
@@ -405,6 +408,46 @@ public class BatchPQS : MonoBehaviour
             subdivThresholds.Dispose(computeHandle);
             collapseThresholds.Dispose(computeHandle);
             JobHandle.ScheduleBatchedJobs();
+        }
+
+        /// <summary>
+        /// Walks <see cref="activeQuads"/> while the subdivide job runs and corrects
+        /// each quad's <c>meshRenderer.enabled</c> state. Stock KSP rewrites this every
+        /// frame in its recursive UpdateSubdivision walk; we don't, so renderers can drift
+        /// out of sync (notably, subdivided parents left visible). Processes at least 5
+        /// quads per call, then keeps going until <see cref="subdivideHandle"/> completes
+        /// or the walk runs off the end of the list (in which case the index resets).
+        /// </summary>
+        public void UpdateMeshRenderers()
+        {
+            using var scope = UpdateMeshRenderersMarker.Auto();
+
+            if (activeQuads.Count == 0)
+                return;
+
+            const int MinProcessed = 5;
+            int processed = 0;
+
+            while (true)
+            {
+                if (batchPQS.activeQuadWalkIndex >= activeQuads.Count)
+                {
+                    batchPQS.activeQuadWalkIndex = 0;
+                    return;
+                }
+
+                var q = activeQuads[batchPQS.activeQuadWalkIndex++];
+                if (q.IsNotNullOrDestroyed() && q.meshRenderer.IsNotNullOrDestroyed())
+                {
+                    bool shouldBeEnabled = !q.isSubdivided && q.isVisible && !q.isForcedInvisible;
+                    if (q.meshRenderer.enabled != shouldBeEnabled)
+                        q.meshRenderer.enabled = shouldBeEnabled;
+                }
+
+                processed++;
+                if (processed >= MinProcessed && subdivideHandle.IsCompleted)
+                    return;
+            }
         }
 
         public void Complete()
