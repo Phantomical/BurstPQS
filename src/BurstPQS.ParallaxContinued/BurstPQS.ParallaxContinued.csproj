@@ -49,9 +49,6 @@
     <Reference Include="ParallaxContinued">
       <Private>false</Private>
       <HintPath>$(DepSet1)/ParallaxContinued/Plugins/ParallaxContinued.dll</HintPath>
-      <KSPAssemblyName>Parallax</KSPAssemblyName>
-      <KSPAssemblyVersion>1.0.0</KSPAssemblyVersion>
-      <GenerateDependencyAttribute>true</GenerateDependencyAttribute>
     </Reference>
   </ItemGroup>
   
