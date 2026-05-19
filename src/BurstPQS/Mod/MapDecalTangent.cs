@@ -18,6 +18,9 @@ public class MapDecalTangent(PQSMod_MapDecalTangent mod) : BatchPQSMod<PQSMod_Ma
         using var guard = new RestoreGuard(mod);
         base.OnQuadPreBuild(quad, jobSet);
 
+        if (!mod.quadActive)
+            return;
+
         BurstMapSO? heightMap = null;
         if (mod.heightMap is not null)
             heightMap = BurstMapSO.Create(mod.heightMap);
