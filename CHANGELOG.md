@@ -7,6 +7,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## Unreleased
 
+## v0.1.22
+### Fixed
+* Fixed an issue where map decals would also appear on the opposite side of
+  the planet.
+
 ## v0.1.21
 ### Fixed
 * Attempt to fix an issue where low-res PQS quads are left enabled when they
