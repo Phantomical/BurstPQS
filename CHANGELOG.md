@@ -7,6 +7,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## Unreleased
 
+## v0.1.21
+### Fixed
+* Attempt to fix an issue where low-res PQS quads are left enabled when they
+  should not be.
+
 ## v0.1.20
 ### Fixed
 * Fixed a performance issue when using a `BurstMapSO` from a non-burst-compiled
