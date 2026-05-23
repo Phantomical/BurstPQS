@@ -65,11 +65,9 @@ internal static class TextureExporter
         if (batchPQS.Fallback)
         {
             ScreenMessages.PostScreenMessage(
-                $"Skipping {displayName} since it does not have a BatchPQS componen"
+                $"Skipping {displayName} since it is in fallback mode"
             );
-            Debug.LogWarning(
-                $"[BurstPQS] Skipping {body.name} since it does not have a BatchPQS component"
-            );
+            Debug.LogWarning($"[BurstPQS] Skipping {body.name} since it is in fallback mode");
             yield break;
         }
 
