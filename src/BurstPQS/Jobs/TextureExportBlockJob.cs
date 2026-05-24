@@ -131,7 +131,7 @@ internal struct TextureExportBlockJob() : IJob
         for (int r = 0; r < blockH; r++)
         {
             for (int c = 0; c < blockW; c++)
-                blockColors[r * blockW + c] = heightData.vertColor[r * sideW + c];
+                blockColors[r * blockW + c] = heightData.vertColor[r * sideW + c] with { a = 1f };
         }
 
         // Compute tangent-space normals and copy heights (as altitude relative to radius).
