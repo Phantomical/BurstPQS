@@ -7,6 +7,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## Unreleased
 
+## v0.1.23
+### Fixed
+* The texture exporter now forces the alpha channel of exported textures to 1.
+
+### Changed
+* The texture exporter error message for when a planet is in fallback mode now
+  explicitly says that the planet is in fallback mode.
+
 ## v0.1.22
 ### Fixed
 * Fixed an issue where map decals would also appear on the opposite side of
