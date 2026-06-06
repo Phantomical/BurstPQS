@@ -7,6 +7,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## Unreleased
 
+## v0.1.24
+### Changed
+* BurstPQS is now compiled against .net 4.8 instead of .net 4.8.1.
+
 ## v0.1.23
 ### Fixed
 * The texture exporter now forces the alpha channel of exported textures to 1.

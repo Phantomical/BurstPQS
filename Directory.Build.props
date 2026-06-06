@@ -3,7 +3,7 @@
 <Project ToolsVersion="Current" xmlns="http://schemas.microsoft.com/developer/msbuild/2003">
     <PropertyGroup>
         <!-- The version used for all libraries in this project. -->
-        <Version>0.1.23</Version>
+        <Version>0.1.24</Version>
 
         <!--
             Pin AssemblyVersion so that the .NET assembly identity doesn't change
@@ -15,7 +15,7 @@
         <AssemblyVersion>1.0.0.0</AssemblyVersion>
         <FileVersion>$(Version)</FileVersion>
 
-        <TargetFramework>net481</TargetFramework>
+        <TargetFramework>net48</TargetFramework>
         <LangVersion>preview</LangVersion>
 
         <DebugType>portable</DebugType>
