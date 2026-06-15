@@ -19,7 +19,7 @@ public class MapDecal(PQSMod_MapDecal mod) : BatchPQSMod<PQSMod_MapDecal>(mod)
         using var guard = new RestoreGuard(mod);
         base.OnQuadPreBuild(quad, jobSet);
 
-        if (!mod.quadActive)
+        if (!mod.quadActive && !mod.sphere.isBuildingMaps)
             return;
 
         BurstMapSO? heightMap = null;

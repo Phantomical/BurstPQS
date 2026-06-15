@@ -174,6 +174,49 @@ internal static class TextureExporter
         }
     }
 
+    /// <summary>
+    /// Temporarily sets <see cref="PQS.isBuildingMaps"/> on the given spheres
+    /// while a block's job sets are created. Mods such as MapDecal rely on this
+    /// flag to switch from per-quad culling (meaningless during export, where one
+    /// quad covers the whole sphere) to a per-vertex inclusion test. The flag is
+    /// captured by each job at construction, so it only needs to be set during
+    /// <see cref="BatchPQS.CreateJobSet"/> — never across coroutine yields, where
+    /// the live PQS could otherwise rebuild real quads in map-building mode.
+    /// </summary>
+    readonly struct BuildingMapsGuard : IDisposable
+    {
+        readonly PQS pqs;
+        readonly bool prevPqs;
+        readonly PQS oceanPQS;
+        readonly bool prevOcean;
+
+        public BuildingMapsGuard(PQS pqs, PQS oceanPQS)
+        {
+            this.pqs = pqs;
+            prevPqs = pqs.isBuildingMaps;
+            pqs.isBuildingMaps = true;
+
+            this.oceanPQS = oceanPQS;
+            if (oceanPQS != null)
+            {
+                prevOcean = oceanPQS.isBuildingMaps;
+                oceanPQS.isBuildingMaps = true;
+            }
+            else
+            {
+                prevOcean = false;
+            }
+        }
+
+        public void Dispose()
+        {
+            if (pqs != null)
+                pqs.isBuildingMaps = prevPqs;
+            if (oceanPQS != null)
+                oceanPQS.isBuildingMaps = prevOcean;
+        }
+    }
+
     #region Exporter
     class PlanetExporter(CelestialBody body, TextureExportOptions options) : IDisposable
     {
@@ -294,7 +337,15 @@ internal static class TextureExporter
 
                     // Create a fresh job set for this block so OnQuadPreBuild
                     // is called per-block, allowing mods to set up per-quad state.
-                    var block = new BlockState { jobSetGuard = new JobSetGuard(batchPQS, quad) };
+                    var block = new BlockState();
+                    using (new BuildingMapsGuard(pqs, oceanPQS))
+                    {
+                        block.jobSetGuard = new JobSetGuard(batchPQS, quad);
+                        if (hasOcean)
+                            block.oceanJobSetGuard = oceanFallback
+                                ? JobSetGuard.CreateEmpty()
+                                : new JobSetGuard(oceanBatchPQS, oceanQuad);
+                    }
 
                     // Terrain block
                     var blockHeights = new NativeArray<float>(
@@ -370,10 +421,6 @@ internal static class TextureExporter
 
                     if (hasOcean)
                     {
-                        block.oceanJobSetGuard = oceanFallback
-                            ? JobSetGuard.CreateEmpty()
-                            : new JobSetGuard(oceanBatchPQS, oceanQuad);
-
                         // Ocean PQS
                         var oceanBlockHeights = new NativeArray<float>(
                             blockSize,
