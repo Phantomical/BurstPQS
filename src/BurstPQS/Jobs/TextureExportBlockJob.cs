@@ -74,6 +74,42 @@ internal struct TextureExportBlockJob() : IJob
         this.BuildBlockOutput(ref heightData, sideW);
     }
 
+    public void ExecuteFallback(PQS sphere, PQ quad)
+    {
+        // We need a (blockW+1) x (blockH+1) grid of heights and directions
+        // so that normals at the right/bottom edge have neighbor data.
+        int sideW = blockW + 1;
+        int sideH = blockH + 1;
+        int gridSize = sideW * sideH;
+
+        var heightData = new BuildHeightsData(this.sphere, gridSize);
+
+        this.InitGridData(ref heightData, sideW, sideH);
+
+        var vbdata = PQS.vbData;
+        vbdata.buildQuad = quad;
+
+        quad.meshVertMax = double.MaxValue;
+        quad.meshVertMin = double.MinValue;
+
+        for (int i = 0; i < gridSize; ++i)
+        {
+            vbdata.directionFromCenter = heightData.directionFromCenter[i];
+            vbdata.globalV = vbdata.directionFromCenter * sphere.radius;
+            vbdata.vertHeight = sphere.radius;
+            vbdata.vertIndex = i;
+
+            sphere.Mod_OnVertexBuildHeight(vbdata);
+            sphere.Mod_OnVertexBuild(vbdata);
+
+            heightData.directionFromCenter[i] = vbdata.directionFromCenter;
+            heightData.vertHeight[i] = vbdata.vertHeight;
+            heightData.vertColor[i] = vbdata.vertColor;
+        }
+
+        this.BuildBlockOutput(ref heightData, sideW);
+    }
+
     #region InitGridData
     internal void InitGridDataImpl(ref BuildHeightsData heightData, int sideW, int sideH)
     {

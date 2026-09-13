@@ -50,27 +50,6 @@ internal static class TextureExporter
             yield break;
         }
 
-        var batchPQS = pqs.GetComponent<BatchPQS>();
-        if (batchPQS == null)
-        {
-            ScreenMessages.PostScreenMessage(
-                $"Skipping {displayName} since it does not have a BatchPQS component"
-            );
-            Debug.LogWarning(
-                $"[BurstPQS] Skipping {body.name} since it does not have a BatchPQS component"
-            );
-            yield break;
-        }
-
-        if (batchPQS.Fallback)
-        {
-            ScreenMessages.PostScreenMessage(
-                $"Skipping {displayName} since it is in fallback mode"
-            );
-            Debug.LogWarning($"[BurstPQS] Skipping {body.name} since it is in fallback mode");
-            yield break;
-        }
-
         using var exporter = new PlanetExporter(body, options);
         yield return exporter.ExecuteComputeJobs();
         yield return exporter.ComputeMinMax();
@@ -174,15 +153,6 @@ internal static class TextureExporter
         }
     }
 
-    /// <summary>
-    /// Temporarily sets <see cref="PQS.isBuildingMaps"/> on the given spheres
-    /// while a block's job sets are created. Mods such as MapDecal rely on this
-    /// flag to switch from per-quad culling (meaningless during export, where one
-    /// quad covers the whole sphere) to a per-vertex inclusion test. The flag is
-    /// captured by each job at construction, so it only needs to be set during
-    /// <see cref="BatchPQS.CreateJobSet"/> — never across coroutine yields, where
-    /// the live PQS could otherwise rebuild real quads in map-building mode.
-    /// </summary>
     readonly struct BuildingMapsGuard : IDisposable
     {
         readonly PQS pqs;
@@ -217,16 +187,37 @@ internal static class TextureExporter
         }
     }
 
-    #region Exporter
-    class PlanetExporter(CelestialBody body, TextureExportOptions options) : IDisposable
+    readonly struct FallbackBuildingMapsGuard : IDisposable
     {
-        readonly PQS pqs = body.pqsController;
-        readonly BatchPQS batchPQS = body.pqsController.GetComponent<BatchPQS>();
-        readonly CelestialBody body = body;
-        readonly TextureExportOptions options = options;
-        readonly string bodyName = body.bodyName.LocalizeRemoveGender();
+        readonly PQS pqs;
 
-        bool hasOcean;
+        public FallbackBuildingMapsGuard(PQS pqs)
+        {
+            this.pqs = pqs;
+            pqs.isBuildingMaps = true;
+            pqs.isFakeBuild = true;
+        }
+
+        public void Dispose()
+        {
+            pqs.isBuildingMaps = false;
+            pqs.isFakeBuild = false;
+        }
+    }
+
+    #region Exporter
+    class PlanetExporter : IDisposable
+    {
+        readonly PQS pqs;
+        readonly BatchPQS batchPQS;
+        readonly CelestialBody body;
+        readonly TextureExportOptions options;
+        readonly string bodyName;
+
+        readonly bool hasOcean;
+        readonly PQS oceanPQS;
+        readonly BatchPQS oceanBatchPQS;
+
         Permit permit;
 
         NativeArray<float> heights;
@@ -238,6 +229,234 @@ internal static class TextureExporter
         NativeArray<Color32> oceanNormals;
         NativeArray<Color32> oceanColors;
         NativeArray<float> oceanMinMax;
+
+        public PlanetExporter(CelestialBody body, TextureExportOptions options)
+        {
+            this.body = body;
+            this.options = options;
+            bodyName = body.bodyName.LocalizeRemoveGender();
+
+            pqs = body.pqsController;
+            batchPQS = pqs.GetComponent<BatchPQS>();
+            if (batchPQS?.Fallback ?? true)
+                batchPQS = null;
+
+            hasOcean = body.ocean && pqs.ChildSpheres is { Length: > 0 };
+            oceanPQS = hasOcean ? pqs.ChildSpheres[0] : null;
+            oceanBatchPQS = oceanPQS?.GetComponent<BatchPQS>();
+
+            if (oceanBatchPQS?.Fallback ?? true)
+                oceanBatchPQS = null;
+        }
+
+        private JobHandle ComputeBlock(
+            int bx,
+            int by,
+            ref BlockState block,
+            PQ quad,
+            PQ oceanQuad,
+            SphereData sphere,
+            SphereData oceanSphere
+        )
+        {
+            int resX = options.width;
+            int resY = options.height;
+
+            int startX = bx * BlockSize;
+            int startY = by * BlockSize;
+            int blockW = Math.Min(BlockSize, resX - startX);
+            int blockH = Math.Min(BlockSize, resY - startY);
+            int blockSize = blockW * blockH;
+
+            // Terrain block
+            var blockHeights = new NativeArray<float>(
+                blockSize,
+                Allocator.TempJob,
+                NativeArrayOptions.UninitializedMemory
+            );
+            var blockNormals = new NativeArray<Vector3>(
+                blockSize,
+                Allocator.TempJob,
+                NativeArrayOptions.UninitializedMemory
+            );
+            var blockColors = new NativeArray<Color>(
+                blockSize,
+                Allocator.TempJob,
+                NativeArrayOptions.UninitializedMemory
+            );
+
+            using (new BuildingMapsGuard(pqs, oceanPQS))
+            {
+                block.jobSetGuard = batchPQS is not null
+                    ? new JobSetGuard(batchPQS, quad)
+                    : block.jobSetGuard = JobSetGuard.CreateEmpty();
+
+                if (hasOcean)
+                {
+                    block.oceanJobSetGuard = oceanBatchPQS is not null
+                        ? JobSetGuard.CreateEmpty()
+                        : new JobSetGuard(oceanBatchPQS, oceanQuad);
+                }
+            }
+
+            var blockJob = new TextureExportBlockJob
+            {
+                jobSet = block.jobSetGuard.Handle,
+                sphere = sphere,
+                resX = resX,
+                resY = resY,
+                startX = startX,
+                startY = startY,
+                blockW = blockW,
+                blockH = blockH,
+                blockHeights = blockHeights,
+                blockNormals = blockNormals,
+                blockColors = blockColors,
+            };
+
+            JobHandle handle;
+            if (batchPQS is not null)
+            {
+                handle = blockJob.Schedule();
+            }
+            else
+            {
+                using (new FallbackBuildingMapsGuard(pqs))
+                    blockJob.ExecuteFallback(pqs, quad);
+
+                handle = default;
+            }
+
+            // Copy terrain data to terrain output arrays.
+            var terrainCopyH = new TextureExportCopyHeightsJob
+            {
+                blockHeights = blockHeights,
+                outputHeights = heights,
+                resX = resX,
+                startX = startX,
+                startY = startY,
+                blockW = blockW,
+                blockH = blockH,
+            }.Schedule(handle);
+
+            var terrainCopyN = new TextureExportCopyNormalsJob
+            {
+                blockNormals = blockNormals,
+                outputNormals = normals,
+                resX = resX,
+                startX = startX,
+                startY = startY,
+                blockW = blockW,
+                blockH = blockH,
+            }.Schedule(handle);
+
+            var terrainCopyC = new TextureExportCopyColorsJob
+            {
+                blockColors = blockColors,
+                outputColors = colors,
+                resX = resX,
+                startX = startX,
+                startY = startY,
+                blockW = blockW,
+                blockH = blockH,
+            }.Schedule(handle);
+
+            handle = JobHandle.CombineDependencies(terrainCopyH, terrainCopyN, terrainCopyC);
+
+            if (hasOcean)
+            {
+                // Ocean PQS
+                var oceanBlockHeights = new NativeArray<float>(
+                    blockSize,
+                    Allocator.TempJob,
+                    NativeArrayOptions.UninitializedMemory
+                );
+                var oceanBlockNormals = new NativeArray<Vector3>(
+                    blockSize,
+                    Allocator.TempJob,
+                    NativeArrayOptions.UninitializedMemory
+                );
+
+                var oceanJob = new TextureExportOceanBlockJob
+                {
+                    jobSet = block.oceanJobSetGuard.Handle,
+                    sphere = oceanSphere,
+                    resX = resX,
+                    resY = resY,
+                    startX = startX,
+                    startY = startY,
+                    blockW = blockW,
+                    blockH = blockH,
+                    blockHeights = oceanBlockHeights,
+                    blockNormals = oceanBlockNormals,
+                };
+
+                if (oceanBatchPQS is null)
+                {
+                    handle = oceanJob.Schedule(handle);
+                }
+                else
+                {
+                    using (new FallbackBuildingMapsGuard(oceanPQS))
+                        oceanJob.ExecuteFallback(oceanPQS, oceanQuad);
+                }
+
+                handle = new TextureExportBlendOceanJob
+                {
+                    blockHeights = blockHeights,
+                    blockNormals = blockNormals,
+                    blockColors = blockColors,
+                    oceanHeights = oceanBlockHeights,
+                    oceanNormals = oceanBlockNormals,
+                    oceanColor = hasOcean ? pqs.mapOceanColor : default,
+                }.Schedule(handle);
+
+                // Copy blended data to ocean output arrays.
+                var oceanCopyH = new TextureExportCopyHeightsJob
+                {
+                    blockHeights = blockHeights,
+                    outputHeights = oceanHeights,
+                    resX = resX,
+                    startX = startX,
+                    startY = startY,
+                    blockW = blockW,
+                    blockH = blockH,
+                }.Schedule(handle);
+
+                var oceanCopyN = new TextureExportCopyNormalsJob
+                {
+                    blockNormals = blockNormals,
+                    outputNormals = oceanNormals,
+                    resX = resX,
+                    startX = startX,
+                    startY = startY,
+                    blockW = blockW,
+                    blockH = blockH,
+                }.Schedule(handle);
+
+                var oceanCopyC = new TextureExportCopyColorsJob
+                {
+                    blockColors = blockColors,
+                    outputColors = oceanColors,
+                    resX = resX,
+                    startX = startX,
+                    startY = startY,
+                    blockW = blockW,
+                    blockH = blockH,
+                }.Schedule(handle);
+
+                handle = JobHandle.CombineDependencies(oceanCopyH, oceanCopyN, oceanCopyC);
+
+                oceanBlockHeights.Dispose(handle);
+                oceanBlockNormals.Dispose(handle);
+            }
+
+            blockHeights.Dispose(handle);
+            blockNormals.Dispose(handle);
+            blockColors.Dispose(handle);
+
+            return handle;
+        }
 
         public IEnumerator ExecuteComputeJobs()
         {
@@ -273,19 +492,11 @@ internal static class TextureExporter
                 NativeArrayOptions.UninitializedMemory
             );
 
-            // Ocean sphere (first child of the main PQS, if any).
-            hasOcean = body.ocean && pqs.ChildSpheres is { Length: > 0 };
-            PQS oceanPQS = hasOcean ? pqs.ChildSpheres[0] : null;
-            BatchPQS oceanBatchPQS = oceanPQS?.GetComponent<BatchPQS>();
-            hasOcean = hasOcean && oceanBatchPQS != null;
-            bool oceanFallback = hasOcean && oceanBatchPQS.Fallback;
-
-            using var oceanGoGuard =
-                hasOcean && !oceanFallback
-                    ? new GameObjectGuard(new GameObject("BurstPQS_TextureExportOceanQuad"))
-                    : default;
+            using var oceanGoGuard = hasOcean
+                ? new GameObjectGuard(new GameObject("BurstPQS_TextureExportOceanQuad"))
+                : default;
             PQ oceanQuad = null;
-            if (hasOcean && !oceanFallback)
+            if (hasOcean)
             {
                 oceanGoGuard.GameObject.SetActive(false);
                 oceanQuad = oceanGoGuard.AddPQ(oceanPQS);
@@ -329,177 +540,18 @@ internal static class TextureExporter
             {
                 for (int bx = 0; bx < numBlocksX; bx++)
                 {
-                    int startX = bx * BlockSize;
-                    int startY = by * BlockSize;
-                    int blockW = Math.Min(BlockSize, resX - startX);
-                    int blockH = Math.Min(BlockSize, resY - startY);
-                    int blockSize = blockW * blockH;
-
                     // Create a fresh job set for this block so OnQuadPreBuild
                     // is called per-block, allowing mods to set up per-quad state.
                     var block = new BlockState();
-                    using (new BuildingMapsGuard(pqs, oceanPQS))
-                    {
-                        block.jobSetGuard = new JobSetGuard(batchPQS, quad);
-                        if (hasOcean)
-                            block.oceanJobSetGuard = oceanFallback
-                                ? JobSetGuard.CreateEmpty()
-                                : new JobSetGuard(oceanBatchPQS, oceanQuad);
-                    }
-
-                    // Terrain block
-                    var blockHeights = new NativeArray<float>(
-                        blockSize,
-                        Allocator.TempJob,
-                        NativeArrayOptions.UninitializedMemory
+                    var handle = ComputeBlock(
+                        bx,
+                        by,
+                        ref block,
+                        quad,
+                        oceanQuad,
+                        sphere,
+                        oceanSphere
                     );
-                    var blockNormals = new NativeArray<Vector3>(
-                        blockSize,
-                        Allocator.TempJob,
-                        NativeArrayOptions.UninitializedMemory
-                    );
-                    var blockColors = new NativeArray<Color>(
-                        blockSize,
-                        Allocator.TempJob,
-                        NativeArrayOptions.UninitializedMemory
-                    );
-
-                    JobHandle handle = new TextureExportBlockJob
-                    {
-                        jobSet = block.jobSetGuard.Handle,
-                        sphere = sphere,
-                        resX = resX,
-                        resY = resY,
-                        startX = startX,
-                        startY = startY,
-                        blockW = blockW,
-                        blockH = blockH,
-                        blockHeights = blockHeights,
-                        blockNormals = blockNormals,
-                        blockColors = blockColors,
-                    }.Schedule();
-
-                    // Copy terrain data to terrain output arrays.
-                    var terrainCopyH = new TextureExportCopyHeightsJob
-                    {
-                        blockHeights = blockHeights,
-                        outputHeights = heights,
-                        resX = resX,
-                        startX = startX,
-                        startY = startY,
-                        blockW = blockW,
-                        blockH = blockH,
-                    }.Schedule(handle);
-
-                    var terrainCopyN = new TextureExportCopyNormalsJob
-                    {
-                        blockNormals = blockNormals,
-                        outputNormals = normals,
-                        resX = resX,
-                        startX = startX,
-                        startY = startY,
-                        blockW = blockW,
-                        blockH = blockH,
-                    }.Schedule(terrainCopyH);
-
-                    var terrainCopyC = new TextureExportCopyColorsJob
-                    {
-                        blockColors = blockColors,
-                        outputColors = colors,
-                        resX = resX,
-                        startX = startX,
-                        startY = startY,
-                        blockW = blockW,
-                        blockH = blockH,
-                    }.Schedule(terrainCopyN);
-
-                    handle = JobHandle.CombineDependencies(
-                        terrainCopyH,
-                        terrainCopyH,
-                        terrainCopyC
-                    );
-
-                    if (hasOcean)
-                    {
-                        // Ocean PQS
-                        var oceanBlockHeights = new NativeArray<float>(
-                            blockSize,
-                            Allocator.TempJob,
-                            NativeArrayOptions.UninitializedMemory
-                        );
-                        var oceanBlockNormals = new NativeArray<Vector3>(
-                            blockSize,
-                            Allocator.TempJob,
-                            NativeArrayOptions.UninitializedMemory
-                        );
-
-                        handle = new TextureExportOceanBlockJob
-                        {
-                            jobSet = block.oceanJobSetGuard.Handle,
-                            sphere = oceanSphere,
-                            resX = resX,
-                            resY = resY,
-                            startX = startX,
-                            startY = startY,
-                            blockW = blockW,
-                            blockH = blockH,
-                            blockHeights = oceanBlockHeights,
-                            blockNormals = oceanBlockNormals,
-                        }.Schedule(handle);
-
-                        handle = new TextureExportBlendOceanJob
-                        {
-                            blockHeights = blockHeights,
-                            blockNormals = blockNormals,
-                            blockColors = blockColors,
-                            oceanHeights = oceanBlockHeights,
-                            oceanNormals = oceanBlockNormals,
-                            oceanColor = oceanColor,
-                        }.Schedule(handle);
-
-                        // Copy blended data to ocean output arrays.
-                        var oceanCopyH = new TextureExportCopyHeightsJob
-                        {
-                            blockHeights = blockHeights,
-                            outputHeights = oceanHeights,
-                            resX = resX,
-                            startX = startX,
-                            startY = startY,
-                            blockW = blockW,
-                            blockH = blockH,
-                        }.Schedule(handle);
-
-                        var oceanCopyN = new TextureExportCopyNormalsJob
-                        {
-                            blockNormals = blockNormals,
-                            outputNormals = oceanNormals,
-                            resX = resX,
-                            startX = startX,
-                            startY = startY,
-                            blockW = blockW,
-                            blockH = blockH,
-                        }.Schedule(handle);
-
-                        var oceanCopyC = new TextureExportCopyColorsJob
-                        {
-                            blockColors = blockColors,
-                            outputColors = oceanColors,
-                            resX = resX,
-                            startX = startX,
-                            startY = startY,
-                            blockW = blockW,
-                            blockH = blockH,
-                        }.Schedule(handle);
-
-                        handle = JobHandle.CombineDependencies(oceanCopyH, oceanCopyN, oceanCopyC);
-
-                        oceanBlockHeights.Dispose(handle);
-                        oceanBlockNormals.Dispose(handle);
-                    }
-
-                    blockHeights.Dispose(handle);
-                    blockNormals.Dispose(handle);
-                    blockColors.Dispose(handle);
 
                     block.handle = handle;
                     block.scheduledFrame = Time.frameCount;
