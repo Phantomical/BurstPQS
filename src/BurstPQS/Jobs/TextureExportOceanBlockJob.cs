@@ -1,5 +1,5 @@
-using System;
 using System.Runtime.CompilerServices;
+using BurstPQS.Tools;
 using BurstPQS.Util;
 using Unity.Burst;
 using Unity.Collections;
@@ -16,6 +16,7 @@ internal struct TextureExportOceanBlockJob() : IJob
 {
     public ObjectHandle<BatchPQSJobSet> jobSet;
     public SphereData sphere;
+    public TextureProjection projection;
 
     public int resX;
     public int resY;
@@ -88,50 +89,17 @@ internal struct TextureExportOceanBlockJob() : IJob
     }
 
     #region InitGridData
-    internal void InitGridDataImpl(ref BuildHeightsData heightData, int sideW, int sideH)
-    {
-        for (int r = 0; r < sideH; r++)
-        {
-            int globalY = Math.Min(startY + r, resY - 1);
-            double lat = Math.PI / 2.0 - Math.PI * globalY / resY;
-            double cosLat = Math.Cos(lat);
-            double sinLat = Math.Sin(lat);
-
-            for (int c = 0; c < sideW; c++)
-            {
-                int i = r * sideW + c;
-                int globalX = (startX + c) % resX;
-
-                double lon = 2.0 * Math.PI * globalX / resX;
-                var dir = new Vector3d(cosLat * Math.Sin(lon), sinLat, cosLat * Math.Cos(lon));
-
-                heightData.directionFromCenter[i] = dir;
-
-                var dirXZ = new Vector3d(dir.x, 0.0, dir.z);
-                double pqsLon;
-                if (dirXZ.sqrMagnitude == 0.0)
-                    pqsLon = 0.0;
-                else if (dirXZ.z < 0.0)
-                    pqsLon = Math.PI - Math.Asin(dirXZ.x / dirXZ.magnitude);
-                else
-                    pqsLon = Math.Asin(dirXZ.x / dirXZ.magnitude);
-
-                heightData.latitude[i] = lat;
-                heightData.longitude[i] = pqsLon;
-
-                double u = pqsLon / Math.PI * 0.5;
-                double v = lat / Math.PI + 0.5;
-                heightData.u[i] = u;
-                heightData.v[i] = v;
-                heightData.sx[i] = u < 0 ? u + 1.0 : u;
-                heightData.sy[i] = v;
-            }
-        }
-
-        heightData.vertHeight.Fill(heightData.sphere.radius);
-        heightData.vertColor.Clear();
-        heightData.allowScatter.Fill(true);
-    }
+    internal void InitGridDataImpl(ref BuildHeightsData heightData, int sideW, int sideH) =>
+        TextureExportGrid.InitGridData(
+            ref heightData,
+            projection,
+            resX,
+            resY,
+            startX,
+            startY,
+            sideW,
+            sideH
+        );
     #endregion
 
     #region BuildBlockOutput

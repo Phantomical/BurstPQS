@@ -8,9 +8,13 @@ using UnityEngine;
 namespace BurstPQS.Jobs;
 
 /// <summary>
-/// Copies a completed block's height data into the correct position
-/// within the full-resolution output array.
+/// Clamps a completed block's height data to the sphere's own bounds, copies it into the
+/// correct position within the full-resolution output array, and records the block's range.
 /// </summary>
+/// <remarks>
+/// Ranges are recorded per block so no two of these ever touch the same slot, and folding them
+/// together afterwards reads a couple of floats per block rather than the whole texture again.
+/// </remarks>
 [BurstCompile]
 internal struct TextureExportCopyHeightsJob : IJob
 {
@@ -20,6 +24,15 @@ internal struct TextureExportCopyHeightsJob : IJob
     [NativeDisableContainerSafetyRestriction]
     public NativeArray<float> outputHeights;
 
+    /// <summary>Takes this block's minimum at <c>block * 2</c> and its maximum right after.</summary>
+    [NativeDisableContainerSafetyRestriction]
+    public NativeArray<float> blockMinMax;
+
+    public int block;
+
+    public float clampMin,
+        clampMax;
+
     public int resX;
     public int startX,
         startY;
@@ -28,14 +41,26 @@ internal struct TextureExportCopyHeightsJob : IJob
 
     public void Execute()
     {
+        float min = float.PositiveInfinity;
+        float max = float.NegativeInfinity;
+
         for (int ly = 0; ly < blockH; ly++)
         {
             int outRow = (startY + ly) * resX + startX;
             int blkRow = ly * blockW;
 
             for (int lx = 0; lx < blockW; lx++)
-                outputHeights[outRow + lx] = blockHeights[blkRow + lx];
+            {
+                float height = math.clamp(blockHeights[blkRow + lx], clampMin, clampMax);
+
+                outputHeights[outRow + lx] = height;
+                min = math.min(min, height);
+                max = math.max(max, height);
+            }
         }
+
+        blockMinMax[block * 2] = min;
+        blockMinMax[block * 2 + 1] = max;
     }
 }
 

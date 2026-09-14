@@ -31,6 +31,9 @@ internal class TextureExporterScreen : MonoBehaviour
     TextMeshProUGUI _statusLabel;
 
     [SerializeField]
+    TMP_Dropdown _projectionDropdown;
+
+    [SerializeField]
     TMP_Dropdown _planetDropdown;
 
     [SerializeField]
@@ -86,8 +89,26 @@ internal class TextureExporterScreen : MonoBehaviour
         DebugUIManager.CreateHelpButton(
             resRow.transform,
             "Horizontal resolution of the exported textures.\n"
-                + "Vertical resolution will be half this value.\n"
+                + "Equirectangular maps are half as tall as they are\n"
+                + "wide; cubemap faces are square.\n"
                 + "Higher values take longer to export."
+        );
+
+        // Projection row
+        var projRow = DebugUIManager.CreateHorizontalLayout(parent);
+        projRow.GetComponent<HorizontalLayoutGroup>().childForceExpandWidth = false;
+        var projLabel = DebugUIManager.CreateLabel(projRow.transform, "Projection:");
+        projLabel.fontStyle = FontStyles.Normal;
+
+        _projectionDropdown = DebugUIManager.CreateDropdown(projRow.transform);
+
+        DebugUIManager.CreateHelpButton(
+            projRow.transform,
+            "Equirectangular exports one texture per map, covering\n"
+                + "the whole body.\n"
+                + "Cubemap exports six square faces per map, each\n"
+                + "suffixed with the axis it faces: _XP, _XN, _YP,\n"
+                + "_YN, _ZP, _ZN."
         );
 
         // Export options
@@ -134,6 +155,11 @@ internal class TextureExporterScreen : MonoBehaviour
         // Runtime listeners are not carried across Object.Instantiate, so this is wired on
         // the instance rather than on the prefab in Build().
         _planetDropdown.onValueChanged.AddListener(index => _selectedIndex = index);
+
+        _projectionDropdown.ClearOptions();
+        _projectionDropdown.AddOptions(["Equirectangular", "Cubemap"]);
+        _projectionDropdown.value = 0;
+        _projectionDropdown.RefreshShownValue();
     }
 
     // The screen instance is reused across scenes, so the body list refreshes on every open.
@@ -174,6 +200,7 @@ internal class TextureExporterScreen : MonoBehaviour
         bool exporting = TextureExporter.IsExporting;
         _exportCurrentButton.interactable = !exporting;
         _exportAllButton.interactable = !exporting;
+        _projectionDropdown.interactable = !exporting;
         _planetDropdown.interactable = !exporting && _bodies is { Count: > 0 };
     }
 
@@ -188,8 +215,7 @@ internal class TextureExporterScreen : MonoBehaviour
 
         return new TextureExportOptions
         {
-            width = resolution,
-            height = resolution / 2,
+            resolution = resolution,
             exportHeight = _exportHeight != null && _exportHeight.isOn,
             exportColor = _exportColor != null && _exportColor.isOn,
             exportNormal = _exportNormal != null && _exportNormal.isOn,
@@ -199,6 +225,12 @@ internal class TextureExporterScreen : MonoBehaviour
         };
     }
 
+    // The runner walks this list, setting TextureExportOptions.projection for each pass.
+    TextureProjection[] GetProjections() =>
+        _projectionDropdown.value == 0
+            ? TextureProjections.Equirectangular
+            : TextureProjections.CubeFaces;
+
     internal void StartExportPlanet()
     {
         if (_bodies == null || _bodies.Count == 0)
@@ -207,7 +239,7 @@ internal class TextureExporterScreen : MonoBehaviour
             return;
         }
 
-        TextureExportRunner.ExportPlanet(_bodies[_selectedIndex], GetOptions());
+        TextureExportRunner.ExportPlanet(_bodies[_selectedIndex], GetOptions(), GetProjections());
     }
 
     internal void StartExportAll()
@@ -218,7 +250,7 @@ internal class TextureExporterScreen : MonoBehaviour
             return;
         }
 
-        TextureExportRunner.ExportPlanets(_bodies, GetOptions());
+        TextureExportRunner.ExportPlanets(_bodies, GetOptions(), GetProjections());
     }
 
     #region UI Helpers

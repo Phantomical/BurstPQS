@@ -27,9 +27,9 @@ public struct ObjectHandle<T>(T value, GCHandleType type) : IDisposable
 
     public void Dispose() => handle.Free();
 
-    public void Dispose(JobHandle job)
+    public JobHandle Dispose(JobHandle job)
     {
-        new DisposeJob { handle = this }.Schedule(job);
+        return new DisposeJob { handle = this }.Schedule(job);
     }
 
     struct DisposeJob : IJob
