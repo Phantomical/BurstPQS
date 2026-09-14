@@ -1,5 +1,4 @@
 using System;
-using System.Collections;
 using System.Collections.Generic;
 using BurstPQS.Tools;
 using TMPro;
@@ -208,34 +207,18 @@ internal class TextureExporterScreen : MonoBehaviour
             return;
         }
 
-        StartCoroutine(ExportPlanet());
-    }
-
-    IEnumerator ExportPlanet()
-    {
-        var options = GetOptions();
-        var body = _bodies[_selectedIndex];
-        using var guard = new TextureExporter.ExportGuard();
-
-        yield return TextureExporter.ExportPlanet(body, options);
+        TextureExportRunner.ExportPlanet(_bodies[_selectedIndex], GetOptions());
     }
 
     internal void StartExportAll()
     {
-        StartCoroutine(ExportAll());
-    }
+        if (_bodies == null || _bodies.Count == 0)
+        {
+            ScreenMessages.PostScreenMessage("No planets available", 3f);
+            return;
+        }
 
-    IEnumerator ExportAll()
-    {
-        var coroutines = new Queue<Coroutine>();
-        var options = GetOptions();
-        using var guard = new TextureExporter.ExportGuard();
-
-        foreach (var body in _bodies)
-            coroutines.Enqueue(StartCoroutine(TextureExporter.ExportPlanet(body, options)));
-
-        foreach (var coroutine in coroutines)
-            yield return coroutine;
+        TextureExportRunner.ExportPlanets(_bodies, GetOptions());
     }
 
     #region UI Helpers
