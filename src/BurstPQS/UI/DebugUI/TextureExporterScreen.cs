@@ -32,7 +32,7 @@ internal class TextureExporterScreen : MonoBehaviour
     TextMeshProUGUI _statusLabel;
 
     [SerializeField]
-    TextMeshProUGUI _planetLabel;
+    TMP_Dropdown _planetDropdown;
 
     [SerializeField]
     Button _exportCurrentButton;
@@ -112,17 +112,13 @@ internal class TextureExporterScreen : MonoBehaviour
                 + "Enable this to flip textures so north is at the top."
         );
 
-        // Planet selector row: [Export Planet] [Planet Selector]
+        // Planet selector row: [Export Planet] [Planet Dropdown]
         var planetRow = DebugUIManager.CreateHorizontalLayout(parent);
         _exportCurrentButton = DebugUIManager
             .CreateButton<ExportCurrentButton>(planetRow.transform, "Export Planet")
             .button;
 
-        var selector = DebugUIManager.CreateButton<PlanetSelectorButton>(
-            planetRow.transform,
-            "---"
-        );
-        _planetLabel = selector.GetComponentInChildren<TextMeshProUGUI>();
+        _planetDropdown = DebugUIManager.CreateDropdown(planetRow.transform);
 
         // Export all row
         _exportAllButton = DebugUIManager
@@ -134,39 +130,52 @@ internal class TextureExporterScreen : MonoBehaviour
         _statusLabel.fontStyle = FontStyles.Normal;
     }
 
-    void Start()
+    void Awake()
     {
+        // Runtime listeners are not carried across Object.Instantiate, so this is wired on
+        // the instance rather than on the prefab in Build().
+        _planetDropdown.onValueChanged.AddListener(index => _selectedIndex = index);
+    }
+
+    // The screen instance is reused across scenes, so the body list refreshes on every open.
+    void OnEnable() => RefreshBodies();
+
+    void RefreshBodies()
+    {
+        var previous =
+            _bodies != null && _selectedIndex < _bodies.Count ? _bodies[_selectedIndex] : null;
+
         _bodies = [];
-        foreach (var body in FlightGlobals.Bodies)
+        foreach (var body in FlightGlobals.Bodies ?? [])
         {
             if (body.pqsController != null)
                 _bodies.Add(body);
         }
 
-        var current = FlightGlobals.currentMainBody ?? FlightGlobals.GetHomeBody();
-        _selectedIndex = current != null ? _bodies.IndexOf(current) : 0;
+        var target = previous ?? FlightGlobals.currentMainBody ?? FlightGlobals.GetHomeBody();
+        _selectedIndex = target != null ? _bodies.IndexOf(target) : 0;
         if (_selectedIndex < 0)
             _selectedIndex = 0;
+
+        var names = new List<string>(_bodies.Count);
+        foreach (var body in _bodies)
+            names.Add(body.bodyDisplayName.LocalizeRemoveGender());
+
+        _planetDropdown.ClearOptions();
+        _planetDropdown.AddOptions(names);
+        _planetDropdown.value = _selectedIndex;
+        // The value setter short-circuits on an unchanged index, leaving a stale caption.
+        _planetDropdown.RefreshShownValue();
     }
 
     void Update()
     {
-        _planetLabel.text = _bodies is { Count: > 0 }
-            ? _bodies[_selectedIndex].bodyDisplayName.LocalizeRemoveGender()
-            : "---";
-
         _statusLabel.text = TextureExporter.StatusMessage;
 
         bool exporting = TextureExporter.IsExporting;
         _exportCurrentButton.interactable = !exporting;
         _exportAllButton.interactable = !exporting;
-    }
-
-    internal void CyclePlanet(int delta)
-    {
-        if (_bodies == null || _bodies.Count == 0)
-            return;
-        _selectedIndex = (_selectedIndex + delta + _bodies.Count) % _bodies.Count;
+        _planetDropdown.interactable = !exporting && _bodies is { Count: > 0 };
     }
 
     TextureExportOptions GetOptions()
@@ -241,14 +250,6 @@ internal class TextureExporterScreen : MonoBehaviour
         le.flexibleWidth = 1f;
     }
     #endregion
-}
-
-internal class PlanetSelectorButton : DebugScreenButton
-{
-    protected override void OnClick()
-    {
-        GetComponentInParent<TextureExporterScreen>()?.CyclePlanet(1);
-    }
 }
 
 internal class ExportCurrentButton : DebugScreenButton

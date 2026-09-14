@@ -1,3 +1,4 @@
+using BurstPQS.UI.Components;
 using KSP.UI;
 using KSP.UI.Screens.DebugToolbar;
 using KSP.UI.Screens.DebugToolbar.Screens;
@@ -20,6 +21,7 @@ internal static class DebugUIManager
     static GameObject _inputFieldPrefab;
     static GameObject _scrollbarPrefab;
     static GameObject _spacerPrefab;
+    static Sprite _arrowSprite;
 
     static bool _initialized;
 
@@ -73,6 +75,13 @@ internal static class DebugUIManager
             );
             if (scrollbar != null)
                 _scrollbarPrefab = ClonePrefab(scrollbar.gameObject, "BurstPQS_ScrollbarPrefab");
+        }
+
+        // Dropdown arrow
+        if (_arrowSprite == null)
+        {
+            var treeItem = spawner.screenPrefab?.treeView?.itemPrefab;
+            _arrowSprite = FindDropdownArrow(treeItem?.spriteExpanded);
         }
 
         // Spacer — created from scratch (no suitable prefab)
@@ -175,6 +184,25 @@ internal static class DebugUIManager
         rt.anchorMax = Vector2.one;
         rt.offsetMin = Vector2.zero;
         rt.offsetMax = Vector2.zero;
+    }
+
+    /// <summary>
+    /// Finds "dropdown_arrow", the chevron stock TMP_Dropdowns use, falling back to
+    /// <paramref name="fallback"/> when it is not loaded.
+    /// </summary>
+    /// <remarks>
+    /// The sprite is only reachable through prefabs the debug screen cannot get at, and
+    /// AssetBase does not index it, so it is located by scanning the loaded sprites.
+    /// </remarks>
+    static Sprite FindDropdownArrow(Sprite fallback)
+    {
+        foreach (var sprite in Resources.FindObjectsOfTypeAll<Sprite>())
+        {
+            if (sprite.name == "dropdown_arrow")
+                return sprite;
+        }
+
+        return fallback;
     }
 
     static GameObject ClonePrefab(GameObject source, string name)
@@ -408,6 +436,170 @@ internal static class DebugUIManager
         var input = go.GetComponent<TMP_InputField>();
         if (input?.textComponent != null)
             input.textComponent.alignment = TextAlignmentOptions.Left;
+    }
+
+    public static TMP_Dropdown CreateDropdown(Transform parent)
+    {
+        var buttonImage = _buttonPrefab.GetComponent<Image>();
+        var buttonSelectable = _buttonPrefab.GetComponent<Button>();
+        var panelImage = _inputFieldPrefab.GetComponent<Image>();
+        // Caption and rows sit on the button sprite, so they use the button's label colour.
+        // _labelPrefab's colour is for the dark window background.
+        var sourceTmp = _buttonPrefab.GetComponentInChildren<TextMeshProUGUI>(true);
+        var checkmarkImage = _togglePrefab.GetComponentInChildren<Toggle>(true)?.graphic as Image;
+
+        Image scrollbarTrack = null;
+        Image scrollbarHandle = null;
+        if (_scrollbarPrefab != null)
+        {
+            scrollbarTrack = _scrollbarPrefab.GetComponent<Image>();
+            scrollbarHandle = _scrollbarPrefab.GetComponent<Scrollbar>()?.targetGraphic as Image;
+        }
+
+        var go = TMP_DefaultControls.CreateDropdown(
+            new TMP_DefaultControls.Resources
+            {
+                standard = buttonImage?.sprite,
+                background = scrollbarTrack?.sprite,
+                checkmark = checkmarkImage?.sprite,
+                dropdown = _arrowSprite,
+            }
+        );
+        go.name = "Dropdown";
+        go.transform.SetParent(parent, false);
+        // The popup has its own Canvas, and a sub-canvas is culled unless its layer is one the
+        // UI camera renders. Layout containers are bare GameObjects on layer 0, so the layer
+        // comes from a harvested prefab rather than from parent.
+        SetLayerRecursively(go, _buttonPrefab.layer);
+
+        var dropdown = go.GetComponent<TMP_Dropdown>();
+        dropdown.ClearOptions();
+
+        // Closed state: look and behave like the buttons it sits beside.
+        CopyImageStyle(go.GetComponent<Image>(), buttonImage);
+        if (buttonSelectable != null)
+        {
+            dropdown.transition = buttonSelectable.transition;
+            dropdown.colors = buttonSelectable.colors;
+            dropdown.spriteState = buttonSelectable.spriteState;
+        }
+
+        var layout = go.AddComponent<LayoutElement>();
+        layout.preferredWidth = -1f;
+        layout.flexibleWidth = 1f;
+        layout.minHeight = 30f;
+
+        // The stock insets leave 17px of a 30px row, which clips descenders in the KSP font.
+        // Symmetric horizontal insets put centred text on the control's centre line while
+        // still keeping long names out from under the arrow.
+        var labelRect = (RectTransform)go.transform.Find("Label");
+        labelRect.offsetMin = new Vector2(24f, 2f);
+        labelRect.offsetMax = new Vector2(-24f, -2f);
+        StyleDropdownText(dropdown.captionText, sourceTmp);
+
+        // An Image with no sprite draws a white box, so drop the arrow when there is none.
+        var arrow = go.transform.Find("Arrow").GetComponent<Image>();
+        if (_arrowSprite == null)
+        {
+            arrow.gameObject.SetActive(false);
+        }
+        else
+        {
+            if (sourceTmp != null)
+                arrow.color = sourceTmp.color;
+
+            var arrowState = go.AddComponent<DropdownArrowState>();
+            arrowState.dropdown = dropdown;
+            arrowState.arrow = (RectTransform)arrow.transform;
+        }
+
+        var template = (RectTransform)go.transform.Find("Template");
+        template.sizeDelta = new Vector2(template.sizeDelta.x, 200f);
+
+        // TMP_DefaultControls leaves this at Unity's default of 1, roughly a pixel per wheel
+        // notch. KSP's own dropdowns use 15.
+        template.GetComponent<ScrollRect>().scrollSensitivity = 15f;
+        CopyImageStyle(template.GetComponent<Image>(), panelImage ?? buttonImage);
+
+        // Mask clips by the sprite's alpha; a plain quad keeps the list corners square.
+        var viewport = template.Find("Viewport").GetComponent<Image>();
+        viewport.sprite = null;
+        viewport.type = Image.Type.Simple;
+        viewport.color = Color.white;
+
+        // SetupTemplate would add this on first open and leave it on the "Default" sorting
+        // layer. Creating it here gives DropdownSortingLayerFix something to correct before
+        // the popup is cloned.
+        var templateCanvas = template.gameObject.AddComponent<Canvas>();
+        templateCanvas.overrideSorting = true;
+        templateCanvas.sortingOrder = 30000;
+        template.gameObject.AddComponent<GraphicRaycaster>();
+        go.AddComponent<DropdownSortingLayerFix>().template = template;
+
+        var item = (RectTransform)template.Find("Viewport/Content/Item");
+        item.sizeDelta = new Vector2(item.sizeDelta.x, 24f);
+
+        // Rows get the button treatment too, so hovering one highlights it.
+        var itemToggle = item.GetComponent<Toggle>();
+        CopyImageStyle(itemToggle.targetGraphic as Image, buttonImage);
+        if (buttonSelectable != null)
+        {
+            itemToggle.transition = buttonSelectable.transition;
+            itemToggle.colors = buttonSelectable.colors;
+            itemToggle.spriteState = buttonSelectable.spriteState;
+        }
+        // Mirror the checkmark's gutter on the right so row text centres on the row.
+        var itemLabelRect = (RectTransform)item.Find("Item Label");
+        itemLabelRect.offsetMin = new Vector2(20f, 1f);
+        itemLabelRect.offsetMax = new Vector2(-20f, -2f);
+        StyleDropdownText(dropdown.itemText, sourceTmp);
+
+        var itemCheckmark = itemToggle.graphic as Image;
+        if (checkmarkImage != null)
+            CopyImageStyle(itemCheckmark, checkmarkImage);
+        else if (itemCheckmark != null)
+            itemCheckmark.gameObject.SetActive(false);
+
+        CopyImageStyle(template.Find("Scrollbar").GetComponent<Image>(), scrollbarTrack);
+        CopyImageStyle(
+            template.Find("Scrollbar/Sliding Area/Handle").GetComponent<Image>(),
+            scrollbarHandle
+        );
+
+        return dropdown;
+    }
+
+    static void StyleDropdownText(TMP_Text text, TextMeshProUGUI source)
+    {
+        if (text == null || source == null)
+            return;
+
+        text.font = source.font;
+        text.fontSize = source.fontSize;
+        text.color = source.color;
+        text.alignment = TextAlignmentOptions.Center;
+        text.enableWordWrapping = false;
+        text.overflowMode = TextOverflowModes.Ellipsis;
+    }
+
+    static void CopyImageStyle(Image dest, Image source)
+    {
+        if (dest == null || source == null)
+            return;
+
+        dest.sprite = source.sprite;
+        dest.type = source.type;
+        dest.color = source.color;
+        dest.material = source.material;
+        dest.fillCenter = source.fillCenter;
+        dest.pixelsPerUnitMultiplier = source.pixelsPerUnitMultiplier;
+    }
+
+    static void SetLayerRecursively(GameObject go, int layer)
+    {
+        go.layer = layer;
+        for (int i = 0; i < go.transform.childCount; i++)
+            SetLayerRecursively(go.transform.GetChild(i).gameObject, layer);
     }
 
     public static void CreateSpacer(Transform parent, float height = 8f)
