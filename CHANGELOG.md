@@ -6,6 +6,15 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ## Unreleased
+
+## v0.1.25
+### Added
+* The texture exporter now works on planets not using BurstPQS.
+* The texture exporter UI now has a proper planet selector dropdown.
+* The texture exporter UI now allows you to export cubemaps instead of
+  equirectangular textures.
+* Added russian localization. (Thanks @infradmin4KSP!)
+
 ### Fixed
 * Fix an issue where map decals were not included in the exported texture maps.
 
