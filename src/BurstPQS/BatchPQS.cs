@@ -67,6 +67,7 @@ public class BatchPQS : MonoBehaviour
 
         storageTransforms = new TransformAccessArray(64);
         storagePlanetPositions = new NativeList<double3>(64, Allocator.Persistent);
+        snapshots = new NativeList<QuadSnapshot>(2048, Allocator.Persistent);
     }
 
     void OnDestroy()
@@ -74,6 +75,7 @@ public class BatchPQS : MonoBehaviour
         storageHandle.Complete();
         storageTransforms.Dispose();
         storagePlanetPositions.Dispose();
+        snapshots.Dispose();
 
         foreach (var mod in mods)
         {
@@ -371,7 +373,7 @@ public class BatchPQS : MonoBehaviour
         // In stock, KSP sets enabled every single frame so it gets fixed during
         // the next UpdateQuads call. We don't do that, so this is a one-time
         // fix to make sure that everything is in the right state.
-        CollectActiveQuads();
+        RefreshQuadSnapshots();
         foreach (var q in activeQuads)
         {
             if (q.IsNotNullOrDestroyed() && q.isSubdivided)
@@ -538,11 +540,92 @@ public class BatchPQS : MonoBehaviour
             BuildDeferred(cornerPQ);
     }
 
-    internal void ClearActiveQuads() => activeQuads.Clear();
-
     #region SubdivisionUpdate
+    // Cache PQ fields in native memory to avoid reading every managed quad each frame.
+    // Rebuild the cache when the tree resets; otherwise refresh affected quads.
     private readonly List<PQ> activeQuads = new(2048);
+    private readonly Dictionary<PQ, int> activeQuadIndices = new(2048);
+    private readonly List<PQ> quadsToRefresh = [];
+    private NativeList<QuadSnapshot> snapshots;
+    private bool needsQuadRescan = true;
     private int activeQuadWalkIndex = 0;
+
+    private readonly List<PQ> subdivideQuads = [];
+    private readonly List<PQ> collapseQuads = [];
+    private readonly List<PQ> onUpdateQuads = [];
+
+    internal void InvalidateActiveQuads() => needsQuadRescan = true;
+
+    internal void InvalidateQuadSnapshot(PQ quad)
+    {
+        if (!needsQuadRescan)
+            quadsToRefresh.Add(quad);
+    }
+
+    internal void OnQuadCreated(PQ quad)
+    {
+        if (needsQuadRescan)
+            return;
+
+        TrackQuad(quad);
+    }
+
+    internal void OnQuadDestroying(PQ quad) => UntrackQuad(quad);
+
+    void TrackQuad(PQ quad)
+    {
+        if (activeQuadIndices.ContainsKey(quad))
+            return;
+
+        activeQuadIndices.Add(quad, activeQuads.Count);
+        activeQuads.Add(quad);
+        snapshots.Add(default);
+        InvalidateQuadSnapshot(quad);
+    }
+
+    void UntrackQuad(PQ quad)
+    {
+        if (!activeQuadIndices.TryGetValue(quad, out var index))
+            return;
+
+        activeQuadIndices.Remove(quad);
+
+        int last = activeQuads.Count - 1;
+        if (index != last)
+        {
+            var moved = activeQuads[last];
+            activeQuads[index] = moved;
+            activeQuadIndices[moved] = index;
+        }
+
+        activeQuads.RemoveAt(last);
+        snapshots.RemoveAtSwapBack(index);
+    }
+
+    void RefreshQuadSnapshots()
+    {
+        if (needsQuadRescan)
+            RebuildActiveQuads();
+
+        foreach (var quad in quadsToRefresh)
+        {
+            if (activeQuadIndices.TryGetValue(quad, out var index))
+                snapshots[index] = CreateSnapshot(quad);
+        }
+        quadsToRefresh.Clear();
+    }
+
+    static QuadSnapshot CreateSnapshot(PQ q) =>
+        new()
+        {
+            positionPlanetRelative = BurstUtil.ConvertVector(q.positionPlanetRelative),
+            angularInterval = q.angularinterval,
+            subdivideThresholdFactor = q.subdivideThresholdFactor,
+            subdivision = q.subdivision,
+            isSubdivided = q.isSubdivided,
+            isVisible = q.isVisible,
+            hasOnUpdate = q.onUpdate != null,
+        };
 
     struct SubdivisionUpdate(BatchPQS batchPQS, List<PQ> activeQuads) : IDisposable
     {
@@ -550,7 +633,6 @@ public class BatchPQS : MonoBehaviour
         readonly BatchPQS batchPQS = batchPQS;
         readonly List<PQ> activeQuads = activeQuads;
 
-        NativeArray<QuadSnapshot> snapshots;
         NativeArray<QuadResult> results;
         NativeArray<SubdivisionAction> actions;
         NativeList<int> subdivideIndices;
@@ -566,26 +648,13 @@ public class BatchPQS : MonoBehaviour
         {
             using var scope = UpdateTargetRelativityMarker.Auto();
 
-            if (activeQuads.Count == 0)
-                batchPQS.CollectActiveQuads();
+            batchPQS.RefreshQuadSnapshots();
 
             int count = activeQuads.Count;
             if (count == 0)
                 return;
 
-            snapshots = new NativeArray<QuadSnapshot>(count, Allocator.TempJob);
-
-            var quadsHandle = new ObjectHandle<List<PQ>>(activeQuads);
-
-            // Job 1: Gather managed PQ fields into NativeArray<QuadSnapshot>
-            var gatherHandle = new GatherQuadDataJob
-            {
-                quads = quadsHandle,
-                snapshots = snapshots,
-            }.ScheduleBatch(count, 32);
-            JobHandle.ScheduleBatchedJobs();
-
-            quadsHandle.Dispose(gatherHandle);
+            var snapshots = batchPQS.snapshots.AsArray();
 
             results = new NativeArray<QuadResult>(count, Allocator.TempJob);
             actions = new NativeArray<SubdivisionAction>(count, Allocator.TempJob);
@@ -602,7 +671,6 @@ public class BatchPQS : MonoBehaviour
                 Allocator.TempJob
             );
 
-            // Job 2: Burst-compiled computation of gcd1, gcDist, actions, visibility
             var computeHandle = new ComputeSubdivisionJob
             {
                 relativeTargetPositionNormalized = BurstUtil.ConvertVector(
@@ -620,9 +688,8 @@ public class BatchPQS : MonoBehaviour
                 actions = actions,
                 results = results,
                 visibilityChangedQueue = visibilityChangedQueue.AsParallelWriter(),
-            }.ScheduleBatch(count, 128, gatherHandle);
+            }.ScheduleBatch(count, 128);
 
-            // Job 3: Scatter gcd1/gcDist back to managed PQ objects
             var scatterQuadsHandle = new ObjectHandle<List<PQ>>(activeQuads);
             scatterHandle = new ScatterQuadResultsJob
             {
@@ -630,26 +697,28 @@ public class BatchPQS : MonoBehaviour
                 results = results,
             }.ScheduleBatch(activeQuads.Count, 32, computeHandle);
 
-            // Job 4: Collect indices of quads with onUpdate delegates (Burst, parallel with scatter)
             onUpdateHandle = new CollectOnUpdateJob
             {
                 snapshots = snapshots,
                 onUpdateIndices = onUpdateIndices,
-            }.Schedule(gatherHandle);
+            }.Schedule();
 
-            // Job 5-6: Collect subdivide/collapse indices (Burst, parallel with scatter/onUpdate)
             subdivideIndices = new NativeList<int>(64, Allocator.TempJob);
             collapseIndices = new NativeList<int>(64, Allocator.TempJob);
 
             subdivideHandle = new CollectActionsJob
             {
                 actions = actions,
+                snapshots = snapshots,
+                results = results,
                 target = SubdivisionAction.Subdivide,
                 indices = subdivideIndices,
             }.Schedule(computeHandle);
             collapseHandle = new CollectActionsJob
             {
                 actions = actions,
+                snapshots = snapshots,
+                results = results,
                 target = SubdivisionAction.Collapse,
                 indices = collapseIndices,
             }.Schedule(computeHandle);
@@ -707,22 +776,30 @@ public class BatchPQS : MonoBehaviour
             if (!subdivideIndices.IsCreated)
                 return;
 
-            subdivideHandle.Complete();
-            // Subdivide closest-first (ascending index order from DFS collection)
-            for (int i = 0; i < subdivideIndices.Length; i++)
+            // Tree changes can reorder the quad list and snapshots. Finish all
+            // readers and resolve their indices before changing the tree.
+            JobHandle.CompleteAll(ref subdivideHandle, ref collapseHandle, ref onUpdateHandle);
+            scatterHandle.Complete();
+
+            var subdivideQuads = ResolveQuads(subdivideIndices, batchPQS.subdivideQuads);
+            var collapseQuads = ResolveQuads(collapseIndices, batchPQS.collapseQuads);
+            var onUpdateQuads = ResolveQuads(onUpdateIndices, batchPQS.onUpdateQuads);
+
+            // Cached children can reactivate without a QuadCreated call.
+            foreach (var q in subdivideQuads)
             {
-                var q = activeQuads[subdivideIndices[i]];
-                if (q.IsSafeToSubdivide())
-                    q.Subdivide();
+                if (!q.IsSafeToSubdivide() || !q.Subdivide())
+                    continue;
+
+                batchPQS.InvalidateQuadSnapshot(q);
+                foreach (var child in q.subNodes)
+                    batchPQS.InvalidateQuadSnapshot(child);
             }
 
-            collapseHandle.Complete();
-            // Collapse farthest-first (reverse order for bottom-up)
-            for (int i = collapseIndices.Length - 1; i >= 0; i--)
+            foreach (var q in collapseQuads)
             {
-                var q = activeQuads[collapseIndices[i]];
-                if (q.IsSafeToCollapse())
-                    q.Collapse();
+                if (q.IsSafeToCollapse() && q.Collapse())
+                    batchPQS.InvalidateQuadSnapshot(q);
             }
 
             bool modified = subdivideIndices.Length != 0 || collapseIndices.Length != 0;
@@ -734,7 +811,7 @@ public class BatchPQS : MonoBehaviour
                 {
                     var q = activeQuads[i];
                     if (q.IsNotNullOrDestroyed() && q.isActive && !q.isSubdivided)
-                        q.UpdateVisibility();
+                        UpdateVisibility(q, i);
                 }
             }
             else
@@ -745,30 +822,41 @@ public class BatchPQS : MonoBehaviour
                 {
                     var q = activeQuads[idx];
                     if (q.IsNotNullOrDestroyed() && q.isActive && !q.isSubdivided)
-                        q.UpdateVisibility();
+                        UpdateVisibility(q, idx);
                 }
             }
 
-            // Fire onUpdate delegates
-            onUpdateHandle.Complete();
-            for (int i = 0; i < onUpdateIndices.Length; i++)
+            foreach (var q in onUpdateQuads)
             {
-                var q = activeQuads[onUpdateIndices[i]];
                 if (q.IsNotNullOrDestroyed() && q.isActive)
                     q.onUpdate?.Invoke(q);
             }
 
-            // Ensure scatter job has finished writing gcd1/gcDist before returning
-            scatterHandle.Complete();
+            subdivideQuads.Clear();
+            collapseQuads.Clear();
+            onUpdateQuads.Clear();
+        }
 
-            // Force re-collection next frame if the tree changed
-            if (modified)
-                activeQuads.Clear();
+        readonly void UpdateVisibility(PQ q, int index)
+        {
+            q.UpdateVisibility();
+            if (q.isVisible != batchPQS.snapshots[index].isVisible)
+                batchPQS.InvalidateQuadSnapshot(q);
+        }
+
+        readonly List<PQ> ResolveQuads(NativeList<int> indices, List<PQ> quads)
+        {
+            quads.Clear();
+            foreach (var index in indices)
+                quads.Add(activeQuads[index]);
+            return quads;
         }
 
         public void Dispose()
         {
-            snapshots.Dispose();
+            JobHandle.CompleteAll(ref subdivideHandle, ref collapseHandle, ref onUpdateHandle);
+            scatterHandle.Complete();
+
             results.Dispose();
             actions.Dispose();
             if (subdivideIndices.IsCreated)
@@ -803,18 +891,27 @@ public class BatchPQS : MonoBehaviour
         }
     }
 
-    static readonly ProfilerMarker CollectActiveQuadsMarker = new("CollectActiveQuads");
+    static readonly ProfilerMarker RebuildActiveQuadsMarker = new("RebuildActiveQuads");
 
-    void CollectActiveQuads()
+    void RebuildActiveQuads()
     {
-        using var scope = CollectActiveQuadsMarker.Auto();
+        using var scope = RebuildActiveQuadsMarker.Auto();
+
+        activeQuads.Clear();
+        activeQuadIndices.Clear();
+        quadsToRefresh.Clear();
+        snapshots.Clear();
+        needsQuadRescan = false;
+
+        if (pqs.quads == null)
+            return;
 
         foreach (var quad in pqs.quads)
         {
             if (quad.IsNullOrDestroyed() || !quad.isActive)
                 continue;
 
-            activeQuads.Add(quad);
+            TrackQuad(quad);
         }
 
         for (int i = 0; i < activeQuads.Count; ++i)
@@ -829,7 +926,7 @@ public class BatchPQS : MonoBehaviour
                 if (subnode.IsNullOrDestroyed() || !subnode.isActive)
                     continue;
 
-                activeQuads.Add(subnode);
+                TrackQuad(subnode);
             }
         }
     }
@@ -1148,6 +1245,9 @@ public class BatchPQS : MonoBehaviour
             foreach (var mod in batchPQS.mods)
                 mod.OnQuadBuilt(quad);
             pqs.buildQuad = null;
+
+            // OnQuadBuilt mods may change fields used by the snapshot.
+            batchPQS.InvalidateQuadSnapshot(quad);
         }
 
         public void Dispose()

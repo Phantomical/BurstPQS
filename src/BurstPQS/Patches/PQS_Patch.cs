@@ -29,7 +29,7 @@ internal static class PQS_StartSphere_Patch
     {
         var batchPQS = BatchPQS.Get(__instance);
         if (batchPQS != null)
-            batchPQS.ClearActiveQuads();
+            batchPQS.InvalidateActiveQuads();
     }
 }
 
@@ -48,9 +48,27 @@ internal static class PQS_BuildQuad_Patch
     }
 }
 
+[HarmonyPatch(typeof(PQS), nameof(PQS.QuadCreated))]
+internal static class PQS_QuadCreated_Patch
+{
+    static void Postfix(PQS __instance, PQ quad)
+    {
+        var batchPQS = BatchPQS.Get(__instance);
+        if (batchPQS != null)
+            batchPQS.OnQuadCreated(quad);
+    }
+}
+
 [HarmonyPatch(typeof(PQS), nameof(PQS.DestroyQuad))]
 internal static class PQS_DestroyQuad_Patch
 {
+    static void Prefix(PQS __instance, PQ quad)
+    {
+        var batchPQS = BatchPQS.Get(__instance);
+        if (batchPQS != null)
+            batchPQS.OnQuadDestroying(quad);
+    }
+
     static void Postfix(PQS __instance, PQ quad)
     {
         var batchPQS = BatchPQS.Get(__instance);

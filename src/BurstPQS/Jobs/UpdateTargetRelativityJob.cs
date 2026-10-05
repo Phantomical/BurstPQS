@@ -27,40 +27,6 @@ struct QuadResult
 }
 
 /// <summary>
-/// Gathers relevant fields from managed PQ objects into a NativeArray for Burst processing.
-/// </summary>
-struct GatherQuadDataJob : IJobParallelForBatch
-{
-    public ObjectHandle<List<PQ>> quads;
-
-    [WriteOnly]
-    public NativeArray<QuadSnapshot> snapshots;
-
-    public void Execute(int start, int count)
-    {
-        var quadList = quads.Target;
-        var end = start + count;
-
-        for (int i = start; i < end; i++)
-        {
-            var q = quadList[i];
-            var pos = q.positionPlanetRelative;
-
-            snapshots[i] = new QuadSnapshot
-            {
-                positionPlanetRelative = new double3(pos.x, pos.y, pos.z),
-                angularInterval = q.angularinterval,
-                subdivideThresholdFactor = q.subdivideThresholdFactor,
-                subdivision = q.subdivision,
-                isSubdivided = q.isSubdivided,
-                isVisible = q.isVisible,
-                hasOnUpdate = q.onUpdate != null,
-            };
-        }
-    }
-}
-
-/// <summary>
 /// Burst-compiled job that computes gcd1, gcDist, and subdivision actions from snapshot data.
 /// </summary>
 [BurstCompile]
