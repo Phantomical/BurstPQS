@@ -16,7 +16,7 @@ public class VertexVoronoi(PQSMod_VertexVoronoi mod) : BatchPQSMod<PQSMod_Vertex
         );
     }
 
-    [BurstCompile]
+    [BurstCompile(FloatMode = FloatMode.Fast)]
     struct BuildHeightsJob : IBatchPQSHeightJob
     {
         public BurstVoronoi voronoi;

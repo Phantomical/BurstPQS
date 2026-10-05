@@ -29,7 +29,7 @@ internal static unsafe class Voronoi_GetValue_Patch
         return false;
     }
 
-    [BurstCompile]
+    [BurstCompile(FloatMode = FloatMode.Fast)]
     static double GetValue(BurstVoronoi* noise, double x, double y, double z) =>
         noise->GetValue(x, y, z);
 }

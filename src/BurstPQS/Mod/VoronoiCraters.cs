@@ -35,7 +35,7 @@ public class VoronoiCraters(PQSMod_VoronoiCraters mod) : BatchPQSMod<PQSMod_Voro
         );
     }
 
-    [BurstCompile]
+    [BurstCompile(FloatMode = FloatMode.Fast)]
     struct BuildJob(PQSMod_VoronoiCraters mod) : IBatchPQSHeightJob, IBatchPQSVertexJob, IDisposable
     {
         public BurstVoronoi voronoi = new(mod.voronoi);
