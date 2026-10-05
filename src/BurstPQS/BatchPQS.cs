@@ -9,6 +9,7 @@ using Unity.Jobs;
 using Unity.Mathematics;
 using Unity.Profiling;
 using UnityEngine;
+using UnityEngine.Jobs;
 using UnityEngine.Rendering;
 
 namespace BurstPQS;
@@ -36,14 +37,44 @@ public class BatchPQS : MonoBehaviour
     private readonly Queue<PQ> buildQueue = [];
     private NativeList<MeshDataStruct> disposeList;
 
+    // Patches look this up very often, and usually for the same PQS repeatedly,
+    // so remember the last one.
+    static int cachedPQSId;
+    static BatchPQS cachedBatchPQS;
+
+    internal static BatchPQS Get(PQS pqs)
+    {
+        if (pqs.IsNullOrDestroyed())
+            return null;
+
+        int id = pqs.GetInstanceID();
+        if (id == cachedPQSId && cachedBatchPQS.IsNotNullOrDestroyed())
+            return cachedBatchPQS;
+
+        var batchPQS = pqs.GetComponent<BatchPQS>();
+        if (batchPQS.IsNullOrDestroyed())
+            return null;
+
+        cachedPQSId = id;
+        cachedBatchPQS = batchPQS;
+        return batchPQS;
+    }
+
     void Awake()
     {
         pqs = GetComponent<PQS>();
         body = GetComponentInParent<CelestialBody>();
+
+        storageTransforms = new TransformAccessArray(64);
+        storagePlanetPositions = new NativeList<double3>(64, Allocator.Persistent);
     }
 
     void OnDestroy()
     {
+        storageHandle.Complete();
+        storageTransforms.Dispose();
+        storagePlanetPositions.Dispose();
+
         foreach (var mod in mods)
         {
             try
@@ -155,6 +186,143 @@ public class BatchPQS : MonoBehaviour
 
     static double3x3 ScaleMatrix(Vector3 scale) =>
         new(scale.x, 0.0, 0.0, 0.0, scale.y, 0.0, 0.0, 0.0, scale.z);
+    #endregion
+
+    #region Local Space Storage
+    // Stock only moves max level quads into LocalSpacePQStorage. Everything
+    // else is parented to the sphere, so its world position comes from a float
+    // offset the size of the planet radius. Quads in storage don't rotate with
+    // the body though, so we can only put them there while the body is fixed in
+    // world space. When that changes we move every non-root quad in or out.
+    //
+    // We track storage quads ourselves instead of using LocalSpacePQList so
+    // that floating origin updates can be done by a job. Stock's list stays
+    // empty for spheres we manage.
+    private bool useLocalStorage;
+    private readonly List<PQ> storageQuads = [];
+    private readonly Dictionary<PQ, int> storageIndices = [];
+    private TransformAccessArray storageTransforms;
+    private NativeList<double3> storagePlanetPositions;
+    private JobHandle storageHandle;
+
+    bool ManagesQuadPlacement => !Fallback && pqs.surfaceRelativeQuads && body != null;
+
+    internal void UpdateLocalStorage()
+    {
+        if (!ManagesQuadPlacement)
+            return;
+
+        bool use = body.inverseRotation || !body.rotates;
+        if (use == useLocalStorage)
+            return;
+
+        useLocalStorage = use;
+        if (pqs.quads == null)
+            return;
+
+        var planetToWorld = GetPreciseLocalToWorld();
+        foreach (var root in pqs.quads)
+        {
+            if (root != null)
+                PlaceSubQuads(root, planetToWorld);
+        }
+    }
+
+    void PlaceSubQuads(PQ quad, in double4x4 planetToWorld)
+    {
+        foreach (var child in quad.subNodes)
+        {
+            if (child == null)
+                continue;
+
+            PlaceQuad(child, planetToWorld);
+            PlaceSubQuads(child, planetToWorld);
+        }
+    }
+
+    internal void PlaceQuad(PQ quad)
+    {
+        if (!ManagesQuadPlacement || quad.quadRoot == null)
+            return;
+
+        PlaceQuad(quad, GetPreciseLocalToWorld());
+    }
+
+    void PlaceQuad(PQ quad, in double4x4 planetToWorld)
+    {
+        storageHandle.Complete();
+
+        // Stock may have already put max level quads into its own list.
+        if (quad.subdivision == pqs.maxLevel)
+            pqs.RemovePQFromLocalSpaceStorage(quad);
+
+        var transform = quad.quadTransform;
+        if (transform.parent != pqs.transform)
+            transform.parent = pqs.transform;
+        transform.localPosition = quad.positionPlanet;
+        transform.localRotation = Quaternion.identity;
+        transform.localScale = Vector3.one;
+
+        if (!useLocalStorage)
+        {
+            RemoveFromStorage(quad);
+            return;
+        }
+
+        var planetPosition = BurstUtil.ConvertVector(quad.positionPlanet);
+        var position = math.mul(planetToWorld, new double4(planetPosition, 1.0)).xyz;
+
+        transform.parent = pqs.LocalSpacePQStorage.transform;
+        transform.position = new Vector3((float)position.x, (float)position.y, (float)position.z);
+
+        if (storageIndices.TryGetValue(quad, out var index))
+        {
+            storagePlanetPositions[index] = planetPosition;
+        }
+        else
+        {
+            storageIndices.Add(quad, storageQuads.Count);
+            storageQuads.Add(quad);
+            storageTransforms.Add(transform);
+            storagePlanetPositions.Add(planetPosition);
+        }
+    }
+
+    void RemoveFromStorage(PQ quad)
+    {
+        if (!storageIndices.TryGetValue(quad, out var index))
+            return;
+
+        storageHandle.Complete();
+        storageIndices.Remove(quad);
+
+        int last = storageQuads.Count - 1;
+        if (index != last)
+        {
+            var moved = storageQuads[last];
+            storageQuads[index] = moved;
+            storageIndices[moved] = index;
+        }
+
+        storageQuads.RemoveAt(last);
+        storageTransforms.RemoveAtSwapBack(index);
+        storagePlanetPositions.RemoveAtSwapBack(index);
+    }
+
+    internal void UpdateStoragePositions()
+    {
+        if (storageQuads.Count == 0)
+            return;
+
+        storageHandle = new UpdateStoragePositionsJob
+        {
+            planetToWorld = GetPreciseLocalToWorld(),
+            planetPositions = storagePlanetPositions.AsArray(),
+        }.Schedule(storageTransforms, storageHandle);
+        JobHandle.ScheduleBatchedJobs();
+    }
+
+    internal void CompleteStorageUpdates() => storageHandle.Complete();
     #endregion
 
     #region UpdateQuads
@@ -727,6 +895,8 @@ public class BatchPQS : MonoBehaviour
 
     public void OnQuadDestroy(PQ quad)
     {
+        RemoveFromStorage(quad);
+
         if (!pending.TryGetValue(quad, out var build))
             return;
 
@@ -849,6 +1019,8 @@ public class BatchPQS : MonoBehaviour
             double4x4 planetToQuad = default;
             if (pqs.surfaceRelativeQuads)
             {
+                batchPQS.CompleteStorageUpdates();
+
                 // Invert the matrix the quad is actually rendered with. Its
                 // translation can differ from transform.position by up to a
                 // float step at planet scale, so neither that nor the float

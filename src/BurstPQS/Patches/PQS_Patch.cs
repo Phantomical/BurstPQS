@@ -27,7 +27,7 @@ internal static class PQS_StartSphere_Patch
 {
     static void Prefix(PQS __instance)
     {
-        var batchPQS = __instance.GetComponent<BatchPQS>();
+        var batchPQS = BatchPQS.Get(__instance);
         if (batchPQS != null)
             batchPQS.ClearActiveQuads();
     }
@@ -39,7 +39,7 @@ internal static class PQS_BuildQuad_Patch
 {
     static bool Prefix(PQS __instance, PQ quad, ref bool __result)
     {
-        var batchPQS = __instance.GetComponent<BatchPQS>();
+        var batchPQS = BatchPQS.Get(__instance);
         if (batchPQS is null || batchPQS.Fallback)
             return true;
 
@@ -53,9 +53,46 @@ internal static class PQS_DestroyQuad_Patch
 {
     static void Postfix(PQS __instance, PQ quad)
     {
-        var batchPQS = __instance.GetComponent<BatchPQS>();
+        var batchPQS = BatchPQS.Get(__instance);
         if (batchPQS != null)
             batchPQS.OnQuadDestroy(quad);
+    }
+}
+
+[HarmonyPatch(typeof(PQS), nameof(PQS.FastUpdateQuadsPosition))]
+internal static class PQS_FastUpdateQuadsPosition_Patch
+{
+    static void Postfix(PQS __instance)
+    {
+        var batchPQS = BatchPQS.Get(__instance);
+        if (batchPQS != null)
+            batchPQS.UpdateStoragePositions();
+    }
+}
+
+[HarmonyPatch(typeof(PQS), nameof(PQS.PreciseUpdateQuadsPosition))]
+internal static class PQS_PreciseUpdateQuadsPosition_Patch
+{
+    static void Postfix(PQS __instance)
+    {
+        var batchPQS = BatchPQS.Get(__instance);
+        if (batchPQS != null)
+            batchPQS.UpdateStoragePositions();
+    }
+}
+
+[HarmonyPatch(typeof(CelestialBody), nameof(CelestialBody.CBUpdate))]
+internal static class CelestialBody_CBUpdate_Patch
+{
+    static void Postfix(CelestialBody __instance)
+    {
+        var pqs = __instance.pqsController;
+        if (pqs == null)
+            return;
+
+        var batchPQS = BatchPQS.Get(pqs);
+        if (batchPQS != null)
+            batchPQS.UpdateLocalStorage();
     }
 }
 
@@ -64,7 +101,7 @@ internal static class PQS_UpdateQuads_Patch
 {
     static bool Prefix(PQS __instance)
     {
-        var batchPQS = __instance.GetComponent<BatchPQS>();
+        var batchPQS = BatchPQS.Get(__instance);
         if (batchPQS is null || batchPQS.Fallback)
             return true;
 
@@ -78,7 +115,7 @@ internal static class PQS_UpdateQuadsInit_Patch
 {
     static bool Prefix(PQS __instance)
     {
-        var batchPQS = __instance.GetComponent<BatchPQS>();
+        var batchPQS = BatchPQS.Get(__instance);
         if (batchPQS is null || batchPQS.Fallback)
             return true;
 
