@@ -37,53 +37,53 @@ public readonly struct BurstVoronoi : IModule
         x *= Frequency;
         y *= Frequency;
         z *= Frequency;
-        int num = ((x > 0.0) ? ((int)x) : ((int)x - 1));
-        int num2 = ((y > 0.0) ? ((int)y) : ((int)y - 1));
-        int num3 = ((z > 0.0) ? ((int)z) : ((int)z - 1));
-        double num4 = 2147483647.0;
-        double num5 = 0.0;
-        double num6 = 0.0;
-        double num7 = 0.0;
-        for (int i = num3 - 2; i <= num3 + 2; i++)
+        int cellX = ((x > 0.0) ? ((int)x) : ((int)x - 1));
+        int cellY = ((y > 0.0) ? ((int)y) : ((int)y - 1));
+        int cellZ = ((z > 0.0) ? ((int)z) : ((int)z - 1));
+        double minDist = 2147483647.0;
+        double nearestX = 0.0;
+        double nearestY = 0.0;
+        double nearestZ = 0.0;
+        for (int i = cellZ - 2; i <= cellZ + 2; i++)
         {
-            for (int j = num2 - 2; j <= num2 + 2; j++)
+            for (int j = cellY - 2; j <= cellY + 2; j++)
             {
-                for (int k = num - 2; k <= num + 2; k++)
+                for (int k = cellX - 2; k <= cellX + 2; k++)
                 {
-                    double num8 = (double)k + ValueNoise(k, j, i, Seed);
-                    double num9 = (double)j + ValueNoise(k, j, i, Seed + 1);
-                    double num10 = (double)i + ValueNoise(k, j, i, Seed + 2);
-                    double num11 = num8 - x;
-                    double num12 = num9 - y;
-                    double num13 = num10 - z;
-                    double num14 = num11 * num11 + num12 * num12 + num13 * num13;
-                    if (num14 < num4)
+                    double pointX = (double)k + ValueNoise(k, j, i, Seed);
+                    double pointY = (double)j + ValueNoise(k, j, i, Seed + 1);
+                    double pointZ = (double)i + ValueNoise(k, j, i, Seed + 2);
+                    double dx = pointX - x;
+                    double dy = pointY - y;
+                    double dz = pointZ - z;
+                    double dist = dx * dx + dy * dy + dz * dz;
+                    if (dist < minDist)
                     {
-                        num4 = num14;
-                        num5 = num8;
-                        num6 = num9;
-                        num7 = num10;
+                        minDist = dist;
+                        nearestX = pointX;
+                        nearestY = pointY;
+                        nearestZ = pointZ;
                     }
                 }
             }
         }
-        double num18;
+        double value;
         if (DistanceEnabled)
         {
-            double num15 = num5 - x;
-            double num16 = num6 - y;
-            double num17 = num7 - z;
-            num18 =
-                System.Math.Sqrt(num15 * num15 + num16 * num16 + num17 * num17) * Math.Sqrt3 - 1.0;
+            double dx = nearestX - x;
+            double dy = nearestY - y;
+            double dz = nearestZ - z;
+            value =
+                System.Math.Sqrt(dx * dx + dy * dy + dz * dz) * Math.Sqrt3 - 1.0;
         }
         else
         {
-            num18 = 0.0;
+            value = 0.0;
         }
-        int x2 = ((num5 > 0.0) ? ((int)num5) : ((int)num5 - 1));
-        int y2 = ((num6 > 0.0) ? ((int)num6) : ((int)num6 - 1));
-        int z2 = ((num7 > 0.0) ? ((int)num7) : ((int)num7 - 1));
-        return num18 + Displacement * ValueNoise(x2, y2, z2);
+        int nearestCellX = ((nearestX > 0.0) ? ((int)nearestX) : ((int)nearestX - 1));
+        int nearestCellY = ((nearestY > 0.0) ? ((int)nearestY) : ((int)nearestY - 1));
+        int nearestCellZ = ((nearestZ > 0.0) ? ((int)nearestZ) : ((int)nearestZ - 1));
+        return value + Displacement * ValueNoise(nearestCellX, nearestCellY, nearestCellZ);
     }
 
     public Vector3d GetNearest(Vector3d candidate)
@@ -96,36 +96,36 @@ public readonly struct BurstVoronoi : IModule
         x *= Frequency;
         y *= Frequency;
         z *= Frequency;
-        int num = ((x > 0.0) ? ((int)x) : ((int)x - 1));
-        int num2 = ((y > 0.0) ? ((int)y) : ((int)y - 1));
-        int num3 = ((z > 0.0) ? ((int)z) : ((int)z - 1));
-        double num4 = 2147483647.0;
-        double x2 = 0.0;
-        double y2 = 0.0;
-        double z2 = 0.0;
-        for (int i = num3 - 2; i <= num3 + 2; i++)
+        int cellX = ((x > 0.0) ? ((int)x) : ((int)x - 1));
+        int cellY = ((y > 0.0) ? ((int)y) : ((int)y - 1));
+        int cellZ = ((z > 0.0) ? ((int)z) : ((int)z - 1));
+        double minDist = 2147483647.0;
+        double nearestX = 0.0;
+        double nearestY = 0.0;
+        double nearestZ = 0.0;
+        for (int i = cellZ - 2; i <= cellZ + 2; i++)
         {
-            for (int j = num2 - 2; j <= num2 + 2; j++)
+            for (int j = cellY - 2; j <= cellY + 2; j++)
             {
-                for (int k = num - 2; k <= num + 2; k++)
+                for (int k = cellX - 2; k <= cellX + 2; k++)
                 {
-                    double num5 = (double)k + ValueNoise(k, j, i, Seed);
-                    double num6 = (double)j + ValueNoise(k, j, i, Seed + 1);
-                    double num7 = (double)i + ValueNoise(k, j, i, Seed + 2);
-                    double num8 = num5 - x;
-                    double num9 = num6 - y;
-                    double num10 = num7 - z;
-                    double num11 = num8 * num8 + num9 * num9 + num10 * num10;
-                    if (num11 < num4)
+                    double pointX = (double)k + ValueNoise(k, j, i, Seed);
+                    double pointY = (double)j + ValueNoise(k, j, i, Seed + 1);
+                    double pointZ = (double)i + ValueNoise(k, j, i, Seed + 2);
+                    double dx = pointX - x;
+                    double dy = pointY - y;
+                    double dz = pointZ - z;
+                    double dist = dx * dx + dy * dy + dz * dz;
+                    if (dist < minDist)
                     {
-                        num4 = num11;
-                        x2 = num5;
-                        y2 = num6;
-                        z2 = num7;
+                        minDist = dist;
+                        nearestX = pointX;
+                        nearestY = pointY;
+                        nearestZ = pointZ;
                     }
                 }
             }
         }
-        return new Vector3d(x2, y2, z2);
+        return new Vector3d(nearestX, nearestY, nearestZ);
     }
 }
