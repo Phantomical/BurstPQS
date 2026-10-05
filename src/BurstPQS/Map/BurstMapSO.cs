@@ -56,23 +56,21 @@ public interface IMapSO
 
 public static class MapSODefaults
 {
-    struct BilinearCoords<T>
+    struct BilinearCoords
     {
         public int minX;
         public int maxX;
-        public T midX;
-        public T centerX;
+        public float midX;
 
         public int minY;
         public int maxY;
-        public T midY;
-        public T centerY;
+        public float midY;
     }
 
-    static BilinearCoords<float> ConstructBilinearCoords<T>(ref T mapSO, float x, float y)
+    static BilinearCoords ConstructBilinearCoords<T>(ref T mapSO, float x, float y)
         where T : IMapSO
     {
-        BilinearCoords<float> coords;
+        BilinearCoords coords;
         x = Mathf.Abs(x - Mathf.Floor(x));
 
         // In stock, this is Mathf.Abs(y - Mathf.Floor(y)), Kopernicus patches
@@ -82,17 +80,44 @@ public static class MapSODefaults
         // compat layer take care of preserving the mohole.
         y = Mathf.Clamp(y, 0f, 1f);
 
-        coords.centerX = x * mapSO.Width;
-        coords.centerY = y * mapSO.Height;
+        float centerX = x * mapSO.Width;
+        float centerY = y * mapSO.Height;
 
-        coords.minX = Mathf.FloorToInt(coords.centerX);
-        coords.maxX = Mathf.CeilToInt(coords.centerX);
+        coords.minX = Mathf.FloorToInt(centerX);
+        coords.maxX = Mathf.CeilToInt(centerX);
 
-        coords.minY = Mathf.FloorToInt(coords.centerY);
-        coords.maxY = Mathf.CeilToInt(coords.centerY);
+        coords.minY = Mathf.FloorToInt(centerY);
+        coords.maxY = Mathf.CeilToInt(centerY);
 
-        coords.midX = coords.centerX - coords.minX;
-        coords.midY = coords.centerY - coords.minY;
+        coords.midX = centerX - coords.minX;
+        coords.midY = centerY - coords.minY;
+
+        coords.maxX %= mapSO.Width;
+        coords.maxY = MathUtil.Clamp(coords.maxY, 0, mapSO.Height - 1);
+
+        return coords;
+    }
+
+    static BilinearCoords ConstructBilinearCoords<T>(ref T mapSO, double x, double y)
+        where T : IMapSO
+    {
+        BilinearCoords coords;
+        x = Math.Abs(x - Math.Floor(x));
+
+        // See the float version above for why this is a clamp.
+        y = MathUtil.Clamp(y, 0.0, 1.0);
+
+        double centerX = x * mapSO.Width;
+        double centerY = y * mapSO.Height;
+
+        coords.minX = (int)Math.Floor(centerX);
+        coords.maxX = (int)Math.Ceiling(centerX);
+
+        coords.minY = (int)Math.Floor(centerY);
+        coords.maxY = (int)Math.Ceiling(centerY);
+
+        coords.midX = (float)(centerX - coords.minX);
+        coords.midY = (float)(centerY - coords.minY);
 
         coords.maxX %= mapSO.Width;
         coords.maxY = MathUtil.Clamp(coords.maxY, 0, mapSO.Height - 1);
@@ -101,10 +126,14 @@ public static class MapSODefaults
     }
 
     public static float GetPixelFloat<T>(ref T mapSO, float x, float y)
+        where T : IMapSO => GetPixelFloat(ref mapSO, ConstructBilinearCoords(ref mapSO, x, y));
+
+    public static float GetPixelFloat<T>(ref T mapSO, double x, double y)
+        where T : IMapSO => GetPixelFloat(ref mapSO, ConstructBilinearCoords(ref mapSO, x, y));
+
+    static float GetPixelFloat<T>(ref T mapSO, in BilinearCoords c)
         where T : IMapSO
     {
-        var c = ConstructBilinearCoords(ref mapSO, x, y);
-
         return Mathf.Lerp(
             Mathf.Lerp(
                 mapSO.GetPixelFloat(c.minX, c.minY),
@@ -120,16 +149,15 @@ public static class MapSODefaults
         );
     }
 
-    public static float GetPixelFloat<T>(ref T mapSO, double x, double y)
-        where T : IMapSO
-    {
-        return GetPixelFloat(ref mapSO, (float)x, (float)y);
-    }
-
     public static Color GetPixelColor<T>(ref T mapSO, float x, float y)
+        where T : IMapSO => GetPixelColor(ref mapSO, ConstructBilinearCoords(ref mapSO, x, y));
+
+    public static Color GetPixelColor<T>(ref T mapSO, double x, double y)
+        where T : IMapSO => GetPixelColor(ref mapSO, ConstructBilinearCoords(ref mapSO, x, y));
+
+    static Color GetPixelColor<T>(ref T mapSO, in BilinearCoords c)
         where T : IMapSO
     {
-        var c = ConstructBilinearCoords(ref mapSO, x, y);
         return Color.Lerp(
             Color.Lerp(
                 mapSO.GetPixelColor(c.minX, c.minY),
@@ -143,12 +171,6 @@ public static class MapSODefaults
             ),
             c.midY
         );
-    }
-
-    public static Color GetPixelColor<T>(ref T mapSO, double x, double y)
-        where T : IMapSO
-    {
-        return GetPixelColor(ref mapSO, (float)x, (float)y);
     }
 
     public static Color32 GetPixelColor32<T>(ref T mapSO, int x, int y)
@@ -179,13 +201,20 @@ public static class MapSODefaults
     public static Color32 GetPixelColor32<T>(ref T mapSO, double x, double y)
         where T : IMapSO
     {
-        return GetPixelColor(ref mapSO, (float)x, (float)y);
+        return GetPixelColor(ref mapSO, x, y);
     }
 
     public static HeightAlpha GetPixelHeightAlpha<T>(ref T mapSO, float x, float y)
+        where T : IMapSO =>
+        GetPixelHeightAlpha(ref mapSO, ConstructBilinearCoords(ref mapSO, x, y));
+
+    public static HeightAlpha GetPixelHeightAlpha<T>(ref T mapSO, double x, double y)
+        where T : IMapSO =>
+        GetPixelHeightAlpha(ref mapSO, ConstructBilinearCoords(ref mapSO, x, y));
+
+    static HeightAlpha GetPixelHeightAlpha<T>(ref T mapSO, in BilinearCoords c)
         where T : IMapSO
     {
-        var c = ConstructBilinearCoords(ref mapSO, x, y);
         return HeightAlpha.Lerp(
             HeightAlpha.Lerp(
                 mapSO.GetPixelHeightAlpha(c.minX, c.minY),
@@ -199,12 +228,6 @@ public static class MapSODefaults
             ),
             c.midY
         );
-    }
-
-    public static HeightAlpha GetPixelHeightAlpha<T>(ref T mapSO, double x, double y)
-        where T : IMapSO
-    {
-        return GetPixelHeightAlpha(ref mapSO, (float)x, (float)y);
     }
 }
 

@@ -1,10 +1,30 @@
+using System;
 using System.Collections.Generic;
 using System.Reflection;
 using System.Reflection.Emit;
 using BurstPQS.Util;
 using HarmonyLib;
+using UnityEngine;
 
 namespace BurstPQS.Patches;
+
+// Stock computes the root quads' plane rotation with a float FromToRotation,
+// which is not quite unit length. Every child quad's plane position is then
+// computed by rotating with it in double precision, which skews each cube face
+// slightly differently and leaves gaps of a few cm along the face edges.
+[HarmonyPatch(typeof(PQ), nameof(PQ.SetupQuad))]
+internal static class PQ_SetupQuad_Patch
+{
+    static void Postfix(PQ __instance)
+    {
+        if (__instance.quadRoot != null)
+            return;
+
+        var q = __instance.planeRotation;
+        var norm = Math.Sqrt(q.x * q.x + q.y * q.y + q.z * q.z + q.w * q.w);
+        __instance.planeRotation = new QuaternionD(q.x / norm, q.y / norm, q.z / norm, q.w / norm);
+    }
+}
 
 [HarmonyPatch]
 internal static class PQ_BuildDeferred_Patch

@@ -112,6 +112,36 @@ public static class BurstUtil
         );
     }
 
+    public static double3x3 RotationMatrix(QuaternionD q) => RotationMatrix(q.x, q.y, q.z, q.w);
+
+    public static double3x3 RotationMatrix(Quaternion q) => RotationMatrix(q.x, q.y, q.z, q.w);
+
+    static double3x3 RotationMatrix(double x, double y, double z, double w)
+    {
+        // Quaternions that came from floats are not exactly unit length (e.g.
+        // the PQS cube face rotations), and at planet scale the resulting skew
+        // is visible. Scaling by 2/|q|^2 gives an exact rotation regardless.
+        double s = 2.0 / (x * x + y * y + z * z + w * w);
+        double x2 = x * s;
+        double y2 = y * s;
+        double z2 = z * s;
+        double xx = x * x2;
+        double yy = y * y2;
+        double zz = z * z2;
+        double xy = x * y2;
+        double xz = x * z2;
+        double yz = y * z2;
+        double wx = w * x2;
+        double wy = w * y2;
+        double wz = w * z2;
+        // csharpier-ignore
+        return new(
+            1.0 - (yy + zz), xy - wz, xz + wy,
+            xy + wz, 1.0 - (xx + zz), yz - wx,
+            xz - wy, yz + wx, 1.0 - (xx + yy)
+        );
+    }
+
     public static double2 ConvertVector(Vector2d v) => new(v.x, v.y);
 
     public static double3 ConvertVector(Vector3d v) => new(v.x, v.y, v.z);

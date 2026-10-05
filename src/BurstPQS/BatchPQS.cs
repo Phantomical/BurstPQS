@@ -6,6 +6,7 @@ using BurstPQS.Patches;
 using BurstPQS.Util;
 using Unity.Collections;
 using Unity.Jobs;
+using Unity.Mathematics;
 using Unity.Profiling;
 using UnityEngine;
 using UnityEngine.Rendering;
@@ -18,6 +19,7 @@ public class BatchPQS : MonoBehaviour
     static readonly ProfilerMarker BuildQuadMarker = new("BatchPQS.BuildQuad");
 
     private PQS pqs;
+    private CelestialBody body;
     private BatchPQSMod[] mods;
 
     // Are there unsupported mods and do we need to fall back to the stock
@@ -37,6 +39,7 @@ public class BatchPQS : MonoBehaviour
     void Awake()
     {
         pqs = GetComponent<PQS>();
+        body = GetComponentInParent<CelestialBody>();
     }
 
     void OnDestroy()
@@ -74,6 +77,85 @@ public class BatchPQS : MonoBehaviour
             build.Complete();
         return true;
     }
+
+    #region Precise Frame
+    // The PQS transform's world position and rotation are floats rounded at
+    // planet scale. The body keeps both in doubles, so start from the body and
+    // walk down to the PQS through the local transforms in between.
+    internal double4x4 GetPreciseLocalToWorld()
+    {
+        var transform = pqs.transform;
+
+        if (
+            body != null
+            && TryGetBodyFrame(body, out var bodyToWorld)
+            && TryGetRelativeTransform(transform, body.bodyTransform, out var pqsToBody)
+        )
+            return math.mul(bodyToWorld, pqsToBody);
+
+        return new double4x4(BurstUtil.ConvertMatrix(transform.localToWorldMatrix));
+    }
+
+    static bool TryGetBodyFrame(CelestialBody body, out double4x4 localToWorld)
+    {
+        localToWorld = default;
+
+        var bodyTransform = body.bodyTransform;
+        if (bodyTransform == null)
+            return false;
+
+        // The body's double-precision position and rotation should match its
+        // transform up to float rounding. If they don't, then they aren't
+        // being kept up to date and we can't use them.
+        var position = body.position;
+        var tolerance = Math.Max(1.0, position.magnitude * 1e-6);
+        if (((Vector3d)bodyTransform.position - position).magnitude > tolerance)
+            return false;
+
+        var rotation = body.rotation;
+        var trot = bodyTransform.rotation;
+        var dot =
+            rotation.x * trot.x + rotation.y * trot.y + rotation.z * trot.z + rotation.w * trot.w;
+        if (Math.Abs(dot) < 1.0 - 1e-6)
+            return false;
+
+        localToWorld = Affine(
+            math.mul(BurstUtil.RotationMatrix(rotation), ScaleMatrix(bodyTransform.lossyScale)),
+            BurstUtil.ConvertVector(position)
+        );
+        return true;
+    }
+
+    static bool TryGetRelativeTransform(Transform from, Transform to, out double4x4 fromToTo)
+    {
+        fromToTo = double4x4.identity;
+
+        for (var t = from; t != to; t = t.parent)
+        {
+            if (t == null)
+                return false;
+
+            var local = Affine(
+                math.mul(BurstUtil.RotationMatrix(t.localRotation), ScaleMatrix(t.localScale)),
+                BurstUtil.ConvertVector(t.localPosition)
+            );
+            fromToTo = math.mul(local, fromToTo);
+        }
+
+        return true;
+    }
+
+    static double4x4 Affine(double3x3 linear, double3 translation) =>
+        new(
+            new double4(linear.c0, 0.0),
+            new double4(linear.c1, 0.0),
+            new double4(linear.c2, 0.0),
+            new double4(translation, 1.0)
+        );
+
+    static double3x3 ScaleMatrix(Vector3 scale) =>
+        new(scale.x, 0.0, 0.0, 0.0, scale.y, 0.0, 0.0, 0.0, scale.z);
+    #endregion
 
     #region UpdateQuads
     static readonly ProfilerMarker UpdateQuadsMarker = new("UpdateQuads");
@@ -759,11 +841,31 @@ public class BatchPQS : MonoBehaviour
             foreach (var mod in batchPQS.mods)
                 mod.OnQuadPreBuild(quad, jobSet);
 
+            // This mirrors how PQ.SetupQuad builds quadMatrix, but in doubles.
+            var planeRoot = quad.quadRoot != null ? quad.quadRoot : quad;
+            var planeTransform =
+                BurstUtil.RotationMatrix(planeRoot.planeRotation) * quad.quadScaleFactor;
+
+            double4x4 planetToQuad = default;
+            if (pqs.surfaceRelativeQuads)
+            {
+                // Invert the matrix the quad is actually rendered with. Its
+                // translation can differ from transform.position by up to a
+                // float step at planet scale, so neither that nor the float
+                // worldToLocalMatrix can be used here.
+                var quadToWorld = new double4x4(
+                    BurstUtil.ConvertMatrix(quad.transform.localToWorldMatrix)
+                );
+                var worldToQuad = math.inverse(quadToWorld);
+
+                planetToQuad = math.mul(worldToQuad, batchPQS.GetPreciseLocalToWorld());
+            }
+
             var job = new BuildQuadJob
             {
-                quadMatrix = quad.quadMatrix,
-                pqsTransform = pqs.transform.localToWorldMatrix,
-                inverseQuadTransform = quad.transform.worldToLocalMatrix,
+                quadPlanePosition = BurstUtil.ConvertVector(quad.positionPlanePosition),
+                quadPlaneTransform = planeTransform,
+                planetToQuad = planetToQuad,
 
                 surfaceRelativeQuads = pqs.surfaceRelativeQuads,
                 reqVertexMapCoords = pqs.reqVertexMapCoods,

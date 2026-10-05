@@ -23,9 +23,15 @@ internal struct BuildQuadJob : IJob
     static readonly ProfilerMarker InitMeshDataMarker = new("InitMeshData");
     static readonly ProfilerMarker BuildMeshMarker = new("BuildMesh");
 
-    public Matrix4x4 quadMatrix;
-    public Matrix4x4 pqsTransform;
-    public Matrix4x4 inverseQuadTransform;
+    // Double precision equivalent of PQ.quadMatrix, which maps cache vertices
+    // onto the quad's plane. Stock builds that as a float Matrix4x4, which
+    // loses precision in the vertex directions at planet scale.
+    public double3 quadPlanePosition;
+    public double3x3 quadPlaneTransform;
+
+    // Maps planet-relative vertex positions into the quad's local space. This
+    // must be applied in doubles since the vertices are planet-radius sized.
+    public double4x4 planetToQuad;
 
     public bool surfaceRelativeQuads;
     public bool reqVertexMapCoords;
@@ -44,7 +50,7 @@ internal struct BuildQuadJob : IJob
 
     public int cacheVertexCount;
     public int cacheSideVertCount;
-    public float cacheMeshSize;
+    public double cacheMeshSize;
     public int cacheRes;
     public int cacheTriCount;
 
@@ -127,19 +133,19 @@ internal struct BuildQuadJob : IJob
             Hint.Assume(false);
         }
 
-        float spacing = cacheMeshSize / (cacheSideVertCount - 1);
-        float halfSize = cacheMeshSize * 0.5f;
+        double spacing = cacheMeshSize / (cacheSideVertCount - 1);
+        double halfSize = cacheMeshSize * 0.5;
 
         for (int i = 0, y = 0; y < cacheSideVertCount; ++y)
         {
             for (int x = 0; x < cacheSideVertCount; ++x, ++i)
             {
-                var vert = new Vector3(halfSize - x * spacing, 0f, halfSize - y * spacing);
-                var globalV = quadMatrix.MultiplyPoint3x4(vert);
+                var vert = new double3(halfSize - x * spacing, 0.0, halfSize - y * spacing);
+                var globalV = quadPlanePosition + math.mul(quadPlaneTransform, vert);
 
                 // This needs to be normalized as a double otherwise some acos
                 // calls in mods end up returning NaN.
-                data.directionFromCenter[i] = ((Vector3d)globalV).Normalized();
+                data.directionFromCenter[i] = BurstUtil.ConvertVector(globalV).Normalized();
             }
         }
 
@@ -273,20 +279,14 @@ internal struct BuildQuadJob : IJob
 
     readonly void BuildVertexSurfaceRelative(in BuildMeshData data)
     {
-        float4x4 pqsTransform = BurstUtil.ConvertMatrix(this.pqsTransform);
-        float4x4 inverseQuadTransform = BurstUtil.ConvertMatrix(this.inverseQuadTransform);
-
         for (int i = 0; i < data.VertexCount; ++i)
         {
             var vert = data.directionFromCenter[i] * data.vertHeight[i];
-            var prel = math.mul(
-                pqsTransform,
-                new float4(BurstUtil.ConvertVector((Vector3)vert), 1f)
-            );
-            var srel = math.mul(inverseQuadTransform, new float4(prel.xyz, 1f));
+
+            var srel = math.mul(planetToQuad, new double4(BurstUtil.ConvertVector(vert), 1.0));
 
             data.vertsD[i] = vert;
-            data.verts[i] = BurstUtil.ConvertVector(srel.xyz);
+            data.verts[i] = new Vector3((float)srel.x, (float)srel.y, (float)srel.z);
         }
     }
 
@@ -407,10 +407,14 @@ internal struct BuildQuadJob : IJob
         {
             // Use planet-relative positions (vertsD) to match stock PQS.BuildNormals,
             // which computes face normals from PQS.verts (planet-relative).
-            var ba = (Vector3)(data.vertsD[indices[j + 1]] - data.vertsD[indices[j]]);
-            var ca = (Vector3)(data.vertsD[indices[j + 2]] - data.vertsD[indices[j]]);
+            var a = BurstUtil.ConvertVector(data.vertsD[indices[j]]);
+            var ba = BurstUtil.ConvertVector(data.vertsD[indices[j + 1]]) - a;
+            var ca = BurstUtil.ConvertVector(data.vertsD[indices[j + 2]]) - a;
+            var normal = math.cross(ba, ca);
+            var length = math.length(normal);
 
-            triNormals[i] = Vector3.Cross(ba, ca).normalized;
+            triNormals[i] =
+                length > 0.0 ? BurstUtil.ConvertVector((float3)(normal / length)) : Vector3.zero;
         }
 
         vertNormals.Clear();
