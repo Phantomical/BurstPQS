@@ -152,8 +152,11 @@ public class BatchPQS : MonoBehaviour
         if (Math.Abs(dot) < 1.0 - 1e-6)
             return false;
 
+        // lossyScale is derived from the float world matrix and comes out a
+        // few ULPs off of 1, which is metres at planet scale. KSP doesn't
+        // scale bodies when placing vessels either, so leave it out.
         localToWorld = Affine(
-            math.mul(BurstUtil.RotationMatrix(rotation), ScaleMatrix(bodyTransform.lossyScale)),
+            BurstUtil.RotationMatrix(rotation),
             BurstUtil.ConvertVector(position)
         );
         return true;
@@ -271,7 +274,10 @@ public class BatchPQS : MonoBehaviour
             return;
         }
 
-        var planetPosition = BurstUtil.ConvertVector(quad.positionPlanet);
+        // Use the float local position so the mesh origin is the same whether
+        // or not the quad is in storage.
+        var localPosition = transform.localPosition;
+        var planetPosition = new double3(localPosition.x, localPosition.y, localPosition.z);
         var position = math.mul(planetToWorld, new double4(planetPosition, 1.0)).xyz;
 
         transform.parent = pqs.LocalSpacePQStorage.transform;
@@ -324,7 +330,28 @@ public class BatchPQS : MonoBehaviour
         JobHandle.ScheduleBatchedJobs();
     }
 
-    internal void CompleteStorageUpdates() => storageHandle.Complete();
+    // Meshes need to be built relative to a planet frame origin. The quad's
+    // world position is rounded differently after every floating origin shift,
+    // so building against it leaves the terrain offset once the origin moves.
+    internal bool TryGetPlanetToQuad(PQ quad, out double4x4 planetToQuad)
+    {
+        storageHandle.Complete();
+
+        if (storageIndices.TryGetValue(quad, out var index))
+        {
+            planetToQuad = Affine(double3x3.identity, -storagePlanetPositions[index]);
+            return true;
+        }
+
+        if (TryGetRelativeTransform(quad.quadTransform, pqs.transform, out var quadToPlanet))
+        {
+            planetToQuad = math.inverse(quadToPlanet);
+            return true;
+        }
+
+        planetToQuad = default;
+        return false;
+    }
     #endregion
 
     #region UpdateQuads
@@ -1114,10 +1141,8 @@ public class BatchPQS : MonoBehaviour
                 BurstUtil.RotationMatrix(planeRoot.planeRotation) * quad.quadScaleFactor;
 
             double4x4 planetToQuad = default;
-            if (pqs.surfaceRelativeQuads)
+            if (pqs.surfaceRelativeQuads && !batchPQS.TryGetPlanetToQuad(quad, out planetToQuad))
             {
-                batchPQS.CompleteStorageUpdates();
-
                 // Invert the matrix the quad is actually rendered with. Its
                 // translation can differ from transform.position by up to a
                 // float step at planet scale, so neither that nor the float
