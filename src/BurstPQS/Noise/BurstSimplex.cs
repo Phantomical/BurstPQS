@@ -1,8 +1,14 @@
 using System;
+using System.Runtime.CompilerServices;
+using Unity.Burst.Intrinsics;
 using Unity.Collections;
 using Unity.Collections.LowLevel.Unsafe;
 using Unity.Jobs;
 using Unity.Mathematics;
+using static Unity.Burst.Intrinsics.X86.Avx;
+using static Unity.Burst.Intrinsics.X86.Avx2;
+using static Unity.Burst.Intrinsics.X86.Fma;
+using static Unity.Burst.Intrinsics.X86.Sse2;
 
 namespace BurstPQS.Noise;
 
@@ -66,7 +72,7 @@ public unsafe struct BurstSimplex : IDisposable
         return math.dot((double3)g, new(x, y, z));
     }
 
-    private readonly double value(double xin, double yin, double zin)
+    private readonly double ValueFallback(double xin, double yin, double zin)
     {
         double F3 = 1.0 / 3.0;
         double s = (xin + yin + zin) * F3;
@@ -209,6 +215,131 @@ public unsafe struct BurstSimplex : IDisposable
         return 32.0 * (n0 + n1 + n2 + n3);
     }
 
+    // cin is (x, y, z, 0).
+    [MethodImpl(MethodImplOptions.AggressiveInlining)]
+    private readonly double ValueAvx2(v256 cin)
+    {
+        if (IsAvx2Supported)
+        {
+            // Swapping 128-bit halves and then adjacent lanes leaves x+y+z+0
+            // broadcast to every lane.
+            v256 s = mm256_add_pd(cin, mm256_permute2f128_pd(cin, cin, 0x01));
+            s = mm256_add_pd(s, mm256_permute_pd(s, 0b0101));
+            v256 skewed = mm256_fmadd_pd(s, new v256(F3), cin);
+
+            // Fastfloor: truncate, then subtract 1 where !(skewed > 0). Lane 3 is
+            // cleared so it drops out of the sum for t.
+            v256 notPos = mm256_cmp_pd(skewed, mm256_setzero_pd(), (int)CMP.NGT_UQ);
+            v256 ijk = mm256_add_pd(
+                mm256_round_pd(skewed, (int)X86.RoundingMode.FROUND_TRUNC_NOEXC),
+                mm256_and_pd(notPos, new v256(-1.0))
+            );
+            ijk = mm256_blend_pd(ijk, mm256_setzero_pd(), 0b1000);
+
+            v256 t = mm256_add_pd(ijk, mm256_permute2f128_pd(ijk, ijk, 0x01));
+            t = mm256_add_pd(t, mm256_permute_pd(t, 0b0101));
+            // (x0, y0, z0, _) = cin - (ijk - t * G3)
+            v256 c0 = mm256_sub_pd(cin, mm256_fnmadd_pd(t, new v256(G3), ijk));
+
+            // Order the axes with the same tie-breaking as the branch tree in
+            // value(). Corner 1 steps along the largest axis, corner 2 along the
+            // two largest. m indexes the MaskRank/CornerSel tables:
+            //   (x0, y0, x0, _) >= (y0, z0, z0, _)
+            int m =
+                mm256_movemask_pd(
+                    mm256_cmp_pd(
+                        mm256_permute4x64_pd(c0, 0b11_00_01_00),
+                        mm256_permute4x64_pd(c0, 0b11_10_10_01),
+                        (int)CMP.GE_OQ
+                    )
+                ) & 7;
+            double4 rxBias = RankBias[MaskRank[4 * m]];
+            double4 ryBias = RankBias[MaskRank[4 * m + 1]];
+            double4 rzBias = RankBias[MaskRank[4 * m + 2]];
+
+            v256 X = mm256_add_pd(
+                mm256_permute4x64_pd(c0, 0b00_00_00_00),
+                Load(rxBias)
+            );
+            v256 Y = mm256_add_pd(
+                mm256_permute4x64_pd(c0, 0b01_01_01_01),
+                Load(ryBias)
+            );
+            v256 Z = mm256_add_pd(
+                mm256_permute4x64_pd(c0, 0b10_10_10_10),
+                Load(rzBias)
+            );
+
+            // ijk holds exact integers, so truncation is exact.
+            v128 cell = and_si128(mm256_cvttpd_epi32(ijk), set1_epi32(0xFF));
+            int ii = cell.SInt0;
+            int jj = cell.SInt1;
+            int kk = cell.SInt2;
+
+            // Every corner offset is 0 or 1, so each hash level only needs
+            // perm[n] and perm[n + 1], which one 8-byte load fetches together.
+            // Hash all 8 cube corners this way (lane i + 2j + 4k), then pick out
+            // the 4 simplex corners. Indices stay below 511 since perm entries
+            // are at most 255.
+            long a = *(long*)(perm + kk);
+            long b0 = *(long*)(perm + jj + (int)a);
+            long b1 = *(long*)(perm + jj + (int)(a >> 32));
+            v256 cube = new(
+                *(long*)(perm + ii + (int)b0),
+                *(long*)(perm + ii + (int)(b0 >> 32)),
+                *(long*)(perm + ii + (int)b1),
+                *(long*)(perm + ii + (int)(b1 >> 32))
+            );
+            v128 sel = new(
+                CornerSel[4 * m],
+                CornerSel[4 * m + 1],
+                CornerSel[4 * m + 2],
+                CornerSel[4 * m + 3]
+            );
+            v128 h = mm256_castsi256_si128(
+                mm256_permutevar8x32_epi32(cube, mm256_castsi128_si256(sel))
+            );
+
+            // perm entries are in [0, 255], where h / 12 == (h * 171) >> 11 and
+            // every product fits in the low 16 bits of each lane.
+            v128 q = srli_epi32(mullo_epi16(h, set1_epi32(171)), 11);
+            v128 gi = sub_epi32(h, mullo_epi16(q, set1_epi32(12)));
+
+            // grad3[gi] has the form (±u, ±v) over two of the axes, so the dot
+            // product can be selected rather than multiplied out:
+            //   u = gi < 8 ? x : y,  v = gi < 4 ? y : z
+            // with bit 0 of gi negating u and bit 1 negating v.
+            v256 g = mm256_cvtepi32_epi64(gi);
+            v256 lt8 = mm256_cvtepi32_epi64(cmpgt_epi32(set1_epi32(8), gi));
+            v256 lt4 = mm256_cvtepi32_epi64(cmpgt_epi32(set1_epi32(4), gi));
+            v256 u = mm256_blendv_pd(Y, X, lt8);
+            v256 v = mm256_blendv_pd(Z, Y, lt4);
+            u = mm256_xor_pd(u, mm256_slli_epi64(mm256_and_si256(g, new v256(1L)), 63));
+            v = mm256_xor_pd(v, mm256_slli_epi64(mm256_and_si256(g, new v256(2L)), 62));
+            v256 dot = mm256_add_pd(u, v);
+
+            v256 tc = mm256_fnmadd_pd(X, X, new v256(0.6));
+            tc = mm256_fnmadd_pd(Y, Y, tc);
+            tc = mm256_fnmadd_pd(Z, Z, tc);
+            v256 t2 = mm256_mul_pd(tc, tc);
+            v256 n = mm256_mul_pd(mm256_mul_pd(t2, t2), dot);
+            n = mm256_andnot_pd(mm256_cmp_pd(tc, mm256_setzero_pd(), (int)CMP.LT_OQ), n);
+
+            v128 sum = add_pd(mm256_castpd256_pd128(n), mm256_extractf128_pd(n, 1));
+            sum = add_sd(sum, unpackhi_pd(sum, sum));
+            return 32.0 * sum.Double0;
+        }
+
+        return default;
+    }
+
+    private readonly double Value(double3 cin)
+    {
+        if (IsAvx2Supported)
+            return ValueAvx2(new v256(cin.x, cin.y, cin.z, 0.0));
+        return ValueFallback(cin.x, cin.y, cin.z);
+    }
+
     public readonly double noiseNormalized(Vector3d v3d)
     {
         return (noise(v3d.x, v3d.y, v3d.z) + 1.0) * 0.5;
@@ -226,19 +357,68 @@ public unsafe struct BurstSimplex : IDisposable
 
     public readonly double noise(double x, double y, double z)
     {
+        double3 coord = new(x, y, z);
         double total = 0.0;
         double amplitude = 1.0;
         double f = frequency;
         double maxAmplitude = 0.0;
         for (double itr = 0.0; itr < octaves; itr += 1.0)
         {
-            total += value(x * f, y * f, z * f) * amplitude;
+            total += Value(coord * f) * amplitude;
             f *= 2.0;
             maxAmplitude += amplitude;
             amplitude *= persistence;
         }
         return total / maxAmplitude;
     }
+
+    const double F3 = 1.0 / 3.0;
+    const double G3 = 1.0 / 6.0;
+
+    // Indexed by the ValueAvx2 comparison mask m (bit 0: x0 >= y0, bit 1:
+    // y0 >= z0, bit 2: x0 >= z0). Masks 3 and 4 are contradictory and only
+    // reachable with NaNs.
+
+    // Each axis's rank (0-2) among x0/y0/z0. byte so the index into RankBias
+    // has a known range, which lets LLVM load each row as one vector.
+    // csharpier-ignore
+    static readonly byte[] MaskRank =
+    [
+        0, 1, 2, 0,
+        1, 0, 2, 0,
+        0, 2, 1, 0,
+        1, 1, 1, 0,
+        1, 1, 1, 0,
+        2, 0, 1, 0,
+        1, 2, 0, 0,
+        2, 1, 0, 0,
+    ];
+
+    // Cube corner (i + 2j + 4k) of each of the 4 simplex corners.
+    // csharpier-ignore
+    static readonly int[] CornerSel =
+    [
+        0, 4, 6, 7,
+        0, 4, 5, 7,
+        0, 2, 6, 7,
+        0, 0, 7, 7,
+        0, 0, 7, 7,
+        0, 1, 5, 7,
+        0, 2, 3, 7,
+        0, 1, 3, 7,
+    ];
+
+    // G3 * corner minus the corner's lattice offset along an axis of that rank,
+    // so a corner coordinate is x0 + RankBias.
+    // csharpier-ignore
+    static readonly double4[] RankBias =
+    [
+        new(0.0, G3,       2.0 * G3,       3.0 * G3 - 1.0),
+        new(0.0, G3,       2.0 * G3 - 1.0, 3.0 * G3 - 1.0),
+        new(0.0, G3 - 1.0, 2.0 * G3 - 1.0, 3.0 * G3 - 1.0),
+    ];
+
+    static v256 Load(double4 v) => new(v.x, v.y, v.z, v.w);
 
     static readonly int3[] grad3 =
     [
