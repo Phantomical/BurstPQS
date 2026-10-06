@@ -73,6 +73,7 @@ public class BatchPQS : MonoBehaviour
 
     void OnDestroy()
     {
+        QuadColliderBaker.CompleteBake();
         storageHandle.Complete();
         storageTransforms.Dispose();
         storagePlanetPositions.Dispose();
@@ -94,6 +95,8 @@ public class BatchPQS : MonoBehaviour
     public bool BuildQuad(PQ quad)
     {
         using var scope = BuildQuadMarker.Auto();
+
+        QuadColliderBaker.CompleteBake();
 
         if (pending.TryGetValue(quad, out var build))
             pending.Remove(quad);
@@ -458,6 +461,7 @@ public class BatchPQS : MonoBehaviour
 
         using var scope = UpdateQuadsMarker.Auto();
 
+        QuadColliderBaker.CompleteBake();
         pqs.isThinking = true;
 
         SortQuadsByDistance(pqs.quads, pqs.relativeTargetPosition);
@@ -478,6 +482,9 @@ public class BatchPQS : MonoBehaviour
             using (UpdateEdgesMarker.Auto())
                 pqs.UpdateEdges();
         }
+
+        // Schedule after everything that modifies quad meshes this frame.
+        QuadColliderBaker.Schedule();
 
         pqs.isThinking = false;
     }
@@ -565,6 +572,7 @@ public class BatchPQS : MonoBehaviour
     // Replaces mesh.triangles in PQ.UpdateVisibility.
     internal static void SetQuadTriangles(Mesh mesh, int[] indices)
     {
+        QuadColliderBaker.CompleteBake();
         int vertexCount = mesh.vertexCount;
         if (vertexCount != PQS.cacheVertCount)
         {
@@ -589,6 +597,7 @@ public class BatchPQS : MonoBehaviour
     // directly without the setter's validation and notifications.
     internal static void SetQuadNormals(Mesh mesh, Vector3[] normals)
     {
+        QuadColliderBaker.CompleteBake();
         if (mesh.vertexCount != normals.Length || !HasSeparateNormalStream(mesh))
         {
             mesh.normals = normals;
@@ -819,7 +828,11 @@ public class BatchPQS : MonoBehaviour
         TrackQuad(quad);
     }
 
-    internal void OnQuadDestroying(PQ quad) => UntrackQuad(quad);
+    internal void OnQuadDestroying(PQ quad)
+    {
+        QuadColliderBaker.OnQuadDestroy(quad);
+        UntrackQuad(quad);
+    }
 
     void TrackQuad(PQ quad)
     {
