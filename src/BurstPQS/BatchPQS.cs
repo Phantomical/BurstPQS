@@ -477,20 +477,11 @@ public class BatchPQS : MonoBehaviour
 
             try
             {
+                // PendingBuild.Complete() applies edge stitching. Stock code fixes
+                // stitching every frame via the recursive UpdateSubdivision walk, but
+                // we use selective UpdateVisibility, so the build has to do it.
                 build.Complete();
                 quad.isBuilt = true;
-
-                // Apply correct edge stitching immediately after build.
-                // PendingBuild.Complete() always builds with cacheIndices[0] (no stitching)
-                // and resets edgeState to Reset. Stock code fixes this every frame via the
-                // recursive UpdateSubdivision walk, but we use selective UpdateVisibility,
-                // so quads would keep the unstitched triangles until their visibility flips.
-                var newEdgeState = quad.GetEdgeState();
-                if (newEdgeState != quad.edgeState)
-                {
-                    quad.mesh.triangles = PQS.cacheIndices[(int)newEdgeState];
-                    quad.edgeState = newEdgeState;
-                }
 
                 quad.QueueForNormalUpdate();
             }
@@ -499,6 +490,106 @@ public class BatchPQS : MonoBehaviour
                 build.Dispose();
             }
         }
+    }
+
+    static bool HasNeighbours(PQ quad) =>
+        quad.north != null && quad.south != null && quad.east != null && quad.west != null;
+
+    // Setting mesh.triangles recalculates the submesh bounds by walking every
+    // index. Quad vertices never change when only the indices do, so reuse
+    // the bounds we already have.
+    static void SetIndices(
+        Mesh mesh,
+        int[] indices,
+        Bounds bounds,
+        int vertexCount,
+        MeshUpdateFlags flags
+    )
+    {
+        mesh.SetIndexBufferParams(indices.Length, IndexFormat.UInt32);
+        mesh.SetIndexBufferData(indices, 0, 0, indices.Length, flags);
+        if (mesh.subMeshCount != 1)
+            mesh.subMeshCount = 1;
+        mesh.SetSubMesh(
+            0,
+            new SubMeshDescriptor(0, indices.Length)
+            {
+                bounds = bounds,
+                firstVertex = 0,
+                vertexCount = vertexCount,
+            },
+            flags | MeshUpdateFlags.DontRecalculateBounds
+        );
+    }
+
+    // Replaces mesh.triangles in PQ.UpdateVisibility.
+    internal static void SetQuadTriangles(Mesh mesh, int[] indices)
+    {
+        int vertexCount = mesh.vertexCount;
+        if (vertexCount != PQS.cacheVertCount)
+        {
+            mesh.triangles = indices;
+            return;
+        }
+
+        SetIndices(
+            mesh,
+            indices,
+            mesh.bounds,
+            vertexCount,
+            MeshUpdateFlags.DontValidateIndices | MeshUpdateFlags.DontResetBoneBounds
+        );
+    }
+
+    const int NormalStream = 1;
+    static readonly VertexAttributeDescriptor[] AttributeScratch = new VertexAttributeDescriptor[16];
+
+    // Replaces mesh.normals in PQS.UpdateEdgeNormals. Meshes built by
+    // PendingBuild keep normals in their own stream, so they can be uploaded
+    // directly without the setter's validation and notifications.
+    internal static void SetQuadNormals(Mesh mesh, Vector3[] normals)
+    {
+        if (mesh.vertexCount != normals.Length || !HasSeparateNormalStream(mesh))
+        {
+            mesh.normals = normals;
+            return;
+        }
+
+        mesh.SetVertexBufferData(
+            normals,
+            0,
+            0,
+            normals.Length,
+            NormalStream,
+            MeshUpdateFlags.DontValidateIndices
+                | MeshUpdateFlags.DontResetBoneBounds
+                | MeshUpdateFlags.DontNotifyMeshUsers
+                | MeshUpdateFlags.DontRecalculateBounds
+        );
+    }
+
+    static bool HasSeparateNormalStream(Mesh mesh)
+    {
+        int count = mesh.GetVertexAttributes(AttributeScratch);
+        bool found = false;
+
+        for (int i = 0; i < count; ++i)
+        {
+            var attr = AttributeScratch[i];
+            if (attr.stream != NormalStream)
+                continue;
+
+            if (
+                attr.attribute != VertexAttribute.Normal
+                || attr.format != VertexAttributeFormat.Float32
+                || attr.dimension != 3
+            )
+                return false;
+
+            found = true;
+        }
+
+        return found;
     }
 
     static readonly ProfilerMarker QueueEdgeBuildsMarker = new("QueueEdgeBuilds");
@@ -1330,12 +1421,12 @@ public class BatchPQS : MonoBehaviour
             if (meshData.tangents.IsCreated)
                 mesh.SetVertexBufferData(meshData.tangents, 0, 0, vertexCount, 2, flags);
 
-            int indexCount = PQS.cacheIndices[0].Length;
-            mesh.SetIndexBufferParams(indexCount, IndexFormat.UInt32);
-            mesh.SetIndexBufferData(PQS.cacheIndices[0], 0, 0, indexCount, flags);
-            mesh.subMeshCount = 1;
-            mesh.SetSubMesh(0, new SubMeshDescriptor(0, indexCount), flags);
-            mesh.RecalculateBounds();
+            // Stitch edges now so the indices only need to be uploaded once.
+            var edgeState = HasNeighbours(quad) ? quad.GetEdgeState() : PQS.EdgeState.Reset;
+            var indices = PQS.cacheIndices[edgeState == PQS.EdgeState.Reset ? 0 : (int)edgeState];
+
+            SetIndices(mesh, indices, meshData.bounds, vertexCount, flags);
+            mesh.bounds = meshData.bounds;
 
             // Populate global PQS cache arrays that stock normally fills per-vertex.
             // These must be populated before OnMeshBuilt since stock PQSMods may read them.
@@ -1349,7 +1440,7 @@ public class BatchPQS : MonoBehaviour
             meshData.cacheUV3s.CopyTo(PQS.cacheUV3s);
             meshData.cacheUV4s.CopyTo(PQS.cacheUV4s);
 
-            quad.edgeState = PQS.EdgeState.Reset;
+            quad.edgeState = edgeState;
 
             jobSet.OnMeshBuilt(quad);
 

@@ -101,3 +101,23 @@ internal static class PQ_BuildDeferred_Patch
             batchPQS.BuildDeferred(quad);
     }
 }
+
+[HarmonyPatch(typeof(PQ), nameof(PQ.UpdateVisibility))]
+internal static class PQ_UpdateVisibility_Patch
+{
+    static IEnumerable<CodeInstruction> Transpiler(IEnumerable<CodeInstruction> instructions)
+    {
+        var setTriangles = AccessTools.PropertySetter(typeof(Mesh), nameof(Mesh.triangles));
+        var replacement = SymbolExtensions.GetMethodInfo(() =>
+            BatchPQS.SetQuadTriangles(null, null)
+        );
+
+        var matcher = new CodeMatcher(instructions);
+        matcher
+            .MatchStartForward(new CodeMatch(OpCodes.Callvirt, setTriangles))
+            .ThrowIfInvalid("Could not find call to Mesh.set_triangles in PQ.UpdateVisibility")
+            .SetInstruction(new CodeInstruction(OpCodes.Call, replacement));
+
+        return matcher.Instructions();
+    }
+}

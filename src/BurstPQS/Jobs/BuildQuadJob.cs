@@ -353,8 +353,15 @@ internal struct BuildQuadJob : IJob
         mesh.cacheUV3s = new NativeArray<Vector2>(vertexCount, Allocator.Persistent);
         mesh.cacheUV4s = new NativeArray<Vector2>(vertexCount, Allocator.Persistent);
 
+        float3 boundsMin = float.PositiveInfinity;
+        float3 boundsMax = float.NegativeInfinity;
+
         for (int i = 0; i < vertexCount; i++)
         {
+            float3 position = data.verts[i];
+            boundsMin = math.min(boundsMin, position);
+            boundsMax = math.max(boundsMax, position);
+
             Color color = reqColorChannel ? data.vertColor[i] : default;
             Vector2 uv0 = data.uvs[i];
             Vector2 uv1 = data.uv2s[i];
@@ -363,7 +370,7 @@ internal struct BuildQuadJob : IJob
 
             interleaved[i] = new InterleavedVertex
             {
-                position = data.verts[i],
+                position = position,
                 color = color,
                 uv0 = uv0,
                 uv1 = uv1,
@@ -377,6 +384,8 @@ internal struct BuildQuadJob : IJob
             mesh.cacheUV3s[i] = uv2;
             mesh.cacheUV4s[i] = uv3;
         }
+
+        mesh.bounds = new Bounds((boundsMin + boundsMax) * 0.5f, boundsMax - boundsMin);
 
         // vertsD: planet-relative positions for PQS cache (not a mesh attribute)
         mesh.vertsD = new NativeArray<Vector3d>(vertexCount, Allocator.Persistent);

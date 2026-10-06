@@ -28,6 +28,7 @@ internal struct MeshDataStruct : IDisposable
     public NativeArray<InterleavedVertex> interleaved; // stream 0
     public NativeArray<Vector3> normals; // stream 1
     public NativeArray<Vector4> tangents; // stream 2 (conditional)
+    public Bounds bounds;
 
     // PQS cache arrays (deinterleaved on worker thread)
     public NativeArray<Vector3d> vertsD;
@@ -71,6 +72,7 @@ internal class MeshData : IDisposable
     public NativeArray<InterleavedVertex> interleaved => data.interleaved;
     public NativeArray<Vector3> normals => data.normals;
     public NativeArray<Vector4> tangents => data.tangents;
+    public Bounds bounds => data.bounds;
 
     public NativeArray<Vector3d> vertsD => data.vertsD;
     public NativeArray<Color> cacheColors => data.cacheColors;

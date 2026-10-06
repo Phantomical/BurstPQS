@@ -1,5 +1,6 @@
 using System;
 using System.Collections.Generic;
+using System.Reflection.Emit;
 using System.Security.Cryptography;
 using BurstPQS.Jobs;
 using BurstPQS.Util;
@@ -199,6 +200,26 @@ internal static class PQS_BuildTangents_Patch
     )
     {
         BuildQuadJob.BuildTangents(normals, tangents, tan2);
+    }
+}
+
+[HarmonyPatch(typeof(PQS), nameof(PQS.UpdateEdgeNormals))]
+internal static class PQS_UpdateEdgeNormals_Patch
+{
+    static IEnumerable<CodeInstruction> Transpiler(IEnumerable<CodeInstruction> instructions)
+    {
+        var setNormals = AccessTools.PropertySetter(typeof(Mesh), nameof(Mesh.normals));
+        var replacement = SymbolExtensions.GetMethodInfo(() =>
+            BatchPQS.SetQuadNormals(null, null)
+        );
+
+        var matcher = new CodeMatcher(instructions);
+        matcher
+            .MatchStartForward(new CodeMatch(OpCodes.Callvirt, setNormals))
+            .ThrowIfInvalid("Could not find call to Mesh.set_normals in PQS.UpdateEdgeNormals")
+            .Repeat(m => m.SetInstruction(new CodeInstruction(OpCodes.Call, replacement)));
+
+        return matcher.Instructions();
     }
 }
 
