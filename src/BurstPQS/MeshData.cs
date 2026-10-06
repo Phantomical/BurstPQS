@@ -16,10 +16,9 @@ internal struct InterleavedVertex
     public Vector3 position; // 12 bytes
     public Color color; // 16 bytes
     public Vector2 uv0; //  8 bytes
-    public Vector2 uv1; //  8 bytes
     public Vector2 uv2; //  8 bytes
     public Vector2 uv3; //  8 bytes
-} // 60 bytes total
+} // 52 bytes total
 
 [BurstCompile]
 internal struct MeshDataStruct : IDisposable
@@ -28,6 +27,7 @@ internal struct MeshDataStruct : IDisposable
     public NativeArray<InterleavedVertex> interleaved; // stream 0
     public NativeArray<Vector3> normals; // stream 1
     public NativeArray<Vector4> tangents; // stream 2 (conditional)
+    // uv1 is uploaded from cacheUV2s as the stream after tangents
     public Bounds bounds;
 
     // PQS cache arrays (deinterleaved on worker thread)

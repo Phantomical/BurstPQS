@@ -338,7 +338,7 @@ internal struct BuildQuadJob : IJob
     {
         int vertexCount = data.VertexCount;
 
-        // Stream 0: interleaved position + color + UVs
+        // Stream 0: interleaved position + color + uv0, uv2, uv3
         var interleaved = new NativeArray<InterleavedVertex>(
             vertexCount,
             Allocator.Persistent,
@@ -373,7 +373,6 @@ internal struct BuildQuadJob : IJob
                 position = position,
                 color = color,
                 uv0 = uv0,
-                uv1 = uv1,
                 uv2 = uv2,
                 uv3 = uv3,
             };

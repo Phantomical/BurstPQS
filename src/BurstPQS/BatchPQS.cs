@@ -5,6 +5,7 @@ using BurstPQS.Jobs;
 using BurstPQS.Patches;
 using BurstPQS.Util;
 using Unity.Collections;
+using Unity.Collections.LowLevel.Unsafe;
 using Unity.Jobs;
 using Unity.Mathematics;
 using Unity.Profiling;
@@ -589,56 +590,104 @@ public class BatchPQS : MonoBehaviour
         );
     }
 
-    const int NormalStream = 1;
-    static readonly VertexAttributeDescriptor[] AttributeScratch = new VertexAttributeDescriptor[16];
+    const int MaxVertexStreams = 4;
+    const int VertexAttributeCount = (int)VertexAttribute.BlendIndices + 1;
+    const MeshUpdateFlags StreamUpdateFlags =
+        MeshUpdateFlags.DontValidateIndices
+        | MeshUpdateFlags.DontResetBoneBounds
+        | MeshUpdateFlags.DontNotifyMeshUsers
+        | MeshUpdateFlags.DontRecalculateBounds;
 
-    // Replaces mesh.normals in PQS.UpdateEdgeNormals. Meshes built by
-    // PendingBuild keep normals in their own stream, so they can be uploaded
-    // directly without the setter's validation and notifications.
-    internal static void SetQuadNormals(Mesh mesh, Vector3[] normals)
+    static readonly VertexAttributeDescriptor[] AttributeScratch =
+        new VertexAttributeDescriptor[VertexAttributeCount];
+    static readonly int[] StreamAttributeCounts = new int[MaxVertexStreams];
+
+    // Stream holding only that attribute as Float32, or -1.
+    static readonly int[] DedicatedStreams = new int[VertexAttributeCount];
+    static readonly int[] DedicatedStreamStrides = new int[VertexAttributeCount];
+    static int layoutVertexCount;
+
+    // Set while PQS.UpdateEdgeNormals runs. It uploads several streams to
+    // the same mesh, so the layout is only read once.
+    static PQ edgeNormalsQuad;
+    static Mesh layoutMesh;
+
+    internal static void BeginQuadStreamUpdates(PQ quad)
     {
-        QuadColliderBaker.CompleteBake();
-        if (mesh.vertexCount != normals.Length || !HasSeparateNormalStream(mesh))
-        {
-            mesh.normals = normals;
-            return;
-        }
-
-        mesh.SetVertexBufferData(
-            normals,
-            0,
-            0,
-            normals.Length,
-            NormalStream,
-            MeshUpdateFlags.DontValidateIndices
-                | MeshUpdateFlags.DontResetBoneBounds
-                | MeshUpdateFlags.DontNotifyMeshUsers
-                | MeshUpdateFlags.DontRecalculateBounds
-        );
+        edgeNormalsQuad = quad;
+        layoutMesh = null;
     }
 
-    static bool HasSeparateNormalStream(Mesh mesh)
+    internal static void EndQuadStreamUpdates()
     {
+        edgeNormalsQuad = null;
+        layoutMesh = null;
+    }
+
+    // UpdateEdgeNormals sets the mesh normals from quad.vertNormals.
+    internal static bool IsUpdatingEdgeNormals(PQ quad) => ReferenceEquals(quad, edgeNormalsQuad);
+
+    // Meshes built by PendingBuild keep the channels that PQS.UpdateEdgeNormals
+    // changes in their own streams, so they can be uploaded directly without
+    // the setters' layout changes, validation and notifications. Returns false
+    // if the mesh has some other layout, in which case the caller should use
+    // the regular setter.
+    internal static bool TrySetQuadStream<T>(Mesh mesh, T[] data, VertexAttribute attribute)
+        where T : struct
+    {
+        QuadColliderBaker.CompleteBake();
+
+        if (!ReferenceEquals(mesh, layoutMesh))
+            ReadStreamLayout(mesh);
+
+        int stream = DedicatedStreams[(int)attribute];
+        if (
+            stream < 0
+            || data.Length != layoutVertexCount
+            || UnsafeUtility.SizeOf<T>() != DedicatedStreamStrides[(int)attribute]
+        )
+        {
+            // The caller's setter may change the layout.
+            layoutMesh = null;
+            return false;
+        }
+
+        mesh.SetVertexBufferData(data, 0, 0, data.Length, stream, StreamUpdateFlags);
+        return true;
+    }
+
+    static void ReadStreamLayout(Mesh mesh)
+    {
+        layoutMesh = edgeNormalsQuad is not null ? mesh : null;
+        layoutVertexCount = mesh.vertexCount;
+
         int count = mesh.GetVertexAttributes(AttributeScratch);
-        bool found = false;
+
+        Array.Clear(StreamAttributeCounts, 0, StreamAttributeCounts.Length);
+        for (int i = 0; i < count; ++i)
+            StreamAttributeCounts[AttributeScratch[i].stream]++;
+
+        for (int i = 0; i < DedicatedStreams.Length; ++i)
+            DedicatedStreams[i] = -1;
 
         for (int i = 0; i < count; ++i)
         {
             var attr = AttributeScratch[i];
-            if (attr.stream != NormalStream)
+            if (
+                StreamAttributeCounts[attr.stream] != 1
+                || attr.format != VertexAttributeFormat.Float32
+            )
                 continue;
 
-            if (
-                attr.attribute != VertexAttribute.Normal
-                || attr.format != VertexAttributeFormat.Float32
-                || attr.dimension != 3
-            )
-                return false;
-
-            found = true;
+            DedicatedStreams[(int)attr.attribute] = attr.stream;
+            DedicatedStreamStrides[(int)attr.attribute] = attr.dimension * sizeof(float);
         }
+    }
 
-        return found;
+    internal static void SetQuadNormals(Mesh mesh, Vector3[] normals)
+    {
+        if (!TrySetQuadStream(mesh, normals, VertexAttribute.Normal))
+            mesh.normals = normals;
     }
 
     static readonly ProfilerMarker QueueEdgeBuildsMarker = new("QueueEdgeBuilds");
@@ -1429,7 +1478,7 @@ public class BatchPQS : MonoBehaviour
             new(VertexAttribute.Normal, VertexAttributeFormat.Float32, 3, 1),
             new(VertexAttribute.Color, VertexAttributeFormat.Float32, 4, 0),
             new(VertexAttribute.TexCoord0, VertexAttributeFormat.Float32, 2, 0),
-            new(VertexAttribute.TexCoord1, VertexAttributeFormat.Float32, 2, 0),
+            new(VertexAttribute.TexCoord1, VertexAttributeFormat.Float32, 2, 2),
             new(VertexAttribute.TexCoord2, VertexAttributeFormat.Float32, 2, 0),
             new(VertexAttribute.TexCoord3, VertexAttributeFormat.Float32, 2, 0),
         ];
@@ -1441,7 +1490,7 @@ public class BatchPQS : MonoBehaviour
             new(VertexAttribute.Tangent, VertexAttributeFormat.Float32, 4, 2),
             new(VertexAttribute.Color, VertexAttributeFormat.Float32, 4, 0),
             new(VertexAttribute.TexCoord0, VertexAttributeFormat.Float32, 2, 0),
-            new(VertexAttribute.TexCoord1, VertexAttributeFormat.Float32, 2, 0),
+            new(VertexAttribute.TexCoord1, VertexAttributeFormat.Float32, 2, 3),
             new(VertexAttribute.TexCoord2, VertexAttributeFormat.Float32, 2, 0),
             new(VertexAttribute.TexCoord3, VertexAttributeFormat.Float32, 2, 0),
         ];
@@ -1462,15 +1511,18 @@ public class BatchPQS : MonoBehaviour
                 | MeshUpdateFlags.DontResetBoneBounds
                 | MeshUpdateFlags.DontNotifyMeshUsers;
 
-            VertexAttributeDescriptor[] attrs = meshData.tangents.IsCreated
-                ? AttrWithTangent
-                : AttrWithoutTangent;
+            bool hasTangents = meshData.tangents.IsCreated;
+            int uv1Stream = hasTangents ? 3 : 2;
 
-            mesh.SetVertexBufferParams(vertexCount, attrs);
+            mesh.SetVertexBufferParams(
+                vertexCount,
+                hasTangents ? AttrWithTangent : AttrWithoutTangent
+            );
             mesh.SetVertexBufferData(meshData.interleaved, 0, 0, vertexCount, 0, flags);
             mesh.SetVertexBufferData(meshData.normals, 0, 0, vertexCount, 1, flags);
-            if (meshData.tangents.IsCreated)
+            if (hasTangents)
                 mesh.SetVertexBufferData(meshData.tangents, 0, 0, vertexCount, 2, flags);
+            mesh.SetVertexBufferData(meshData.cacheUV2s, 0, 0, vertexCount, uv1Stream, flags);
 
             // Stitch edges now so the indices only need to be uploaded once.
             var edgeState = HasNeighbours(quad) ? quad.GetEdgeState() : PQS.EdgeState.Reset;

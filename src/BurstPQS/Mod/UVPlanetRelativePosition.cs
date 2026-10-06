@@ -6,6 +6,7 @@ using Unity.Burst.Intrinsics;
 using Unity.Mathematics;
 using static Unity.Burst.Intrinsics.X86;
 using UnityEngine;
+using UnityEngine.Rendering;
 
 namespace BurstPQS.Mod;
 
@@ -79,7 +80,8 @@ public class UVPlanetRelativePosition(PQSMod_UVPlanetRelativePosition mod)
             );
         }
 
-        quad.mesh.uv2 = PQS.cacheUV2s;
+        if (!BatchPQS.TrySetQuadStream(quad.mesh, PQS.cacheUV2s, VertexAttribute.TexCoord1))
+            quad.mesh.uv2 = PQS.cacheUV2s;
     }
 
     delegate void UpdateQuadNormalsDelegate(

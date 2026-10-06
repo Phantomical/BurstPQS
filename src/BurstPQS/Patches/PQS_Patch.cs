@@ -10,6 +10,7 @@ using Unity.Collections;
 using Unity.Collections.LowLevel.Unsafe;
 using Unity.Profiling;
 using UnityEngine;
+using UnityEngine.Rendering;
 
 namespace BurstPQS.Patches;
 
@@ -154,17 +155,29 @@ internal static class PQS_BuildTangents_Patch
     {
         BuildTangentsFunc ??= BurstUtil.MaybeCompileDelegate<BuildTangentsDelegate>(BuildTangents);
 
-        NormalListCache.Clear();
-        quad.mesh.GetNormals(NormalListCache);
+        Vector3[] normals;
+        int normalCount;
+        if (BatchPQS.IsUpdatingEdgeNormals(quad))
+        {
+            normals = quad.vertNormals;
+            normalCount = normals.Length;
+        }
+        else
+        {
+            NormalListCache.Clear();
+            quad.mesh.GetNormals(NormalListCache);
+            normals = NoAllocHelpers.ExtractArrayFromListT(NormalListCache);
+            normalCount = NormalListCache.Count;
+        }
 
-        fixed (Vector3* pnormals = NoAllocHelpers.ExtractArrayFromListT(NormalListCache))
+        fixed (Vector3* pnormals = normals)
         fixed (Vector4* ptangents = PQS.cacheTangents)
         fixed (Vector3* ptan2 = PQS.tan2)
         {
             BuildTangentsFunc(
                 NativeArrayUnsafeUtility.ConvertExistingDataToNativeArray<Vector3>(
                     pnormals,
-                    NormalListCache.Count,
+                    normalCount,
                     Allocator.Invalid
                 ),
                 NativeArrayUnsafeUtility.ConvertExistingDataToNativeArray<Vector4>(
@@ -180,7 +193,8 @@ internal static class PQS_BuildTangents_Patch
             );
         }
 
-        quad.mesh.tangents = PQS.cacheTangents;
+        if (!BatchPQS.TrySetQuadStream(quad.mesh, PQS.cacheTangents, VertexAttribute.Tangent))
+            quad.mesh.tangents = PQS.cacheTangents;
         return false;
     }
 
@@ -230,6 +244,10 @@ internal static class PQS_AssignQuad_Patch
 [HarmonyPatch(typeof(PQS), nameof(PQS.UpdateEdgeNormals))]
 internal static class PQS_UpdateEdgeNormals_Patch
 {
+    static void Prefix(PQ q) => BatchPQS.BeginQuadStreamUpdates(q);
+
+    static void Finalizer() => BatchPQS.EndQuadStreamUpdates();
+
     static IEnumerable<CodeInstruction> Transpiler(IEnumerable<CodeInstruction> instructions)
     {
         var setNormals = AccessTools.PropertySetter(typeof(Mesh), nameof(Mesh.normals));
