@@ -443,7 +443,7 @@ internal struct BuildQuadJob : IJob
         {
             var normal = normals[i];
             var tangent = Vector3.zero;
-            Vector3.OrthoNormalize(ref normal, ref tangent);
+            MathUtil.OrthoNormalize(ref normal, ref tangent);
 
             tangents[i] = new Vector4(
                 tangent.x,

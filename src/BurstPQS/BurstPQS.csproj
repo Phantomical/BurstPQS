@@ -73,6 +73,8 @@
     <Publicize Include="UnityEngine.CoreModule:Unity.Profiling.ProfilerMarker.Internal_Begin" />
     <Publicize Include="UnityEngine.CoreModule:Unity.Profiling.ProfilerMarker.Internal_End" />
     <Publicize Include="UnityEngine.CoreModule:Unity.Profiling.ProfilerMarker+AutoScope.m_Ptr" />
+    <Publicize Include="UnityEngine.CoreModule:UnityEngine.NoAllocHelpers" />
+    <Publicize Include="UnityEngine.CoreModule:UnityEngine.NoAllocHelpers.ExtractArrayFromListT" />
   </ItemGroup>
 
   <!--

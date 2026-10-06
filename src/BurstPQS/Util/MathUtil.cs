@@ -1,6 +1,7 @@
 using System;
 using System.Runtime.CompilerServices;
 using Unity.Mathematics;
+using UnityEngine;
 using static Unity.Burst.Intrinsics.X86.Bmi1;
 using static Unity.Burst.Intrinsics.X86.Popcnt;
 
@@ -34,6 +35,46 @@ public static class MathUtil
     public static int Clamp(int v, int min, int max) => Math.Min(Math.Max(v, min), max);
 
     public static double Clamp01(double v) => Clamp(v, 0.0, 1.0);
+
+    // Matches Unity's native Vector3.OrthoNormalize, which Burst can only
+    // reach through an icall.
+    public static void OrthoNormalize(ref Vector3 normal, ref Vector3 tangent)
+    {
+        float3 u = normal;
+        float3 v = tangent;
+
+        float mag = math.sqrt(math.dot(u, u));
+        if (mag > Vector3.kEpsilon)
+            u /= mag;
+        else
+            u = new float3(1f, 0f, 0f);
+
+        v -= math.dot(u, v) * u;
+        mag = math.sqrt(math.dot(v, v));
+        if (mag < Vector3.kEpsilon)
+            v = OrthoNormalVector(u);
+        else
+            v /= mag;
+
+        normal = u;
+        tangent = v;
+    }
+
+    static float3 OrthoNormalVector(float3 n)
+    {
+        const float OneOverSqrt2 = 0.7071067811865475244008443621048490f;
+
+        if (math.abs(n.z) > OneOverSqrt2)
+        {
+            float k = 1f / math.sqrt(n.y * n.y + n.z * n.z);
+            return new float3(0f, -n.z * k, n.y * k);
+        }
+        else
+        {
+            float k = 1f / math.sqrt(n.x * n.x + n.y * n.y);
+            return new float3(-n.y * k, n.x * k, 0f);
+        }
+    }
 
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
     internal static int PopCount(ulong x)

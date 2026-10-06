@@ -1,4 +1,5 @@
 using System;
+using System.Collections.Generic;
 using System.Security.Cryptography;
 using BurstPQS.Jobs;
 using BurstPQS.Util;
@@ -146,19 +147,23 @@ internal static class PQS_UpdateQuadsInit_Patch
 [HarmonyPatch(typeof(PQS), nameof(PQS.BuildTangents))]
 internal static class PQS_BuildTangents_Patch
 {
+    private static readonly List<Vector3> NormalListCache = new(PQS.cacheVertCount);
+
     static unsafe bool Prefix(PQ quad)
     {
         BuildTangentsFunc ??= BurstUtil.MaybeCompileDelegate<BuildTangentsDelegate>(BuildTangents);
 
-        var normals = quad.mesh.normals;
-        fixed (Vector3* pnormals = normals)
+        NormalListCache.Clear();
+        quad.mesh.GetNormals(NormalListCache);
+
+        fixed (Vector3* pnormals = NoAllocHelpers.ExtractArrayFromListT(NormalListCache))
         fixed (Vector4* ptangents = PQS.cacheTangents)
         fixed (Vector3* ptan2 = PQS.tan2)
         {
             BuildTangentsFunc(
                 NativeArrayUnsafeUtility.ConvertExistingDataToNativeArray<Vector3>(
                     pnormals,
-                    normals.Length,
+                    NormalListCache.Count,
                     Allocator.Invalid
                 ),
                 NativeArrayUnsafeUtility.ConvertExistingDataToNativeArray<Vector4>(
@@ -186,7 +191,7 @@ internal static class PQS_BuildTangents_Patch
 
     static BuildTangentsDelegate BuildTangentsFunc;
 
-    [BurstCompile]
+    [BurstCompile(FloatMode = FloatMode.Fast)]
     static void BuildTangents(
         in NativeArray<Vector3> normals,
         in NativeArray<Vector4> tangents,
