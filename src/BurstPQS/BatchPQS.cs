@@ -832,6 +832,7 @@ public class BatchPQS : MonoBehaviour
     {
         QuadColliderBaker.OnQuadDestroy(quad);
         UntrackQuad(quad);
+        RemoveFromStorage(quad);
     }
 
     void TrackQuad(PQ quad)
@@ -1248,8 +1249,6 @@ public class BatchPQS : MonoBehaviour
 
     public void OnQuadDestroy(PQ quad)
     {
-        RemoveFromStorage(quad);
-
         if (!pending.TryGetValue(quad, out var build))
             return;
 
