@@ -11,6 +11,7 @@ struct SubdivisionTargetInput
     public double surfaceRadius;
     public double surfaceSpeed;
     public int colliderLevel;
+    public double vesselRadius;
 }
 
 [BurstCompile]
@@ -62,6 +63,8 @@ struct PrepareSubdivisionTargetsJob : IJob
                         GetMaxLevelAtSpeed(angularSpeed),
                         input.colliderLevel
                     ),
+                    colliderLevel = input.colliderLevel,
+                    vesselRadius = input.vesselRadius,
                 }
             );
         }

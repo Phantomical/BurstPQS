@@ -32,6 +32,8 @@ struct SubdivisionTarget
     public double absHeight;
     public double collapseFactor;
     public int maxLevelAtSpeed;
+    public int colliderLevel;
+    public double vesselRadius;
 }
 
 /// <summary>
@@ -40,6 +42,8 @@ struct SubdivisionTarget
 [BurstCompile]
 struct ComputeSubdivisionJob : IJobParallelForBatch
 {
+    const double GreatCircleScale = 1.3;
+
     public double radius;
 
     [ReadOnly]
@@ -84,16 +88,23 @@ struct ComputeSubdivisionJob : IJobParallelForBatch
                 var g =
                     math.acos(math.dot(snap.positionPlanetRelative, target.directionNormalized))
                     * radius
-                    * 1.3;
+                    * GreatCircleScale;
                 var gcDist = g + target.absHeight - snap.angularInterval;
 
                 minG = math.min(minG, g);
                 minGcDist = math.min(minGcDist, gcDist);
 
+                // Small quads can be under part of a vessel while being far
+                // from its centre, so measure from the edge of its bounding
+                // sphere for the levels that need colliders.
+                var levelDist = gcDist;
+                if (snap.subdivision < target.colliderLevel)
+                    levelDist -= target.vesselRadius * GreatCircleScale;
+
                 if (snap.isSubdivided)
-                    collapse &= ShouldCollapse(ref snap, ref target, gcDist);
+                    collapse &= ShouldCollapse(ref snap, ref target, levelDist);
                 else
-                    subdivide |= ShouldSubdivide(ref snap, ref target, gcDist);
+                    subdivide |= ShouldSubdivide(ref snap, ref target, levelDist);
             }
 
             results[i] = new QuadResult { gcd1 = minG, gcDist = minGcDist };

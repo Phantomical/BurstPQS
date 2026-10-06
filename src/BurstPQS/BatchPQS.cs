@@ -805,10 +805,20 @@ public class BatchPQS : MonoBehaviour
                         surfaceRadius = pqs.radius + vessel.terrainAltitude,
                         surfaceSpeed = vessel.srfSpeed,
                         colliderLevel = colliderLevel,
+                        vesselRadius = GetVesselRadius(vessel),
                     }
                 );
             }
         }
+
+        int primaryColliderLevel = HighLogic.LoadedSceneIsFlight ? colliderLevel : 0;
+        var primaryVessel = FlightGlobals.ActiveVessel;
+        var primaryRadius =
+            primaryColliderLevel != 0
+            && primaryVessel != null
+            && primaryVessel.transform == pqs.target
+                ? GetVesselRadius(primaryVessel)
+                : 0.0;
 
         return new PrepareSubdivisionTargetsJob
         {
@@ -819,9 +829,9 @@ public class BatchPQS : MonoBehaviour
                 ),
                 absHeight = Math.Abs(pqs.targetHeight),
                 collapseFactor = pqs.collapseThreshold,
-                maxLevelAtSpeed = HighLogic.LoadedSceneIsFlight
-                    ? Math.Max(pqs.maxLevelAtCurrentTgtSpeed, colliderLevel)
-                    : pqs.maxLevelAtCurrentTgtSpeed,
+                maxLevelAtSpeed = Math.Max(pqs.maxLevelAtCurrentTgtSpeed, primaryColliderLevel),
+                colliderLevel = primaryColliderLevel,
+                vesselRadius = primaryRadius,
             },
             planetToWorld = inputs.Length != 0 ? GetPreciseLocalToWorld() : double4x4.identity,
             radius = pqs.radius,
@@ -837,6 +847,10 @@ public class BatchPQS : MonoBehaviour
             targets = targets,
         }.Schedule();
     }
+
+    // vesselSize is the craft's bounding box, but the vessel position isn't
+    // at its centre, so use the whole diagonal.
+    static double GetVesselRadius(Vessel vessel) => vessel.vesselSize.magnitude;
 
     int GetColliderLevel()
     {
