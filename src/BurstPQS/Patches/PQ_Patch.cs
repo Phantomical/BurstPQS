@@ -18,6 +18,25 @@ namespace BurstPQS.Patches;
 [HarmonyPatch(typeof(PQ), nameof(PQ.SetupQuad))]
 internal static class PQ_SetupQuad_Patch
 {
+    static IEnumerable<CodeInstruction> Transpiler(IEnumerable<CodeInstruction> instructions)
+    {
+        var setParent = AccessTools.PropertySetter(typeof(Transform), nameof(Transform.parent));
+        var replacement = SymbolExtensions.GetMethodInfo(() =>
+            BatchPQS.SetupQuadParent(null, null, null)
+        );
+
+        var matcher = new CodeMatcher(instructions);
+        matcher
+            .MatchStartForward(new CodeMatch(OpCodes.Callvirt, setParent))
+            .ThrowIfInvalid("Could not find call to Transform.set_parent in PQ.SetupQuad")
+            .Repeat(m =>
+                m.SetInstructionAndAdvance(new CodeInstruction(OpCodes.Ldarg_0))
+                    .Insert(new CodeInstruction(OpCodes.Call, replacement))
+            );
+
+        return matcher.Instructions();
+    }
+
     static void Postfix(PQ __instance)
     {
         if (__instance.quadRoot != null)

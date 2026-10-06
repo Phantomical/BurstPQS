@@ -203,6 +203,30 @@ internal static class PQS_BuildTangents_Patch
     }
 }
 
+[HarmonyPatch(typeof(PQS), nameof(PQS.AssignQuad))]
+internal static class PQS_AssignQuad_Patch
+{
+    static IEnumerable<CodeInstruction> Transpiler(IEnumerable<CodeInstruction> instructions)
+    {
+        var setParent = AccessTools.PropertySetter(typeof(Transform), nameof(Transform.parent));
+        var replacement = SymbolExtensions.GetMethodInfo(() =>
+            BatchPQS.AssignQuadParent(null, null, null, 0)
+        );
+
+        var matcher = new CodeMatcher(instructions);
+        matcher
+            .MatchStartForward(new CodeMatch(OpCodes.Callvirt, setParent))
+            .ThrowIfInvalid("Could not find call to Transform.set_parent in PQS.AssignQuad")
+            .SetInstructionAndAdvance(new CodeInstruction(OpCodes.Ldarg_0))
+            .Insert(
+                new CodeInstruction(OpCodes.Ldarg_1),
+                new CodeInstruction(OpCodes.Call, replacement)
+            );
+
+        return matcher.Instructions();
+    }
+}
+
 [HarmonyPatch(typeof(PQS), nameof(PQS.UpdateEdgeNormals))]
 internal static class PQS_UpdateEdgeNormals_Patch
 {

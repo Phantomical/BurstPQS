@@ -263,26 +263,31 @@ public class BatchPQS : MonoBehaviour
             pqs.RemovePQFromLocalSpaceStorage(quad);
 
         var transform = quad.quadTransform;
-        if (transform.parent != pqs.transform)
-            transform.parent = pqs.transform;
-        transform.localPosition = quad.positionPlanet;
-        transform.localRotation = Quaternion.identity;
-        transform.localScale = Vector3.one;
+        // Every change of parent is expensive, so the quad is moved straight
+        // to where it ends up and its transform is set explicitly.
+        SetParentIfChanged(transform, QuadParent);
+
+        // Use the float local position so the mesh origin is the same whether
+        // or not the quad is in storage.
+        Vector3 localPosition = quad.positionPlanet;
 
         if (!useLocalStorage)
         {
+            transform.localPosition = localPosition;
+            transform.localRotation = Quaternion.identity;
+            transform.localScale = Vector3.one;
             RemoveFromStorage(quad);
             return;
         }
 
-        // Use the float local position so the mesh origin is the same whether
-        // or not the quad is in storage.
-        var localPosition = transform.localPosition;
         var planetPosition = new double3(localPosition.x, localPosition.y, localPosition.z);
         var position = math.mul(planetToWorld, new double4(planetPosition, 1.0)).xyz;
 
-        transform.parent = pqs.LocalSpacePQStorage.transform;
-        transform.position = new Vector3((float)position.x, (float)position.y, (float)position.z);
+        transform.SetPositionAndRotation(
+            new Vector3((float)position.x, (float)position.y, (float)position.z),
+            pqs.transform.rotation
+        );
+        transform.localScale = Vector3.one;
 
         if (storageIndices.TryGetValue(quad, out var index))
         {
@@ -295,6 +300,41 @@ public class BatchPQS : MonoBehaviour
             storageTransforms.Add(transform);
             storagePlanetPositions.Add(planetPosition);
         }
+    }
+
+    Transform QuadParent =>
+        useLocalStorage ? pqs.LocalSpacePQStorage.transform : pqs.transform;
+
+    static void SetParentIfChanged(Transform transform, Transform parent)
+    {
+        if (transform.parent != parent)
+            transform.SetParent(parent, false);
+    }
+
+    // Replaces the parent assignment in PQS.AssignQuad. Child quads go
+    // straight to the parent PlaceQuad will use, so they only change
+    // hierarchy once.
+    internal static void AssignQuadParent(Transform transform, Transform parent, PQS pqs, int subdiv)
+    {
+        var batchPQS = subdiv > 0 ? Get(pqs) : null;
+        if (batchPQS is not null && batchPQS.ManagesQuadPlacement)
+        {
+            SetParentIfChanged(transform, batchPQS.QuadParent);
+            return;
+        }
+
+        transform.parent = parent;
+    }
+
+    // Replaces the parent assignments in PQ.SetupQuad. PlaceQuad runs after
+    // it and puts the quad in the right place.
+    internal static void SetupQuadParent(Transform transform, Transform parent, PQ quad)
+    {
+        var batchPQS = Get(quad.sphereRoot);
+        if (batchPQS is not null && batchPQS.ManagesQuadPlacement)
+            return;
+
+        transform.parent = parent;
     }
 
     void RemoveFromStorage(PQ quad)

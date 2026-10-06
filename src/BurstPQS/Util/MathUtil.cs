@@ -1,7 +1,9 @@
 using System;
 using System.Runtime.CompilerServices;
+using Unity.Burst.Intrinsics;
 using Unity.Mathematics;
 using UnityEngine;
+using static Unity.Burst.Intrinsics.X86;
 using static Unity.Burst.Intrinsics.X86.Bmi1;
 using static Unity.Burst.Intrinsics.X86.Popcnt;
 
@@ -58,6 +60,18 @@ public static class MathUtil
 
         normal = u;
         tangent = v;
+    }
+
+    // rsqrtps plus one Newton step, about 22 bits of precision. Keeps the
+    // divider free, unlike sqrt + divide.
+    public static unsafe float4 RsqrtApprox(float4 x)
+    {
+        if (!Sse.IsSseSupported)
+            return math.rsqrt(x);
+
+        v128 est = Sse.rsqrt_ps(*(v128*)&x);
+        float4 r = *(float4*)&est;
+        return r * (1.5f - 0.5f * x * r * r);
     }
 
     static float3 OrthoNormalVector(float3 n)
