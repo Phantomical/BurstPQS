@@ -1449,7 +1449,6 @@ public class BatchPQS : MonoBehaviour
         public void Complete()
         {
             var mesh = quad.mesh;
-            mesh.Clear(false);
             handle.Complete();
 
             if (!meshData.interleaved.IsCreated)
