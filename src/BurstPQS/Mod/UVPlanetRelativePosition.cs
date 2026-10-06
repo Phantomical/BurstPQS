@@ -125,8 +125,8 @@ public class UVPlanetRelativePosition(PQSMod_UVPlanetRelativePosition mod)
         for (; i + 4 <= count; i += 4)
         {
             // Transpose 4 vertices into SoA so the math runs 4-wide.
-            Transpose((float4*)(verts + i), out var vx, out var vy, out var vz);
-            Transpose((float4*)(vertNormals + i), out var nx, out var ny, out var nz);
+            MathUtil.LoadTransposed(verts + i, out var vx, out var vy, out var vz);
+            MathUtil.LoadTransposed(vertNormals + i, out var nx, out var ny, out var nz);
 
             // The add needs doubles, but the result only depends on the
             // direction of v, so the rest only needs relative precision.
@@ -152,42 +152,6 @@ public class UVPlanetRelativePosition(PQSMod_UVPlanetRelativePosition mod)
                 (float)v.z,
                 (float)(1.0 - math.dot(v, n) / math.sqrt(math.dot(v, v)))
             );
-        }
-    }
-
-    static unsafe void Transpose(float4* p, out float4 x, out float4 y, out float4 z)
-    {
-        if (Avx2.IsAvx2Supported)
-        {
-            // lo = (x0 y0 z0 x1 | y1 z1 x2 y2), hi = (z2 x3 y3 z3 | z2 x3 y3 z3)
-            v256 lo = Avx.mm256_loadu_ps(p);
-            v256 hi = Avx.mm256_broadcast_ps(p + 2);
-
-            // Blend the last 4 floats into slots that aren't needed, then
-            // permute everything into place.
-            v256 xy = Avx.mm256_blend_ps(lo, hi, 0b0010_0100); // x0 y0 y3 x1 | y1 x3 x2 y2
-            v256 zs = Avx.mm256_blend_ps(lo, hi, 0b1000_0001); // z2 y0 z0 x1 | y1 z1 x2 z3
-
-            xy = Avx2.mm256_permutevar8x32_ps(xy, new v256(0, 3, 6, 5, 1, 4, 7, 2));
-            zs = Avx2.mm256_permutevar8x32_ps(zs, new v256(2, 5, 0, 7, 2, 5, 0, 7));
-
-            v128 xs = Avx.mm256_castps256_ps128(xy);
-            v128 ys = Avx.mm256_extractf128_ps(xy, 1);
-            v128 zl = Avx.mm256_castps256_ps128(zs);
-
-            x = *(float4*)&xs;
-            y = *(float4*)&ys;
-            z = *(float4*)&zl;
-        }
-        else
-        {
-            float4 a = p[0];
-            float4 b = p[1];
-            float4 c = p[2];
-
-            x = new float4(a.x, a.w, b.z, c.y);
-            y = new float4(a.y, b.x, b.w, c.z);
-            z = new float4(a.z, b.y, c.x, c.w);
         }
     }
 }

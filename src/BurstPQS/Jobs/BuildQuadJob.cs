@@ -442,15 +442,41 @@ internal struct BuildQuadJob : IJob
     readonly void BuildMeshTangents(in BuildMeshData data, NativeArray<Vector3> tan2) =>
         BuildTangents(data.normals.AsNativeArray(), data.tangents.AsNativeArray(), tan2);
 
-    internal static void BuildTangents(
+    internal static unsafe void BuildTangents(
         [NoAlias] NativeArray<Vector3> normals,
         [NoAlias] NativeArray<Vector4> tangents,
         [NoAlias] NativeArray<Vector3> tan2
     )
     {
-        for (int i = 0; i < tangents.Length; ++i)
+        BuildTangents(
+            (float3*)normals.GetUnsafeReadOnlyPtr(),
+            (float4*)tangents.GetUnsafePtr(),
+            (float3*)tan2.GetUnsafeReadOnlyPtr(),
+            math.min(tangents.Length, math.min(normals.Length, tan2.Length))
+        );
+    }
+
+    static unsafe void BuildTangents(
+        [NoAlias] float3* normals,
+        [NoAlias] float4* tangents,
+        [NoAlias] float3* tan2,
+        int count
+    )
+    {
+        int i = 0;
+        for (; i + 8 <= count; i += 8)
         {
-            var normal = normals[i];
+            MathUtil.LoadTransposed8(normals + i, out var nx, out var ny, out var nz);
+            MathUtil.LoadTransposed8(tan2 + i, out var bx, out var by, out var bz);
+
+            BuildTangents(nx, ny, nz, bx, by, bz, out var tx, out var ty, out var tz, out var tw);
+
+            MathUtil.StoreTransposed8(tangents + i, tx, ty, tz, tw);
+        }
+
+        for (; i < count; ++i)
+        {
+            Vector3 normal = normals[i];
             var tangent = Vector3.zero;
             MathUtil.OrthoNormalize(ref normal, ref tangent);
 
@@ -461,6 +487,46 @@ internal struct BuildQuadJob : IJob
                 (Vector3.Dot(Vector3.Cross(normal, tangent), tan2[i]) < 0f) ? -1f : 1f
             );
         }
+    }
+
+    [MethodImpl(MethodImplOptions.AggressiveInlining)]
+    static void BuildTangents(
+        float8 nx,
+        float8 ny,
+        float8 nz,
+        float8 bx,
+        float8 by,
+        float8 bz,
+        out float8 tx,
+        out float8 ty,
+        out float8 tz,
+        out float8 tw
+    )
+    {
+        float8 lenSq = nx * nx + ny * ny + nz * nz;
+        bool8 valid = lenSq > Vector3.kEpsilon * Vector3.kEpsilon;
+        nx = MathUtil.Select(1f, nx, valid);
+        ny = MathUtil.Select(0f, ny, valid);
+        nz = MathUtil.Select(0f, nz, valid);
+        lenSq = MathUtil.Select(1f, lenSq, valid);
+
+        // |normalize(n).z| > 1/sqrt(2)
+        bool8 zMajor = nz * nz > 0.5f * lenSq;
+        float8 ux = MathUtil.Select(-ny, 0f, zMajor);
+        float8 uy = MathUtil.Select(nx, -nz, zMajor);
+        float8 uz = MathUtil.Select(0f, ny, zMajor);
+
+        // Only the sign is needed, so skip scaling the vectors first.
+        float8 cx = ny * uz - nz * uy;
+        float8 cy = nz * ux - nx * uz;
+        float8 cz = nx * uy - ny * ux;
+        float8 s = cx * bx + cy * by + cz * bz;
+
+        float8 k = MathUtil.RsqrtApprox(ux * ux + uy * uy + uz * uz);
+        tx = ux * k;
+        ty = uy * k;
+        tz = uz * k;
+        tw = MathUtil.Select(1f, -1f, s < 0f);
     }
     #endregion
 
@@ -624,19 +690,19 @@ internal static unsafe class BuildQuadJobExt
         }
     }
 
-    [BurstCompile]
+    [BurstCompile(FloatMode = FloatMode.Fast)]
     static void InitHeightDataBurst(BuildQuadJob* job, BuildHeightsData* data) =>
         Unsafe
             .AsRef<BuildQuadJob>(job)
             .InitHeightDataImpl(ref Unsafe.AsRef<BuildHeightsData>(data));
 
-    [BurstCompile]
+    [BurstCompile(FloatMode = FloatMode.Fast)]
     static void InitVertexDataBurst(BuildQuadJob* job, BuildVerticesData* data) =>
         Unsafe
             .AsRef<BuildQuadJob>(job)
             .InitVertexDataImpl(ref Unsafe.AsRef<BuildVerticesData>(data));
 
-    [BurstCompile]
+    [BurstCompile(FloatMode = FloatMode.Fast)]
     static void InitMeshDataBurst(
         BuildQuadJob* job,
         BuildMeshData* data,
@@ -647,7 +713,7 @@ internal static unsafe class BuildQuadJobExt
             .AsRef<BuildQuadJob>(job)
             .InitMeshDataImpl(ref Unsafe.AsRef<BuildMeshData>(data), *tan2, *indices);
 
-    [BurstCompile]
+    [BurstCompile(FloatMode = FloatMode.Fast)]
     static void BuildMeshBurst(BuildQuadJob* job, BuildMeshData* data, MeshDataStruct* mesh) =>
         Unsafe
             .AsRef<BuildQuadJob>(job)
