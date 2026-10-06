@@ -22,6 +22,7 @@ public class BatchPQS : MonoBehaviour
     private PQS pqs;
     private CelestialBody body;
     private BatchPQSMod[] mods;
+    private PQSMod_QuadMeshColliders colliderMod;
 
     // Are there unsupported mods and do we need to fall back to the stock
     // implementation?
@@ -567,6 +568,96 @@ public class BatchPQS : MonoBehaviour
             BuildDeferred(cornerPQ);
     }
 
+    #region Subdivision Targets
+    // Stock only subdivides around pqs.target, which is the active vessel in
+    // flight. Other loaded vessels and the camera need terrain detail too, so
+    // they are added as extra targets alongside the stock one.
+    JobHandle ScheduleSubdivisionTargets(NativeList<SubdivisionTarget> targets)
+    {
+        var inputs = new NativeList<SubdivisionTargetInput>(
+            FlightGlobals.VesselsLoaded.Count + 1,
+            Allocator.TempJob
+        );
+
+        // The speed cap must not drop below the level that has colliders, or
+        // vessels lose the ground under them while moving. The camera doesn't
+        // need colliders so it keeps the normal cap.
+        int colliderLevel = GetColliderLevel();
+
+        if (HighLogic.LoadedSceneIsFlight && body != null)
+        {
+            // The camera follows the active vessel, so use the terrain and
+            // speed under it.
+            var camera = FlightCamera.fetch;
+            var activeVessel = FlightGlobals.ActiveVessel;
+            if (camera != null && camera.mainCamera != null)
+            {
+                inputs.Add(
+                    new SubdivisionTargetInput
+                    {
+                        worldPosition = BurstUtil.ConvertVector(
+                            (Vector3d)camera.mainCamera.transform.position
+                        ),
+                        surfaceRadius = pqs.targetDistance - pqs.targetHeight,
+                        surfaceSpeed = activeVessel != null ? activeVessel.srfSpeed : 0.0,
+                    }
+                );
+            }
+
+            foreach (var vessel in FlightGlobals.VesselsLoaded)
+            {
+                if (vessel == null || vessel.mainBody != body || vessel.transform == pqs.target)
+                    continue;
+
+                inputs.Add(
+                    new SubdivisionTargetInput
+                    {
+                        worldPosition = BurstUtil.ConvertVector(vessel.GetWorldPos3D()),
+                        surfaceRadius = pqs.radius + vessel.terrainAltitude,
+                        surfaceSpeed = vessel.srfSpeed,
+                        colliderLevel = colliderLevel,
+                    }
+                );
+            }
+        }
+
+        return new PrepareSubdivisionTargetsJob
+        {
+            primary = new SubdivisionTarget
+            {
+                directionNormalized = BurstUtil.ConvertVector(
+                    pqs.relativeTargetPositionNormalized
+                ),
+                absHeight = Math.Abs(pqs.targetHeight),
+                collapseFactor = pqs.collapseThreshold,
+                maxLevelAtSpeed = HighLogic.LoadedSceneIsFlight
+                    ? Math.Max(pqs.maxLevelAtCurrentTgtSpeed, colliderLevel)
+                    : pqs.maxLevelAtCurrentTgtSpeed,
+            },
+            planetToWorld = inputs.Length != 0 ? GetPreciseLocalToWorld() : double4x4.identity,
+            radius = pqs.radius,
+            maxDetailDistance = pqs.maxDetailDistance,
+            collapseSeaLevelValue = pqs.collapseSeaLevelValue,
+            collapseAltitudeValue = pqs.collapseAltitudeValue,
+            collapseDelta = pqs.collapseDelta,
+            maxQuadLengthsPerFrame = pqs.maxQuadLenghtsPerFrame,
+            fixedDeltaTime = Time.fixedDeltaTime,
+            minLevel = pqs.minLevel,
+            maxLevel = pqs.maxLevel,
+            inputs = inputs,
+            targets = targets,
+        }.Schedule();
+    }
+
+    int GetColliderLevel()
+    {
+        if (colliderMod == null || !colliderMod.modEnabled)
+            return 0;
+
+        return pqs.maxLevel - Math.Abs(colliderMod.maxLevelOffset);
+    }
+    #endregion
+
     #region SubdivisionUpdate
     // Cache PQ fields in native memory to avoid reading every managed quad each frame.
     // Rebuild the cache when the tree resets; otherwise refresh affected quads.
@@ -693,29 +784,23 @@ public class BatchPQS : MonoBehaviour
                 pqs.subdivisionThresholds,
                 Allocator.TempJob
             );
-            var collapseThresholds = new NativeArray<double>(
-                pqs.collapseThresholds,
-                Allocator.TempJob
-            );
+            var targets = new NativeList<SubdivisionTarget>(Allocator.TempJob);
+            var targetsHandle = batchPQS.ScheduleSubdivisionTargets(targets);
 
             var computeHandle = new ComputeSubdivisionJob
             {
-                relativeTargetPositionNormalized = BurstUtil.ConvertVector(
-                    pqs.relativeTargetPositionNormalized
-                ),
                 radius = pqs.radius,
-                absTargetHeight = Math.Abs(pqs.targetHeight),
+                targets = targets.AsDeferredJobArray(),
                 subdivisionThresholds = subdivThresholds,
-                collapseThresholds = collapseThresholds,
+                collapseLevels = pqs.collapseThresholds.Length,
                 maxLevel = pqs.maxLevel,
                 minLevel = pqs.minLevel,
-                maxLevelAtCurrentTgtSpeed = pqs.maxLevelAtCurrentTgtSpeed,
                 visibleRadius = pqs.visibleRadius,
                 snapshots = snapshots,
                 actions = actions,
                 results = results,
                 visibilityChangedQueue = visibilityChangedQueue.AsParallelWriter(),
-            }.ScheduleBatch(count, 128);
+            }.ScheduleBatch(count, 128, targetsHandle);
 
             var scatterQuadsHandle = new ObjectHandle<List<PQ>>(activeQuads);
             scatterHandle = new ScatterQuadResultsJob
@@ -752,7 +837,7 @@ public class BatchPQS : MonoBehaviour
 
             scatterQuadsHandle.Dispose(scatterHandle);
             subdivThresholds.Dispose(computeHandle);
-            collapseThresholds.Dispose(computeHandle);
+            targets.Dispose(computeHandle);
             JobHandle.ScheduleBatchedJobs();
         }
 
@@ -1068,6 +1153,7 @@ public class BatchPQS : MonoBehaviour
         }
 
         this.mods = [.. batchMods];
+        colliderMod = pqs.GetComponentInChildren<PQSMod_QuadMeshColliders>();
 
         if (!Fallback)
         {

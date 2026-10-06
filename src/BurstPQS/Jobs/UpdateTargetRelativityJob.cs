@@ -26,24 +26,30 @@ struct QuadResult
     public double gcDist;
 }
 
+struct SubdivisionTarget
+{
+    public double3 directionNormalized;
+    public double absHeight;
+    public double collapseFactor;
+    public int maxLevelAtSpeed;
+}
+
 /// <summary>
 /// Burst-compiled job that computes gcd1, gcDist, and subdivision actions from snapshot data.
 /// </summary>
 [BurstCompile]
 struct ComputeSubdivisionJob : IJobParallelForBatch
 {
-    public double3 relativeTargetPositionNormalized;
     public double radius;
-    public double absTargetHeight;
+
+    [ReadOnly]
+    public NativeArray<SubdivisionTarget> targets;
 
     [ReadOnly]
     public NativeArray<double> subdivisionThresholds;
-
-    [ReadOnly]
-    public NativeArray<double> collapseThresholds;
+    public int collapseLevels;
     public int maxLevel;
     public int minLevel;
-    public int maxLevelAtCurrentTgtSpeed;
     public double visibleRadius;
 
     [ReadOnly]
@@ -65,54 +71,68 @@ struct ComputeSubdivisionJob : IJobParallelForBatch
         {
             var snap = snapshots[i];
 
-            var g =
-                math.acos(math.dot(snap.positionPlanetRelative, relativeTargetPositionNormalized))
-                * radius
-                * 1.3;
-            var gcDist = g + absTargetHeight - snap.angularInterval;
+            // A quad subdivides if any target wants it to, and only collapses
+            // once every target agrees.
+            var minG = double.PositiveInfinity;
+            var minGcDist = double.PositiveInfinity;
+            bool subdivide = !snap.isSubdivided && snap.subdivision < minLevel;
+            bool collapse = snap.isSubdivided;
 
-            results[i] = new QuadResult { gcd1 = g, gcDist = gcDist };
+            for (int t = 0; t < targets.Length; t++)
+            {
+                var target = targets[t];
+                var g =
+                    math.acos(math.dot(snap.positionPlanetRelative, target.directionNormalized))
+                    * radius
+                    * 1.3;
+                var gcDist = g + target.absHeight - snap.angularInterval;
+
+                minG = math.min(minG, g);
+                minGcDist = math.min(minGcDist, gcDist);
+
+                if (snap.isSubdivided)
+                    collapse &= ShouldCollapse(ref snap, ref target, gcDist);
+                else
+                    subdivide |= ShouldSubdivide(ref snap, ref target, gcDist);
+            }
+
+            results[i] = new QuadResult { gcd1 = minG, gcDist = minGcDist };
 
             if (snap.isSubdivided)
             {
-                if (ShouldCollapse(ref snap, gcDist))
-                    actions[i] = SubdivisionAction.Collapse;
-                else
-                    actions[i] = SubdivisionAction.None;
+                actions[i] = collapse ? SubdivisionAction.Collapse : SubdivisionAction.None;
+            }
+            else if (subdivide)
+            {
+                actions[i] = SubdivisionAction.Subdivide;
             }
             else
             {
-                if (ShouldSubdivide(ref snap, gcDist))
-                {
-                    actions[i] = SubdivisionAction.Subdivide;
-                }
-                else
-                {
-                    actions[i] = SubdivisionAction.None;
+                actions[i] = SubdivisionAction.None;
 
-                    bool shouldBeVisible = g < visibleRadius;
-                    if (shouldBeVisible != snap.isVisible)
-                        visibilityChangedQueue.Enqueue(i);
-                }
+                bool shouldBeVisible = minG < visibleRadius;
+                if (shouldBeVisible != snap.isVisible)
+                    visibilityChangedQueue.Enqueue(i);
             }
         }
     }
 
-    bool ShouldCollapse(ref QuadSnapshot q, double gcDist)
+    bool ShouldCollapse(ref QuadSnapshot q, ref SubdivisionTarget target, double gcDist)
     {
         return q.subdivision > maxLevel
-            || q.subdivision >= collapseThresholds.Length
-            || gcDist > collapseThresholds[q.subdivision] * q.subdivideThresholdFactor;
+            || q.subdivision >= collapseLevels
+            || q.subdivision >= subdivisionThresholds.Length
+            || gcDist
+                > subdivisionThresholds[q.subdivision]
+                    * target.collapseFactor
+                    * q.subdivideThresholdFactor;
     }
 
-    bool ShouldSubdivide(ref QuadSnapshot q, double gcDist)
+    bool ShouldSubdivide(ref QuadSnapshot q, ref SubdivisionTarget target, double gcDist)
     {
-        if (q.subdivision < minLevel)
-            return true;
-
         return q.subdivision < subdivisionThresholds.Length
             && gcDist < subdivisionThresholds[q.subdivision] * q.subdivideThresholdFactor
-            && q.subdivision < maxLevelAtCurrentTgtSpeed;
+            && q.subdivision < target.maxLevelAtSpeed;
     }
 }
 
