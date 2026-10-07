@@ -1016,6 +1016,7 @@ public class BatchPQS : MonoBehaviour
                 quads = scatterQuadsHandle,
                 results = results,
             }.ScheduleBatch(activeQuads.Count, 32, computeHandle);
+            JobHandle.ScheduleBatchedJobs();
 
             onUpdateHandle = new CollectOnUpdateJob
             {
