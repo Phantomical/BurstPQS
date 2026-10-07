@@ -98,7 +98,7 @@ internal static class QuadColliderBaker
         for (int i = 0; i < baking.Count; ++i)
             meshIds[i] = baking[i].quad.mesh.GetInstanceID();
 
-        handle = new BakeJob { meshIds = meshIds }.Schedule(baking.Count, 1);
+        handle = new BakeJob { meshIds = meshIds }.Schedule(baking.Count, 4);
         jobRunning = true;
         JobHandle.ScheduleBatchedJobs();
     }
