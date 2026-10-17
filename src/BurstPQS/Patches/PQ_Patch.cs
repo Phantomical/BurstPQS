@@ -54,13 +54,42 @@ internal static class PQ_SetupQuad_Patch
 }
 
 // Cached child quads are reused by Subdivide without calling SetupQuad, so
-// they need to be placed here instead.
+// they need to be placed here instead. Placement runs before UpdateVisibility,
+// because mods hooking SetVisible (e.g. Parallax) read the quad's transform.
 [HarmonyPatch(typeof(PQ), nameof(PQ.Subdivide))]
 internal static class PQ_Subdivide_Patch
 {
+    static IEnumerable<CodeInstruction> Transpiler(IEnumerable<CodeInstruction> instructions)
+    {
+        var updateVisibility = SymbolExtensions.GetMethodInfo<PQ>(pq => pq.UpdateVisibility());
+        var replacement = SymbolExtensions.GetMethodInfo(() => PlaceAndUpdateVisibility(null));
+
+        var matcher = new CodeMatcher(instructions);
+        matcher
+            .MatchStartForward(new CodeMatch(OpCodes.Callvirt, updateVisibility))
+            .ThrowIfInvalid("Could not find call to PQ.UpdateVisibility in PQ.Subdivide")
+            .Repeat(m => m.SetInstruction(new CodeInstruction(OpCodes.Call, replacement)));
+
+        return matcher.Instructions();
+    }
+
+    static void PlaceAndUpdateVisibility(PQ child)
+    {
+        if (child.isCached)
+        {
+            var batchPQS = BatchPQS.Get(child.sphereRoot);
+            if (batchPQS != null)
+                batchPQS.PlaceQuad(child);
+        }
+
+        child.UpdateVisibility();
+    }
+
+    // Subdivide skips UpdateVisibility when quadAllowBuild is false, so the
+    // transpiled placement does not run.
     static void Postfix(PQ __instance)
     {
-        if (!__instance.isSubdivided)
+        if (!__instance.isSubdivided || __instance.sphereRoot.quadAllowBuild)
             return;
 
         BatchPQS batchPQS = null;

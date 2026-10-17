@@ -274,6 +274,11 @@ public class BatchPQS : MonoBehaviour
         // Use the float local position so the mesh origin is the same whether
         // or not the quad is in storage.
         Vector3 localPosition = quad.positionPlanet;
+        var planetPosition = new double3(localPosition.x, localPosition.y, localPosition.z);
+
+        // Stock sets PrecisePosition in SetupQuad, before PlaceQuad moves the
+        // quad, so it holds the pre-placement position. Parallax reads it.
+        quad.PrecisePosition = PlanetToWorld(planetToWorld, planetPosition);
 
         if (!useLocalStorage)
         {
@@ -284,13 +289,7 @@ public class BatchPQS : MonoBehaviour
             return;
         }
 
-        var planetPosition = new double3(localPosition.x, localPosition.y, localPosition.z);
-        var position = math.mul(planetToWorld, new double4(planetPosition, 1.0)).xyz;
-
-        transform.SetPositionAndRotation(
-            new Vector3((float)position.x, (float)position.y, (float)position.z),
-            pqs.transform.rotation
-        );
+        transform.SetPositionAndRotation((Vector3)quad.PrecisePosition, pqs.transform.rotation);
         transform.localScale = Vector3.one;
 
         if (storageIndices.TryGetValue(quad, out var index))
@@ -463,12 +462,28 @@ public class BatchPQS : MonoBehaviour
         if (storageQuads.Count == 0)
             return;
 
+        var planetToWorld = GetPreciseLocalToWorld();
+
+        // Stock only updates PrecisePosition for quads in LocalSpacePQList,
+        // which is empty when ManagesQuadPlacement is set.
+        for (int i = 0; i < storageQuads.Count; i++)
+            storageQuads[i].PrecisePosition = PlanetToWorld(
+                planetToWorld,
+                storagePlanetPositions[i]
+            );
+
         storageHandle = new UpdateStoragePositionsJob
         {
-            planetToWorld = GetPreciseLocalToWorld(),
+            planetToWorld = planetToWorld,
             planetPositions = storagePlanetPositions.AsArray(),
         }.Schedule(storageTransforms, storageHandle);
         JobHandle.ScheduleBatchedJobs();
+    }
+
+    static Vector3d PlanetToWorld(in double4x4 planetToWorld, double3 planetPosition)
+    {
+        var position = math.mul(planetToWorld, new double4(planetPosition, 1.0)).xyz;
+        return new Vector3d(position.x, position.y, position.z);
     }
 
     // Meshes need to be built relative to a planet frame origin. The quad's
