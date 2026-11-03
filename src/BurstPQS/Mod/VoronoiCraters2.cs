@@ -1,4 +1,3 @@
-using System;
 using BurstPQS.Noise;
 using BurstPQS.Util;
 using Unity.Burst;
@@ -11,6 +10,23 @@ namespace BurstPQS.Mod;
 [BatchPQSMod(typeof(PQSMod_VoronoiCraters2))]
 public class VoronoiCraters2(PQSMod_VoronoiCraters2 mod) : BatchPQSMod<PQSMod_VoronoiCraters2>(mod)
 {
+    BurstVoronoi voronoi;
+    BurstSimplex jitterSimplex;
+    BurstAnimationCurve craterCurve;
+    BurstSimplex deformationSimplex;
+    BurstGradient craterColorRamp;
+
+    public override void OnSetup()
+    {
+        base.OnSetup();
+
+        voronoi = new(mod.voronoi);
+        jitterSimplex = new(mod.jitterSimplex);
+        craterCurve = new(mod.craterCurve);
+        deformationSimplex = new(mod.deformationSimplex);
+        craterColorRamp = new(mod.craterColourRamp);
+    }
+
     public override void OnQuadPreBuild(PQ quad, BatchPQSJobSet jobSet)
     {
         base.OnQuadPreBuild(quad, jobSet);
@@ -18,11 +34,11 @@ public class VoronoiCraters2(PQSMod_VoronoiCraters2 mod) : BatchPQSMod<PQSMod_Vo
         jobSet.Add(
             new BuildJob
             {
-                voronoi = new(mod.voronoi),
-                jitterSimplex = new BurstSimplex(mod.jitterSimplex),
-                craterCurve = new BurstAnimationCurve(mod.craterCurve),
-                deformationSimplex = new BurstSimplex(mod.deformationSimplex),
-                craterColorRamp = new BurstGradient(mod.craterColourRamp),
+                voronoi = voronoi,
+                jitterSimplex = jitterSimplex,
+                craterCurve = craterCurve,
+                deformationSimplex = deformationSimplex,
+                craterColorRamp = craterColorRamp,
                 jitter = mod.jitter,
                 deformation = mod.deformation,
                 debugColorMapping = mod.DebugColorMapping,
@@ -30,20 +46,25 @@ public class VoronoiCraters2(PQSMod_VoronoiCraters2 mod) : BatchPQSMod<PQSMod_Vo
         );
     }
 
-    [BurstCompile(FloatMode = FloatMode.Fast)]
-    struct BuildJob(PQSMod_VoronoiCraters2 mod)
-        : IBatchPQSHeightJob,
-            IBatchPQSVertexJob,
-            IDisposable
+    public override void Dispose()
     {
-        public BurstVoronoi voronoi = new(mod.voronoi);
-        public BurstSimplex jitterSimplex = new(mod.jitterSimplex);
-        public BurstAnimationCurve craterCurve = new(mod.craterCurve);
-        public BurstSimplex deformationSimplex = new(mod.deformationSimplex);
-        public BurstGradient craterColorRamp = new(mod.craterColourRamp);
-        public double jitter = mod.jitter;
-        public double deformation = mod.deformation;
-        public bool debugColorMapping = mod.DebugColorMapping;
+        jitterSimplex.Dispose();
+        craterCurve.Dispose();
+        deformationSimplex.Dispose();
+        craterColorRamp.Dispose();
+    }
+
+    [BurstCompile(FloatMode = FloatMode.Fast)]
+    struct BuildJob : IBatchPQSHeightJob, IBatchPQSVertexJob
+    {
+        public BurstVoronoi voronoi;
+        public BurstSimplex jitterSimplex;
+        public BurstAnimationCurve craterCurve;
+        public BurstSimplex deformationSimplex;
+        public BurstGradient craterColorRamp;
+        public double jitter;
+        public double deformation;
+        public bool debugColorMapping;
 
         NativeArray<float> rs;
 
@@ -81,14 +102,6 @@ public class VoronoiCraters2(PQSMod_VoronoiCraters2 mod) : BatchPQSMod<PQSMod_Vo
                         rfN
                     );
             }
-        }
-
-        public void Dispose()
-        {
-            jitterSimplex.Dispose();
-            craterCurve.Dispose();
-            deformationSimplex.Dispose();
-            craterColorRamp.Dispose();
         }
     }
 }
