@@ -1,3 +1,4 @@
+using System.Runtime.CompilerServices;
 using LibNoise;
 using Unity.Burst.Intrinsics;
 using Unity.Mathematics;
@@ -60,6 +61,7 @@ public static class GradientNoiseBasis
         return LinearInterpolate(n5, n6, a3);
     }
 
+    [MethodImpl(MethodImplOptions.AggressiveInlining)]
     public static double4 GradientCoherentNoise(
         double4 x,
         double4 y,

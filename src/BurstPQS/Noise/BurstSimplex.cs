@@ -336,6 +336,7 @@ public unsafe struct BurstSimplex : IBatchModule, IVectorModule, IDisposable
     }
 
     // Evaluates 4 points at once, one per lane.
+    [MethodImpl(MethodImplOptions.AggressiveInlining)]
     private readonly double4 Value(double4 xin, double4 yin, double4 zin)
     {
         double4 s = (xin + yin + zin) * F3;

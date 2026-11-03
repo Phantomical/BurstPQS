@@ -1,3 +1,4 @@
+using System.Runtime.CompilerServices;
 using BurstPQS.Collections;
 using LibNoise;
 using Unity.Mathematics;
@@ -78,6 +79,7 @@ public unsafe struct BurstFastNoiseBasis
         return LinearInterpolate(n3, n6, a3);
     }
 
+    [MethodImpl(MethodImplOptions.AggressiveInlining)]
     public readonly double4 GradientCoherentNoise(
         double4 x,
         double4 y,
