@@ -114,6 +114,8 @@ public readonly unsafe struct MemorySpan<T> : IEnumerable<T>
         return array;
     }
 
+    public static implicit operator MemorySpan<T>(NativeArray<T> array) => new(array);
+
     #region IEnumerator
     public readonly Enumerator GetEnumerator() => new(this);
 
