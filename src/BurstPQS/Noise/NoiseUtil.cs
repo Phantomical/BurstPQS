@@ -39,6 +39,31 @@ public static class NoiseUtil
         return 6.0 * a5 - 15.0 * a4 + 10.0 * a3;
     }
 
+    public static double4 LinearInterpolate(double4 n0, double4 n1, double4 a) =>
+        (1.0 - a) * n0 + a * n1;
+
+    public static double4 SCurve3(double4 a) => a * a * (3.0 - 2.0 * a);
+
+    public static double4 SCurve5(double4 a)
+    {
+        double4 a3 = a * a * a;
+        double4 a4 = a3 * a;
+        double4 a5 = a4 * a;
+        return 6.0 * a5 - 15.0 * a4 + 10.0 * a3;
+    }
+
+    // LibNoise's floor: (x > 0) ? (int)x : (int)x - 1
+    public static int4 Floor(double4 v) => math.select((int4)v - 1, (int4)v, v > 0.0);
+
+    public static double4 Interpolant(double4 frac, LibNoise.NoiseQuality quality) =>
+        quality switch
+        {
+            LibNoise.NoiseQuality.Low => frac,
+            LibNoise.NoiseQuality.Standard => SCurve3(frac),
+            LibNoise.NoiseQuality.High => SCurve5(frac),
+            _ => 0.0,
+        };
+
     public static void LatLonToXYZ(double lat, double lon, ref double x, ref double y, ref double z)
     {
         math.sincos(lat * Deg2Rad, out var sinLat, out var cosLat);

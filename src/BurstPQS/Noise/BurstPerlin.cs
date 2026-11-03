@@ -1,4 +1,5 @@
 using LibNoise;
+using Unity.Mathematics;
 using UnityEngine;
 using static BurstPQS.Noise.GradientNoiseBasis;
 
@@ -8,7 +9,7 @@ namespace BurstPQS.Noise;
 /// Burst-compatible perlin noise.
 /// </summary>
 /// <param name="perlin"></param>
-public readonly struct BurstPerlin(LibNoise.Perlin perlin) : IModule
+public readonly unsafe struct BurstPerlin(LibNoise.Perlin perlin) : IModule, IBatchModule
 {
     public readonly double Frequency = perlin.Frequency;
     public readonly double Persistence = perlin.Persistence;
@@ -40,5 +41,36 @@ public readonly struct BurstPerlin(LibNoise.Perlin perlin) : IModule
             num3 *= Persistence;
         }
         return num;
+    }
+
+    public double4 GetValue(double4 x, double4 y, double4 z)
+    {
+        double4 value = 0.0;
+        double amplitude = 1.0;
+        x *= Frequency;
+        y *= Frequency;
+        z *= Frequency;
+        for (int i = 0; i < OctaveCount; i++)
+        {
+            value += GradientCoherentNoise(x, y, z, Seed + i, NoiseQuality) * amplitude;
+            x *= Lacunarity;
+            y *= Lacunarity;
+            z *= Lacunarity;
+            amplitude *= Persistence;
+        }
+        return value;
+    }
+
+    public void GetValues(double* x, double* y, double* z, double* output, int count)
+    {
+        for (int i = 0; i < count; i += 4)
+        {
+            var value = GetValue(
+                BatchUtil.Load(x, i, count),
+                BatchUtil.Load(y, i, count),
+                BatchUtil.Load(z, i, count)
+            );
+            BatchUtil.Store(output, i, count, value);
+        }
     }
 }

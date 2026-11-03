@@ -1,5 +1,6 @@
 using BurstPQS.Collections;
 using LibNoise;
+using Unity.Mathematics;
 using UnityEngine;
 using static BurstPQS.Noise.GradientNoiseBasis;
 
@@ -9,7 +10,9 @@ namespace BurstPQS.Noise;
 /// Burst-compatible ridged multifractal noise.
 /// </summary>
 /// <param name="noise"></param>
-public readonly struct BurstRidgedMultifractal(LibNoise.RidgedMultifractal noise) : IModule
+public readonly unsafe struct BurstRidgedMultifractal(LibNoise.RidgedMultifractal noise)
+    : IModule,
+        IBatchModule
 {
     public readonly FixedArray30<double> SpectralWeights = new(noise.SpectralWeights);
     public readonly double Frequency = noise.Frequency;
@@ -61,5 +64,42 @@ public readonly struct BurstRidgedMultifractal(LibNoise.RidgedMultifractal noise
             z *= Lacunarity;
         }
         return num2 * 1.25 - 1.0;
+    }
+
+    public double4 GetValue(double4 x, double4 y, double4 z)
+    {
+        x *= Frequency;
+        y *= Frequency;
+        z *= Frequency;
+        double4 value = 0.0;
+        double4 weight = 1.0;
+        for (int i = 0; i < OctaveCount; i++)
+        {
+            double4 signal = GradientCoherentNoise(x, y, z, (Seed + i) & 0x7FFFFFFF, NoiseQuality);
+            signal = 1.0 - math.abs(signal);
+            signal *= signal;
+            signal *= weight;
+            weight = signal * 2.0;
+            weight = math.select(weight, 1.0, weight > 1.0);
+            weight = math.select(weight, 0.0, weight < 0.0);
+            value += signal * SpectralWeights[i];
+            x *= Lacunarity;
+            y *= Lacunarity;
+            z *= Lacunarity;
+        }
+        return value * 1.25 - 1.0;
+    }
+
+    public void GetValues(double* x, double* y, double* z, double* output, int count)
+    {
+        for (int i = 0; i < count; i += 4)
+        {
+            var value = GetValue(
+                BatchUtil.Load(x, i, count),
+                BatchUtil.Load(y, i, count),
+                BatchUtil.Load(z, i, count)
+            );
+            BatchUtil.Store(output, i, count, value);
+        }
     }
 }

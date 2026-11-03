@@ -1,4 +1,5 @@
 using LibNoise;
+using Unity.Mathematics;
 using static BurstPQS.Noise.NoiseUtil;
 
 namespace BurstPQS.Noise;
@@ -55,6 +56,76 @@ public static class GradientNoiseBasis
         n4 = LinearInterpolate(n, n2, a);
         double n6 = LinearInterpolate(n3, n4, a2);
         return LinearInterpolate(n5, n6, a3);
+    }
+
+    public static double4 GradientCoherentNoise(
+        double4 x,
+        double4 y,
+        double4 z,
+        int seed,
+        NoiseQuality noiseQuality
+    )
+    {
+        int4 x0 = Floor(x);
+        int4 y0 = Floor(y);
+        int4 z0 = Floor(z);
+        double4 dx = x - x0;
+        double4 dy = y - y0;
+        double4 dz = z - z0;
+        double4 a = Interpolant(dx, noiseQuality);
+        double4 a2 = Interpolant(dy, noiseQuality);
+        double4 a3 = Interpolant(dz, noiseQuality);
+
+        // The hash is linear in the corner coordinates (mod 2^32), so each
+        // corner's hash is the base corner's plus a constant.
+        int4 h = 1619 * x0 + 31337 * y0 + 6971 * z0 + 1013 * seed;
+        double4 ex = dx - 1.0;
+        double4 ey = dy - 1.0;
+        double4 ez = dz - 1.0;
+
+        double4 n = GradientNoise(h, dx, dy, dz);
+        double4 n2 = GradientNoise(h + 1619, ex, dy, dz);
+        double4 n3 = LinearInterpolate(n, n2, a);
+        n = GradientNoise(h + 31337, dx, ey, dz);
+        n2 = GradientNoise(h + (1619 + 31337), ex, ey, dz);
+        double4 n4 = LinearInterpolate(n, n2, a);
+        double4 n5 = LinearInterpolate(n3, n4, a2);
+        n = GradientNoise(h + 6971, dx, dy, ez);
+        n2 = GradientNoise(h + (1619 + 6971), ex, dy, ez);
+        n3 = LinearInterpolate(n, n2, a);
+        n = GradientNoise(h + (31337 + 6971), dx, ey, ez);
+        n2 = GradientNoise(h + (1619 + 31337 + 6971), ex, ey, ez);
+        n4 = LinearInterpolate(n, n2, a);
+        double4 n6 = LinearInterpolate(n3, n4, a2);
+        return LinearInterpolate(n5, n6, a3);
+    }
+
+    // d is the offset from the corner, i.e. f - i in the scalar version.
+    static double4 GradientNoise(int4 hash, double4 dx, double4 dy, double4 dz)
+    {
+        uint4 h = (uint4)hash;
+        h ^= h >> 8;
+        int4 i = (int4)(h & 0xFF) << 2;
+
+        double4 gx = new(
+            RandomVectors[i.x],
+            RandomVectors[i.y],
+            RandomVectors[i.z],
+            RandomVectors[i.w]
+        );
+        double4 gy = new(
+            RandomVectors[i.x + 1],
+            RandomVectors[i.y + 1],
+            RandomVectors[i.z + 1],
+            RandomVectors[i.w + 1]
+        );
+        double4 gz = new(
+            RandomVectors[i.x + 2],
+            RandomVectors[i.y + 2],
+            RandomVectors[i.z + 2],
+            RandomVectors[i.w + 2]
+        );
+        return (gx * dx + gy * dy + gz * dz) * 2.12;
     }
 
     static double GradientNoise(double fx, double fy, double fz, int ix, int iy, int iz, long seed)
