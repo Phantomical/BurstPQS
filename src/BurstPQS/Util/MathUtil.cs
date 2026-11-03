@@ -147,6 +147,24 @@ public static class MathUtil
         return new(math.select(a.lo, b.lo, c.lo != 0), math.select(a.hi, b.hi, c.hi != 0));
     }
 
+    // a * b + c, uses native FMAs if available
+    public static unsafe double4 Mad(double4 a, double4 b, double4 c)
+    {
+        if (Fma.IsFmaSupported)
+        {
+            v256 r = Fma.mm256_fmadd_pd(*(v256*)&a, *(v256*)&b, *(v256*)&c);
+            return *(double4*)&r;
+        }
+        return a * b + c;
+    }
+
+    public static double Mad(double a, double b, double c)
+    {
+        if (Fma.IsFmaSupported)
+            return Fma.fmadd_sd(new v128(a), new v128(b), new v128(c)).Double0;
+        return a * b + c;
+    }
+
     // Same as math.mad: a * b + c.
     internal static float8 Mad(float8 a, float8 b, float8 c)
     {

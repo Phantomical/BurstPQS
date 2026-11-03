@@ -11,6 +11,7 @@ using Unity.Collections.LowLevel.Unsafe;
 using Unity.Jobs;
 using Unity.Mathematics;
 using UnityEngine;
+using static BurstPQS.Noise.BatchUtil;
 using static BurstPQS.Noise.NoiseUtil;
 
 namespace BurstPQS.Noise;
@@ -259,12 +260,19 @@ public unsafe partial struct NoiseProgram : IBatchModule, IDisposable
             if (aos is not null)
             {
                 var input = (Vector3d*)(aos + start);
-                for (int i = 0; i < n; i += 4)
+                int i = 0;
+                for (; i + 4 <= n; i += 4)
                 {
-                    BatchUtil.Load(input, i, n, out var vx, out var vy, out var vz);
-                    BatchUtil.Store(owned[0].x, i, n, vx);
-                    BatchUtil.Store(owned[0].y, i, n, vy);
-                    BatchUtil.Store(owned[0].z, i, n, vz);
+                    BatchUtil.Transpose(input + i, out var vx, out var vy, out var vz);
+                    Store4(owned[0].x, i, vx);
+                    Store4(owned[0].y, i, vy);
+                    Store4(owned[0].z, i, vz);
+                }
+                for (; i < n; ++i)
+                {
+                    owned[0].x[i] = input[i].x;
+                    owned[0].y[i] = input[i].y;
+                    owned[0].z[i] = input[i].z;
                 }
                 frames[0] = owned[0];
             }
@@ -295,13 +303,8 @@ public unsafe partial struct NoiseProgram : IBatchModule, IDisposable
             {
                 #region Generators
                 case NoiseOp.Constant:
-                {
-                    var o = values[vsp++];
-                    double v = *(double*)d;
-                    for (int i = 0; i < n; ++i)
-                        o[i] = v;
+                    Ops.Constant(values[vsp++], *(double*)d, n);
                     break;
-                }
 
                 case NoiseOp.Perlin:
                     Generate((BurstPerlin*)d, f, values[vsp++], n);
@@ -342,216 +345,82 @@ public unsafe partial struct NoiseProgram : IBatchModule, IDisposable
 
                 #region Unary
                 case NoiseOp.Abs:
-                {
-                    var a = values[vsp - 1];
-                    for (int i = 0; i < n; ++i)
-                        a[i] = math.abs(a[i]);
+                    Ops.Abs(values[vsp - 1], n);
                     break;
-                }
-
                 case NoiseOp.Bias:
-                {
-                    var a = values[vsp - 1];
-                    double bias = *(double*)d;
-                    for (int i = 0; i < n; ++i)
-                        a[i] += bias;
+                    Ops.Bias(values[vsp - 1], *(double*)d, n);
                     break;
-                }
-
                 case NoiseOp.Scale:
-                {
-                    var a = values[vsp - 1];
-                    double scale = *(double*)d;
-                    for (int i = 0; i < n; ++i)
-                        a[i] *= scale;
+                    Ops.Scale(values[vsp - 1], *(double*)d, n);
                     break;
-                }
-
                 case NoiseOp.ScaleBias:
-                {
-                    var a = values[vsp - 1];
-                    var p = (double2*)d;
-                    double scale = p->x;
-                    double bias = p->y;
-                    for (int i = 0; i < n; ++i)
-                        a[i] = a[i] * scale + bias;
+                    Ops.ScaleBias(values[vsp - 1], *(double2*)d, n);
                     break;
-                }
-
                 case NoiseOp.Clamp:
-                {
-                    var a = values[vsp - 1];
-                    var p = (double2*)d;
-                    double lower = p->x;
-                    double upper = p->y;
-                    for (int i = 0; i < n; ++i)
-                    {
-                        double v = a[i];
-                        if (v < lower)
-                            v = lower;
-                        else if (v > upper)
-                            v = upper;
-                        a[i] = v;
-                    }
+                    Ops.Clamp(values[vsp - 1], *(double2*)d, n);
                     break;
-                }
-
                 case NoiseOp.Exponential:
-                {
-                    var a = values[vsp - 1];
-                    double exponent = *(double*)d;
-                    for (int i = 0; i < n; ++i)
-                        a[i] = math.pow(math.abs((a[i] + 1.0) / 2.0), exponent) * 2.0 - 1.0;
+                    Ops.Exponential(values[vsp - 1], *(double*)d, n);
                     break;
-                }
-
                 case NoiseOp.Negate:
-                {
-                    var a = values[vsp - 1];
-                    for (int i = 0; i < n; ++i)
-                        a[i] = 0.0 - a[i];
+                    Ops.Negate(values[vsp - 1], n);
                     break;
-                }
-
                 case NoiseOp.Terrace:
-                {
-                    var a = values[vsp - 1];
-                    var p = (TerraceData*)d;
-                    for (int i = 0; i < n; ++i)
-                        a[i] = Terrace(p, a[i]);
+                    Ops.Terrace(values[vsp - 1], (TerraceData*)d, n);
                     break;
-                }
                 #endregion
 
                 #region Binary
                 case NoiseOp.Add:
-                {
-                    var b = values[--vsp];
-                    var a = values[vsp - 1];
-                    for (int i = 0; i < n; ++i)
-                        a[i] += b[i];
+                    vsp--;
+                    Ops.Add(values[vsp - 1], values[vsp], n);
                     break;
-                }
-
                 case NoiseOp.Multiply:
-                {
-                    var b = values[--vsp];
-                    var a = values[vsp - 1];
-                    for (int i = 0; i < n; ++i)
-                        a[i] *= b[i];
+                    vsp--;
+                    Ops.Multiply(values[vsp - 1], values[vsp], n);
                     break;
-                }
-
                 case NoiseOp.Max:
-                {
-                    var b = values[--vsp];
-                    var a = values[vsp - 1];
-                    for (int i = 0; i < n; ++i)
-                        a[i] = a[i] > b[i] ? a[i] : b[i];
+                    vsp--;
+                    Ops.Max(values[vsp - 1], values[vsp], n);
                     break;
-                }
-
                 case NoiseOp.Min:
-                {
-                    var b = values[--vsp];
-                    var a = values[vsp - 1];
-                    for (int i = 0; i < n; ++i)
-                        a[i] = a[i] < b[i] ? a[i] : b[i];
+                    vsp--;
+                    Ops.Min(values[vsp - 1], values[vsp], n);
                     break;
-                }
-
                 case NoiseOp.Power:
-                {
-                    var b = values[--vsp];
-                    var a = values[vsp - 1];
-                    for (int i = 0; i < n; ++i)
-                        a[i] = math.pow(a[i], b[i]);
+                    vsp--;
+                    Ops.Power(values[vsp - 1], values[vsp], n);
                     break;
-                }
                 #endregion
 
                 #region Ternary
                 case NoiseOp.Blend:
-                {
-                    var w = values[--vsp];
-                    var b = values[--vsp];
-                    var a = values[vsp - 1];
-                    for (int i = 0; i < n; ++i)
-                        a[i] = LinearInterpolate(a[i], b[i], (w[i] + 1.0) / 2.0);
+                    vsp -= 2;
+                    Ops.Blend(values[vsp - 1], values[vsp], values[vsp + 1], n);
                     break;
-                }
-
                 case NoiseOp.Select:
-                {
-                    var c = values[--vsp];
-                    var b = values[--vsp];
-                    var a = values[vsp - 1];
-                    var p = (SelectData*)d;
-                    for (int i = 0; i < n; ++i)
-                        a[i] = Select(p, c[i], a[i], b[i]);
+                    vsp -= 2;
+                    Ops.Select(values[vsp - 1], values[vsp], values[vsp + 1], (SelectData*)d, n);
                     break;
-                }
                 #endregion
 
                 #region Frames
                 case NoiseOp.PushTranslate:
-                {
-                    var o = owned[++fsp];
-                    var t = *(double3*)d;
-                    for (int i = 0; i < n; ++i)
-                    {
-                        o.x[i] = f.x[i] + t.x;
-                        o.y[i] = f.y[i] + t.y;
-                        o.z[i] = f.z[i] + t.z;
-                    }
-                    frames[fsp] = o;
+                    Ops.Translate(f, owned[++fsp], *(double3*)d, n);
+                    frames[fsp] = owned[fsp];
                     break;
-                }
-
                 case NoiseOp.PushScale:
-                {
-                    var o = owned[++fsp];
-                    var s = *(double3*)d;
-                    for (int i = 0; i < n; ++i)
-                    {
-                        o.x[i] = f.x[i] * s.x;
-                        o.y[i] = f.y[i] * s.y;
-                        o.z[i] = f.z[i] * s.z;
-                    }
-                    frames[fsp] = o;
+                    Ops.ScaleInput(f, owned[++fsp], *(double3*)d, n);
+                    frames[fsp] = owned[fsp];
                     break;
-                }
-
                 case NoiseOp.PushRotate:
-                {
-                    var o = owned[++fsp];
-                    var m = (RotateData*)d;
-                    for (int i = 0; i < n; ++i)
-                    {
-                        double x = f.x[i];
-                        double y = f.y[i];
-                        double z = f.z[i];
-                        o.x[i] = m->x1 * x + m->y1 * y + m->z1 * z;
-                        o.y[i] = m->x2 * x + m->y2 * y + m->z2 * z;
-                        o.z[i] = m->x3 * x + m->y3 * y + m->z3 * z;
-                    }
-                    frames[fsp] = o;
+                    Ops.Rotate(f, owned[++fsp], (RotateData*)d, n);
+                    frames[fsp] = owned[fsp];
                     break;
-                }
-
                 case NoiseOp.PushNegate:
-                {
-                    var o = owned[++fsp];
-                    for (int i = 0; i < n; ++i)
-                    {
-                        o.x[i] = 0.0 - f.x[i];
-                        o.y[i] = 0.0 - f.y[i];
-                        o.z[i] = 0.0 - f.z[i];
-                    }
-                    frames[fsp] = o;
+                    Ops.NegateInput(f, owned[++fsp], n);
+                    frames[fsp] = owned[fsp];
                     break;
-                }
-
                 case NoiseOp.PushCopy:
                     frames[++fsp] = f;
                     break;
@@ -559,52 +428,30 @@ public unsafe partial struct NoiseProgram : IBatchModule, IDisposable
                 // These write to the frame's own storage since the frame may
                 // still alias its parent after a PushCopy.
                 case NoiseOp.DisplaceX:
-                {
-                    var v = values[--vsp];
-                    var o = owned[fsp].x;
-                    for (int i = 0; i < n; ++i)
-                        o[i] = f.x[i] + v[i];
-                    frames[fsp].x = o;
+                    Ops.Displace(owned[fsp].x, f.x, values[--vsp], n);
+                    frames[fsp].x = owned[fsp].x;
                     break;
-                }
-
                 case NoiseOp.DisplaceY:
-                {
-                    var v = values[--vsp];
-                    var o = owned[fsp].y;
-                    for (int i = 0; i < n; ++i)
-                        o[i] = f.y[i] + v[i];
-                    frames[fsp].y = o;
+                    Ops.Displace(owned[fsp].y, f.y, values[--vsp], n);
+                    frames[fsp].y = owned[fsp].y;
                     break;
-                }
-
                 case NoiseOp.DisplaceZ:
-                {
-                    var v = values[--vsp];
-                    var o = owned[fsp].z;
-                    for (int i = 0; i < n; ++i)
-                        o[i] = f.z[i] + v[i];
-                    frames[fsp].z = o;
+                    Ops.Displace(owned[fsp].z, f.z, values[--vsp], n);
+                    frames[fsp].z = owned[fsp].z;
                     break;
-                }
-
                 case NoiseOp.PushDisplace:
-                {
-                    var dz = values[--vsp];
-                    var dy = values[--vsp];
-                    var dx = values[--vsp];
-                    var o = owned[++fsp];
-                    double power = *(double*)d;
-                    for (int i = 0; i < n; ++i)
-                    {
-                        o.x[i] = f.x[i] + dx[i] * power;
-                        o.y[i] = f.y[i] + dy[i] * power;
-                        o.z[i] = f.z[i] + dz[i] * power;
-                    }
-                    frames[fsp] = o;
+                    vsp -= 3;
+                    Ops.Displace(
+                        f,
+                        owned[++fsp],
+                        values[vsp],
+                        values[vsp + 1],
+                        values[vsp + 2],
+                        *(double*)d,
+                        n
+                    );
+                    frames[fsp] = owned[fsp];
                     break;
-                }
-
                 case NoiseOp.PopFrame:
                     fsp--;
                     break;
@@ -617,6 +464,9 @@ public unsafe partial struct NoiseProgram : IBatchModule, IDisposable
         }
     }
 
+    // Kept out of Run so that each generator's kernel is inlined into its own
+    // loop, which LLVM won't do once Run has grown this large.
+    [MethodImpl(MethodImplOptions.NoInlining)]
     static void Generate<T>(T* noise, in Frame f, double* o, int n)
         where T : unmanaged, IBatchModule => noise->GetValues(f.x, f.y, f.z, o, n);
 
@@ -626,70 +476,11 @@ public unsafe partial struct NoiseProgram : IBatchModule, IDisposable
         public bool Invert;
     }
 
-    static double Terrace(TerraceData* p, double value)
-    {
-        int count = p->Count;
-        // The control points directly follow the header.
-        double* points = (double*)(p + 1);
-
-        int i = 0;
-        while (i < count && !(value < points[i]))
-            i++;
-
-        int lo = math.clamp(i - 1, 0, count - 1);
-        int hi = math.clamp(i, 0, count - 1);
-        if (lo == hi)
-            return points[hi];
-
-        double a = points[lo];
-        double b = points[hi];
-        double t = (value - a) / (b - a);
-        if (p->Invert)
-        {
-            t = 1.0 - t;
-            (a, b) = (b, a);
-        }
-        t *= t;
-        return LinearInterpolate(a, b, t);
-    }
-
     internal struct SelectData
     {
         public double Lower;
         public double Upper;
         public double EdgeFalloff;
-    }
-
-    static double Select(SelectData* p, double control, double a, double b)
-    {
-        double lower = p->Lower;
-        double upper = p->Upper;
-        double falloff = p->EdgeFalloff;
-
-        if (falloff > 0.0)
-        {
-            if (control < lower - falloff)
-                return a;
-            if (control < lower + falloff)
-            {
-                double lo = lower - falloff;
-                double hi = lower + falloff;
-                return LinearInterpolate(a, b, SCurve3((control - lo) / (hi - lo)));
-            }
-            if (control < upper - falloff)
-                return b;
-            if (control < upper + falloff)
-            {
-                double lo = upper - falloff;
-                double hi = upper + falloff;
-                return LinearInterpolate(b, a, SCurve3((control - lo) / (hi - lo)));
-            }
-            return a;
-        }
-
-        if (!(control < lower) && control <= upper)
-            return b;
-        return a;
     }
 
     internal struct RotateData

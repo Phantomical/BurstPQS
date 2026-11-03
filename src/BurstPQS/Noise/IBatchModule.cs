@@ -33,64 +33,51 @@ public interface IVectorModule
     double4 GetValue(double4 x, double4 y, double4 z);
 }
 
-// Implements IBatchModule for IVectorModules, 4 points at a time. The final
-// partial group is padded with zeros.
+// Implements IBatchModule for IVectorModules, 4 points at a time. Any
+// leftover points are padded with zeros and evaluated as one more group.
 internal static unsafe class BatchUtil
 {
-    public static double4 Load(double* p, int i, int count)
-    {
-        if (i + 4 <= count)
-            return *(double4*)(p + i);
+    // Loads p[i..i + 4). There must be at least 4 values left.
+    public static double4 Load4(double* p, int i) => *(double4*)(p + i);
 
+    // Stores v to p[i..i + 4). There must be room for all 4 values.
+    public static void Store4(double* p, int i, double4 v) => *(double4*)(p + i) = v;
+
+    // Loads n < 4 values, padding the rest with zeros.
+    public static double4 LoadPartial(double* p, int n)
+    {
         double4 v = 0.0;
-        for (int j = 0; i + j < count; ++j)
-            v[j] = p[i + j];
+        for (int j = 0; j < n; ++j)
+            v[j] = p[j];
         return v;
     }
 
-    public static void Store(double* p, int i, int count, double4 v)
+    public static void StorePartial(double* p, int n, double4 v)
     {
-        if (i + 4 <= count)
-        {
-            *(double4*)(p + i) = v;
-            return;
-        }
-
-        for (int j = 0; i + j < count; ++j)
-            p[i + j] = v[j];
+        for (int j = 0; j < n; ++j)
+            p[j] = v[j];
     }
 
-    // Loads coords[i..i + 4) and transposes them into one vector per axis.
-    public static void Load(
-        Vector3d* coords,
-        int i,
-        int count,
-        out double4 x,
-        out double4 y,
-        out double4 z
-    )
+    public static void LoadPartial(Vector3d* p, int n, out double4 x, out double4 y, out double4 z)
     {
-        if (i + 4 <= count)
-        {
-            Transpose((double*)(coords + i), out x, out y, out z);
-            return;
-        }
-
         x = 0.0;
         y = 0.0;
         z = 0.0;
-        for (int j = 0; i + j < count; ++j)
+        for (int j = 0; j < n; ++j)
         {
-            x[j] = coords[i + j].x;
-            y[j] = coords[i + j].y;
-            z[j] = coords[i + j].z;
+            x[j] = p[j].x;
+            y[j] = p[j].y;
+            z[j] = p[j].z;
         }
     }
 
-    // p points at 4 (x, y, z) triples. As 3 vectors they are
+    // Loads 4 Vector3ds and transposes them into one vector per axis.
+    //
+    // As 3 vectors the points are
     //   m0 = [x0 y0 | z0 x1], m1 = [y1 z1 | x2 y2], m2 = [z2 x3 | y3 z3]
-    static void Transpose(double* p, out double4 x, out double4 y, out double4 z)
+    public static void Transpose(Vector3d* coords, out double4 x, out double4 y, out double4 z)
     {
+        double* p = (double*)coords;
         if (IsAvxSupported)
         {
             v256 m0 = *(v256*)p;
@@ -107,6 +94,8 @@ internal static unsafe class BatchUtil
             return;
         }
 
+        // 4 consecutive Vector3ds have the layout of a double3x4. LLVM turns
+        // this into scalar loads, which is why the AVX path is done by hand.
         double4x3 t = math.transpose(*(double3x4*)p);
         x = t.c0;
         y = t.c1;
@@ -127,10 +116,22 @@ internal static unsafe class BatchUtil
     {
         // Avoids a defensive copy of the module on every call.
         ref T m = ref Unsafe.AsRef(in module);
-        for (int i = 0; i < count; i += 4)
+
+        int i = 0;
+        for (; i + 4 <= count; i += 4)
         {
-            var value = m.GetValue(Load(x, i, count), Load(y, i, count), Load(z, i, count));
-            Store(output, i, count, value);
+            Store4(output, i, m.GetValue(Load4(x, i), Load4(y, i), Load4(z, i)));
+        }
+
+        int rem = count - i;
+        if (rem > 0)
+        {
+            var value = m.GetValue(
+                LoadPartial(x + i, rem),
+                LoadPartial(y + i, rem),
+                LoadPartial(z + i, rem)
+            );
+            StorePartial(output + i, rem, value);
         }
     }
 
@@ -138,10 +139,19 @@ internal static unsafe class BatchUtil
         where T : struct, IVectorModule
     {
         ref T m = ref Unsafe.AsRef(in module);
-        for (int i = 0; i < count; i += 4)
+
+        int i = 0;
+        for (; i + 4 <= count; i += 4)
         {
-            Load(coords, i, count, out var x, out var y, out var z);
-            Store(output, i, count, m.GetValue(x, y, z));
+            Transpose(coords + i, out var x, out var y, out var z);
+            Store4(output, i, m.GetValue(x, y, z));
+        }
+
+        int rem = count - i;
+        if (rem > 0)
+        {
+            LoadPartial(coords + i, rem, out var x, out var y, out var z);
+            StorePartial(output + i, rem, m.GetValue(x, y, z));
         }
     }
 }

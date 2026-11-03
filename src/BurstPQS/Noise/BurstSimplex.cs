@@ -6,6 +6,7 @@ using Unity.Collections;
 using Unity.Collections.LowLevel.Unsafe;
 using Unity.Jobs;
 using Unity.Mathematics;
+using static BurstPQS.Noise.BatchUtil;
 using static BurstPQS.Noise.NoiseUtil;
 using static Unity.Burst.Intrinsics.X86.Avx;
 using static Unity.Burst.Intrinsics.X86.Avx2;
@@ -547,16 +548,27 @@ public unsafe struct BurstSimplex : IBatchModule, IVectorModule, IDisposable
         var o = output.GetDataPtr();
         int count = coords.Length;
 
-        for (int i = 0; i < count; i += 4)
+        int i = 0;
+        for (; i + 4 <= count; i += 4)
         {
-            BatchUtil.Load(input, i, count, out var x, out var y, out var z);
-            double4 p = persistences is null ? persistence : BatchUtil.Load(persistences, i, count);
-            var value = noise(x, y, z, p);
-            if (normalized)
-                value = (value + 1.0) * 0.5;
-            BatchUtil.Store(o, i, count, value);
+            BatchUtil.Transpose(input + i, out var x, out var y, out var z);
+            double4 p = persistences is null ? persistence : Load4(persistences, i);
+            Store4(o, i, Finish(noise(x, y, z, p), normalized));
+        }
+
+        int rem = count - i;
+        if (rem > 0)
+        {
+            BatchUtil.LoadPartial(input + i, rem, out var x, out var y, out var z);
+            double4 p = persistences is null
+                ? persistence
+                : BatchUtil.LoadPartial(persistences + i, rem);
+            BatchUtil.StorePartial(o + i, rem, Finish(noise(x, y, z, p), normalized));
         }
     }
+
+    static double4 Finish(double4 value, bool normalized) =>
+        normalized ? (value + 1.0) * 0.5 : value;
 
     private readonly double Value(double3 cin)
     {
