@@ -1,7 +1,9 @@
 using System;
 using System.Collections.Generic;
 using BurstPQS.Map;
+using BurstPQS.Noise;
 using BurstPQS.Util;
+using Unity.Collections;
 using UnityEngine;
 
 namespace BurstPQS;
@@ -258,6 +260,28 @@ public abstract class BatchPQSMod<T>(T mod) : BatchPQSMod
     protected void ValidateMapSOsAreSupported()
     {
         MapSOValidator.Validate(mod);
+    }
+
+    /// <summary>
+    /// Compiles <paramref name="noise"/> into a <see cref="NoiseProgram"/>
+    /// with a persistent allocation. You are responsible for disposing it.
+    /// </summary>
+    /// <throws>
+    /// An <see cref="UnsupportedPQSModException"/> if the noise cannot be
+    /// compiled, e.g. because one of its modules is missing a source.
+    /// </throws>
+    protected NoiseProgram CompileNoise(LibNoise.IModule noise)
+    {
+        try
+        {
+            return NoiseProgram.Compile(noise, Allocator.Persistent);
+        }
+        catch (ArgumentException e)
+        {
+            throw new UnsupportedPQSModException(
+                $"noise for {mod.GetType().Name} {mod.name} could not be compiled: {e.Message}"
+            );
+        }
     }
 
     public override string ToString()

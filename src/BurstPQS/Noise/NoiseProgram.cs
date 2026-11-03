@@ -157,6 +157,21 @@ public unsafe partial struct NoiseProgram : IBatchModule, IDisposable
         );
     }
 
+    /// <summary>
+    /// Evaluates the noise at each of <paramref name="coords"/> and returns
+    /// the results in a new array.
+    /// </summary>
+    public readonly NativeArray<double> Evaluate(MemorySpan<Vector3d> coords, Allocator allocator)
+    {
+        var output = new NativeArray<double>(
+            coords.Length,
+            allocator,
+            NativeArrayOptions.UninitializedMemory
+        );
+        Evaluate(coords, new MemorySpan<double>(output));
+        return output;
+    }
+
     public readonly void Evaluate(MemorySpan<double3> coords, MemorySpan<double> output)
     {
         if (coords.Length != output.Length)
