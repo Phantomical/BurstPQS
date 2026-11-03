@@ -1,10 +1,12 @@
 using System;
 using System.Runtime.CompilerServices;
+using BurstPQS.Collections;
 using Unity.Burst.Intrinsics;
 using Unity.Collections;
 using Unity.Collections.LowLevel.Unsafe;
 using Unity.Jobs;
 using Unity.Mathematics;
+using static BurstPQS.Noise.NoiseUtil;
 using static Unity.Burst.Intrinsics.X86.Avx;
 using static Unity.Burst.Intrinsics.X86.Avx2;
 using static Unity.Burst.Intrinsics.X86.Fma;
@@ -16,7 +18,7 @@ namespace BurstPQS.Noise;
 /// Burst compatible simplex noise. Take care to dispose of it when done or
 /// else you will get a memory leak.
 /// </summary>
-public unsafe struct BurstSimplex : IDisposable
+public unsafe struct BurstSimplex : IBatchModule, IVectorModule, IDisposable
 {
     public double octaves;
 
@@ -331,6 +333,228 @@ public unsafe struct BurstSimplex : IDisposable
         }
 
         return default;
+    }
+
+    // Evaluates 4 points at once, one per lane.
+    private readonly double4 Value(double4 xin, double4 yin, double4 zin)
+    {
+        double4 s = (xin + yin + zin) * F3;
+        int4 i = Floor(xin + s);
+        int4 j = Floor(yin + s);
+        int4 k = Floor(zin + s);
+        double4 t = (double4)(i + j + k) * G3;
+        double4 x0 = xin - (i - t);
+        double4 y0 = yin - (j - t);
+        double4 z0 = zin - (k - t);
+
+        // The same corner selection as the branch tree in ValueFallback.
+        bool4 xy = x0 >= y0;
+        bool4 yz = y0 >= z0;
+        bool4 xz = x0 >= z0;
+        int4 i1 = math.select(int4.zero, 1, xy & (yz | xz));
+        int4 j1 = math.select(int4.zero, 1, !xy & yz);
+        int4 k1 = math.select(int4.zero, 1, !yz & (!xy | !xz));
+        int4 i2 = math.select(int4.zero, 1, xy | (yz & xz));
+        int4 j2 = math.select(int4.zero, 1, !(xy & !yz));
+        int4 k2 = math.select(int4.zero, 1, !(yz & (xy | xz)));
+
+        double4 x1 = x0 - i1 + G3;
+        double4 y1 = y0 - j1 + G3;
+        double4 z1 = z0 - k1 + G3;
+        double4 x2 = x0 - i2 + 2.0 * G3;
+        double4 y2 = y0 - j2 + 2.0 * G3;
+        double4 z2 = z0 - k2 + 2.0 * G3;
+        double4 x3 = x0 - 1.0 + 3.0 * G3;
+        double4 y3 = y0 - 1.0 + 3.0 * G3;
+        double4 z3 = z0 - 1.0 + 3.0 * G3;
+
+        int4 ii = i & 0xFF;
+        int4 jj = j & 0xFF;
+        int4 kk = k & 0xFF;
+        int4 gi0;
+        int4 gi1;
+        int4 gi2;
+        int4 gi3;
+        if (IsAvx2Supported)
+        {
+            // Cube corners are numbered i + 2j + 4k.
+            int4 c1 = i1 + 2 * j1 + 4 * k1;
+            int4 c2 = i2 + 2 * j2 + 4 * k2;
+            v128 h0 = CornerHashes(ii.x, jj.x, kk.x, c1.x, c2.x);
+            v128 h1 = CornerHashes(ii.y, jj.y, kk.y, c1.y, c2.y);
+            v128 h2 = CornerHashes(ii.z, jj.z, kk.z, c1.z, c2.z);
+            v128 h3 = CornerHashes(ii.w, jj.w, kk.w, c1.w, c2.w);
+
+            // Transpose from one point per vector to one corner per vector.
+            v128 t0 = unpacklo_epi32(h0, h1);
+            v128 t1 = unpackhi_epi32(h0, h1);
+            v128 t2 = unpacklo_epi32(h2, h3);
+            v128 t3 = unpackhi_epi32(h2, h3);
+            gi0 = ToInt4(unpacklo_epi64(t0, t2)) % 12;
+            gi1 = ToInt4(unpackhi_epi64(t0, t2)) % 12;
+            gi2 = ToInt4(unpacklo_epi64(t1, t3)) % 12;
+            gi3 = ToInt4(unpackhi_epi64(t1, t3)) % 12;
+        }
+        else
+        {
+            gi0 = Perm(ii + Perm(jj + Perm(kk))) % 12;
+            gi1 = Perm(ii + i1 + Perm(jj + j1 + Perm(kk + k1))) % 12;
+            gi2 = Perm(ii + i2 + Perm(jj + j2 + Perm(kk + k2))) % 12;
+            gi3 = Perm(ii + 1 + Perm(jj + 1 + Perm(kk + 1))) % 12;
+        }
+
+        double4 n0 = Corner(gi0, x0, y0, z0);
+        double4 n1 = Corner(gi1, x1, y1, z1);
+        double4 n2 = Corner(gi2, x2, y2, z2);
+        double4 n3 = Corner(gi3, x3, y3, z3);
+        return 32.0 * (n0 + n1 + n2 + n3);
+    }
+
+    private readonly int4 Perm(int4 idx) => new(perm[idx.x], perm[idx.y], perm[idx.z], perm[idx.w]);
+
+    // Hashes of the simplex corners 0, c1, c2 and 7 of one point's cube.
+    //
+    // Every corner offset is 0 or 1, so each hash level only needs perm[n]
+    // and perm[n + 1], which one 8-byte load fetches together. This hashes
+    // all 8 cube corners in 7 loads, then picks out the 4 simplex corners.
+    // Indices stay below 511 since perm entries are at most 255.
+    private readonly v128 CornerHashes(int ii, int jj, int kk, int c1, int c2)
+    {
+        if (IsAvx2Supported)
+        {
+            long a = *(long*)(perm + kk);
+            long b0 = *(long*)(perm + jj + (int)a);
+            long b1 = *(long*)(perm + jj + (int)(a >> 32));
+            v256 cube = new(
+                *(long*)(perm + ii + (int)b0),
+                *(long*)(perm + ii + (int)(b0 >> 32)),
+                *(long*)(perm + ii + (int)b1),
+                *(long*)(perm + ii + (int)(b1 >> 32))
+            );
+            v128 sel = new(0, c1, c2, 7);
+            return mm256_castsi256_si128(
+                mm256_permutevar8x32_epi32(cube, mm256_castsi128_si256(sel))
+            );
+        }
+
+        return default;
+    }
+
+    private static int4 ToInt4(v128 v) => new(v.SInt0, v.SInt1, v.SInt2, v.SInt3);
+
+    // grad3[gi] has the form (+-u, +-v) over two of the axes:
+    //   u = gi < 8 ? x : y,  v = gi < 4 ? y : z
+    // with bit 0 of gi negating u and bit 1 negating v.
+    private static double4 Corner(int4 gi, double4 x, double4 y, double4 z)
+    {
+        double4 u = math.select(y, x, gi < 8);
+        double4 v = math.select(z, y, gi < 4);
+        u = math.select(u, -u, (gi & 1) != 0);
+        v = math.select(v, -v, (gi & 2) != 0);
+
+        double4 t = 0.6 - x * x - y * y - z * z;
+        double4 t2 = t * t;
+        return math.select(t2 * t2 * (u + v), 0.0, t < 0.0);
+    }
+
+    public readonly double4 noise(double4 x, double4 y, double4 z) => noise(x, y, z, persistence);
+
+    // Each lane uses its own persistence in place of the persistence field.
+    public readonly double4 noise(double4 x, double4 y, double4 z, double4 persistence)
+    {
+        double4 total = 0.0;
+        double4 amplitude = 1.0;
+        double f = frequency;
+        double4 maxAmplitude = 0.0;
+        for (double itr = 0.0; itr < octaves; itr += 1.0)
+        {
+            total += Value(x * f, y * f, z * f) * amplitude;
+            f *= 2.0;
+            maxAmplitude += amplitude;
+            amplitude *= persistence;
+        }
+        return total / maxAmplitude;
+    }
+
+    public readonly double4 GetValue(double4 x, double4 y, double4 z) => noise(x, y, z);
+
+    public readonly double4 noiseNormalized(double4 x, double4 y, double4 z) =>
+        (noise(x, y, z) + 1.0) * 0.5;
+
+    public readonly void GetValues(double* x, double* y, double* z, double* output, int count) =>
+        BatchUtil.GetValues(in this, x, y, z, output, count);
+
+    public readonly void GetValues(Vector3d* coords, double* output, int count) =>
+        BatchUtil.GetValues(in this, coords, output, count);
+
+    /// <summary>
+    /// Writes <see cref="noiseNormalized(Vector3d)"/> at each of
+    /// <paramref name="coords"/> to <paramref name="output"/>.
+    /// </summary>
+    public readonly void GetValuesNormalized(
+        MemorySpan<Vector3d> coords,
+        MemorySpan<double> output
+    ) => Evaluate(coords, null, output, true);
+
+    /// <summary>
+    /// Evaluates <see cref="noiseNormalized(Vector3d)"/> at each of
+    /// <paramref name="coords"/> and returns the results in a new array.
+    /// </summary>
+    public readonly NativeArray<double> GetValuesNormalized(
+        MemorySpan<Vector3d> coords,
+        Allocator allocator
+    )
+    {
+        var output = new NativeArray<double>(
+            coords.Length,
+            allocator,
+            NativeArrayOptions.UninitializedMemory
+        );
+        GetValuesNormalized(coords, new MemorySpan<double>(output));
+        return output;
+    }
+
+    /// <summary>
+    /// Like <see cref="GetValuesNormalized(MemorySpan{Vector3d}, MemorySpan{double})"/>,
+    /// but uses <c>persistence[i]</c> in place of <see cref="persistence"/>
+    /// for point <c>i</c>.
+    /// </summary>
+    public readonly void GetValuesNormalized(
+        MemorySpan<Vector3d> coords,
+        MemorySpan<double> persistence,
+        MemorySpan<double> output
+    )
+    {
+        if (persistence.Length != coords.Length)
+            BurstException.ThrowArgumentOutOfRange();
+
+        Evaluate(coords, persistence.GetDataPtr(), output, true);
+    }
+
+    // persistences is null to use the persistence field for every point.
+    private readonly void Evaluate(
+        MemorySpan<Vector3d> coords,
+        double* persistences,
+        MemorySpan<double> output,
+        bool normalized
+    )
+    {
+        if (coords.Length != output.Length)
+            BurstException.ThrowArgumentOutOfRange();
+
+        var input = coords.GetDataPtr();
+        var o = output.GetDataPtr();
+        int count = coords.Length;
+
+        for (int i = 0; i < count; i += 4)
+        {
+            BatchUtil.Load(input, i, count, out var x, out var y, out var z);
+            double4 p = persistences is null ? persistence : BatchUtil.Load(persistences, i, count);
+            var value = noise(x, y, z, p);
+            if (normalized)
+                value = (value + 1.0) * 0.5;
+            BatchUtil.Store(o, i, count, value);
+        }
     }
 
     private readonly double Value(double3 cin)

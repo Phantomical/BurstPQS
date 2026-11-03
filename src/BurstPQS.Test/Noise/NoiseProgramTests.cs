@@ -36,6 +36,21 @@ public class NoiseProgramTests : BurstPQSTestBase
         }
     }
 
+    [BurstCompile(FloatMode = FloatMode.Fast)]
+    struct FastEvaluateAoSJob : IJob
+    {
+        public NoiseProgram program;
+        public NativeArray<double3> coords;
+        public NativeArray<double> output;
+        public NativeArray<bool> burst;
+
+        public void Execute()
+        {
+            burst[0] = BurstPQS.Util.BurstUtil.IsBurstCompiled;
+            program.Evaluate(new MemorySpan<double3>(coords), new MemorySpan<double>(output));
+        }
+    }
+
     [BurstCompile]
     struct EvaluateSoAJob : IJob
     {
@@ -83,6 +98,7 @@ public class NoiseProgramTests : BurstPQSTestBase
         var y = new NativeArray<double>(SampleCount, Allocator.TempJob);
         var z = new NativeArray<double>(SampleCount, Allocator.TempJob);
         var aosOut = new NativeArray<double>(SampleCount, Allocator.TempJob);
+        var fastOut = new NativeArray<double>(SampleCount, Allocator.TempJob);
         var soaOut = new NativeArray<double>(SampleCount, Allocator.TempJob);
         var managedOut = new NativeArray<double>(SampleCount, Allocator.TempJob);
         var burst = new NativeArray<bool>(1, Allocator.TempJob);
@@ -121,6 +137,15 @@ public class NoiseProgramTests : BurstPQSTestBase
             }
                 .Schedule()
                 .Complete();
+            new FastEvaluateAoSJob
+            {
+                program = program,
+                coords = coords,
+                output = fastOut,
+                burst = burst,
+            }
+                .Schedule()
+                .Complete();
             new EvaluateSoAJob
             {
                 program = program,
@@ -139,6 +164,7 @@ public class NoiseProgramTests : BurstPQSTestBase
             for (int i = 0; i < SampleCount; ++i)
             {
                 AssertClose(name, "burst aos", i, aosOut[i], expected[i]);
+                AssertClose(name, "burst fast", i, fastOut[i], expected[i]);
                 AssertClose(name, "burst soa", i, soaOut[i], expected[i]);
                 AssertClose(name, "managed", i, managedOut[i], expected[i]);
             }
@@ -154,6 +180,7 @@ public class NoiseProgramTests : BurstPQSTestBase
             y.Dispose();
             z.Dispose();
             aosOut.Dispose();
+            fastOut.Dispose();
             soaOut.Dispose();
             managedOut.Dispose();
             burst.Dispose();

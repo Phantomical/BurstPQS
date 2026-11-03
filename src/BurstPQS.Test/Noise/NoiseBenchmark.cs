@@ -51,6 +51,29 @@ public static class NoiseBenchmark
         }
     }
 
+    [BurstCompile(FloatMode = FloatMode.Fast)]
+    struct FastProgramJob : IJob
+    {
+        public NoiseProgram program;
+        public NativeArray<Vector3d> coords;
+        public NativeArray<double> sink;
+        public NativeArray<bool> burst;
+        public int iterations;
+
+        public void Execute()
+        {
+            burst[0] = BurstUtil.IsBurstCompiled;
+            var span = new MemorySpan<Vector3d>(coords);
+            double total = 0.0;
+            for (int it = 0; it < iterations; ++it)
+            {
+                using var values = program.Evaluate(span, Allocator.Temp);
+                total += values[it % values.Length];
+            }
+            sink[0] = total;
+        }
+    }
+
     static double RunScalar<N>(in N noise, NativeArray<Vector3d> coords, int iterations)
         where N : IModule
     {
@@ -134,6 +157,81 @@ public static class NoiseBenchmark
         }
     }
 
+    [BurstCompile]
+    struct ScalarSimplexJob : IJob
+    {
+        public BurstSimplex simplex;
+        public NativeArray<Vector3d> coords;
+        public NativeArray<double> sink;
+        public NativeArray<bool> burst;
+        public int iterations;
+
+        public void Execute()
+        {
+            burst[0] = BurstUtil.IsBurstCompiled;
+            double total = 0.0;
+            for (int it = 0; it < iterations; ++it)
+            {
+                using var values = new NativeArray<double>(
+                    coords.Length,
+                    Allocator.Temp,
+                    NativeArrayOptions.UninitializedMemory
+                );
+                var span = new MemorySpan<double>(values);
+                for (int i = 0; i < coords.Length; ++i)
+                    span[i] = simplex.noise(coords[i]);
+                total += span[it % span.Length];
+            }
+            sink[0] = total;
+        }
+    }
+
+    [BurstCompile]
+    struct BatchSimplexJob : IJob
+    {
+        public BurstSimplex simplex;
+        public NativeArray<Vector3d> coords;
+        public NativeArray<double> sink;
+        public NativeArray<bool> burst;
+        public int iterations;
+
+        public void Execute()
+        {
+            burst[0] = BurstUtil.IsBurstCompiled;
+            var span = new MemorySpan<Vector3d>(coords);
+            double total = 0.0;
+            for (int it = 0; it < iterations; ++it)
+            {
+                using var values = simplex.GetValues(span, Allocator.Temp);
+                total += values[it % values.Length];
+            }
+            sink[0] = total;
+        }
+    }
+
+    [BurstCompile(FloatMode = FloatMode.Fast)]
+    struct FastBatchSimplexJob : IJob
+    {
+        public BurstSimplex simplex;
+        public NativeArray<Vector3d> coords;
+        public NativeArray<double> sink;
+        public NativeArray<bool> burst;
+        public int iterations;
+
+        public void Execute()
+        {
+            burst[0] = BurstUtil.IsBurstCompiled;
+            var span = new MemorySpan<Vector3d>(coords);
+            double total = 0.0;
+            for (int it = 0; it < iterations; ++it)
+            {
+                using var values = simplex.GetValues(span, Allocator.Temp);
+                total += values[it % values.Length];
+            }
+            sink[0] = total;
+        }
+    }
+
     public static string Run()
     {
         int count = PQS.cacheVertCount;
@@ -160,7 +258,7 @@ public static class NoiseBenchmark
                     + $"({BurstIterations} burst / {ManagedIterations} managed calls)"
             );
             sb.AppendLine(
-                $"{"case", -22} {"managed", 10} {"scalar", 10} {"program", 10} {"vs scalar", 10} {"vs managed", 11}"
+                $"{"case", -22} {"managed", 10} {"scalar", 10} {"batch", 10} {"fast", 10} {"vs scalar", 10} {"vs managed", 11}"
             );
 
             var perlin = new Perlin
@@ -287,6 +385,7 @@ public static class NoiseBenchmark
             );
             Bench(sb, "FastNoise", fast, coords, sink, burst, null);
             Bench(sb, "Composite", composite, coords, sink, burst, null);
+            BenchSimplex(sb, new Simplex(3, 8, 0.5, 4.0), coords, sink, burst);
         }
         finally
         {
@@ -298,6 +397,85 @@ public static class NoiseBenchmark
         var result = sb.ToString();
         Debug.Log("[BurstPQS] " + result);
         return result;
+    }
+
+    static void BenchSimplex(
+        StringBuilder sb,
+        Simplex simplex,
+        NativeArray<Vector3d> coords,
+        NativeArray<double> sink,
+        NativeArray<bool> burst
+    )
+    {
+        int count = coords.Length;
+        var values = new double[count];
+        var watch = Stopwatch.StartNew();
+        for (int it = 0; it < ManagedIterations; ++it)
+        {
+            for (int i = 0; i < count; ++i)
+                values[i] = simplex.noise(coords[i]);
+        }
+        watch.Stop();
+        double managed =
+            watch.Elapsed.TotalMilliseconds * 1e6 / ((double)ManagedIterations * count);
+
+        var burstSimplex = new BurstSimplex(simplex);
+        double scalar;
+        double batch;
+        double fast;
+        try
+        {
+            scalar =
+                TimeJob(
+                    () =>
+                        new ScalarSimplexJob
+                        {
+                            simplex = burstSimplex,
+                            coords = coords,
+                            sink = sink,
+                            burst = burst,
+                            iterations = BurstIterations,
+                        }.Schedule(),
+                    burst,
+                    "Simplex"
+                ) / ((double)BurstIterations * count);
+            batch =
+                TimeJob(
+                    () =>
+                        new BatchSimplexJob
+                        {
+                            simplex = burstSimplex,
+                            coords = coords,
+                            sink = sink,
+                            burst = burst,
+                            iterations = BurstIterations,
+                        }.Schedule(),
+                    burst,
+                    "Simplex"
+                ) / ((double)BurstIterations * count);
+            fast =
+                TimeJob(
+                    () =>
+                        new FastBatchSimplexJob
+                        {
+                            simplex = burstSimplex,
+                            coords = coords,
+                            sink = sink,
+                            burst = burst,
+                            iterations = BurstIterations,
+                        }.Schedule(),
+                    burst,
+                    "Simplex"
+                ) / ((double)BurstIterations * count);
+        }
+        finally
+        {
+            burstSimplex.Dispose();
+        }
+
+        sb.AppendLine(
+            $"{"Simplex", -22} {managed, 10:F1} {scalar, 10:F1} {batch, 10:F1} {fast, 10:F1} {(scalar / batch).ToString("F2") + "x", 10} {(managed / batch).ToString("F2") + "x", 11}"
+        );
     }
 
     static void Bench(
@@ -319,12 +497,27 @@ public static class NoiseBenchmark
 
         var program = NoiseProgram.Compile(module);
         double programNs;
+        double fastNs;
         try
         {
             programNs =
                 TimeJob(
                     () =>
                         new ProgramJob
+                        {
+                            program = program,
+                            coords = coords,
+                            sink = sink,
+                            burst = burst,
+                            iterations = BurstIterations,
+                        }.Schedule(),
+                    burst,
+                    name
+                ) / ((double)BurstIterations * count);
+            fastNs =
+                TimeJob(
+                    () =>
+                        new FastProgramJob
                         {
                             program = program,
                             coords = coords,
@@ -346,7 +539,7 @@ public static class NoiseBenchmark
             ? "-"
             : (scalarNs / programNs).ToString("F2") + "x";
         sb.AppendLine(
-            $"{name, -22} {managed, 10:F1} {scalarText, 10} {programNs, 10:F1} {vsScalar, 10} {(managed / programNs).ToString("F2") + "x", 11}"
+            $"{name, -22} {managed, 10:F1} {scalarText, 10} {programNs, 10:F1} {fastNs, 10:F1} {vsScalar, 10} {(managed / programNs).ToString("F2") + "x", 11}"
         );
     }
 

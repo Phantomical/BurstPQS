@@ -205,6 +205,14 @@ public unsafe partial struct NoiseProgram : IBatchModule, IDisposable
     public readonly void GetValues(double* x, double* y, double* z, double* output, int count) =>
         Evaluate(x, y, z, output, count);
 
+    public readonly void GetValues(Vector3d* coords, double* output, int count)
+    {
+        if (count < 0)
+            BurstException.ThrowArgumentOutOfRange();
+
+        Execute((double3*)coords, null, null, null, output, count);
+    }
+
     // Either aos is non-null or x, y, and z are.
     readonly void Execute(double3* aos, double* x, double* y, double* z, double* output, int count)
     {
@@ -250,12 +258,13 @@ public unsafe partial struct NoiseProgram : IBatchModule, IDisposable
 
             if (aos is not null)
             {
-                var input = aos + start;
-                for (int i = 0; i < n; ++i)
+                var input = (Vector3d*)(aos + start);
+                for (int i = 0; i < n; i += 4)
                 {
-                    owned[0].x[i] = input[i].x;
-                    owned[0].y[i] = input[i].y;
-                    owned[0].z[i] = input[i].z;
+                    BatchUtil.Load(input, i, n, out var vx, out var vy, out var vz);
+                    BatchUtil.Store(owned[0].x, i, n, vx);
+                    BatchUtil.Store(owned[0].y, i, n, vy);
+                    BatchUtil.Store(owned[0].z, i, n, vz);
                 }
                 frames[0] = owned[0];
             }

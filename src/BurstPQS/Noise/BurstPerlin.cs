@@ -9,7 +9,10 @@ namespace BurstPQS.Noise;
 /// Burst-compatible perlin noise.
 /// </summary>
 /// <param name="perlin"></param>
-public readonly unsafe struct BurstPerlin(LibNoise.Perlin perlin) : IModule, IBatchModule
+public readonly unsafe struct BurstPerlin(LibNoise.Perlin perlin)
+    : IModule,
+        IBatchModule,
+        IVectorModule
 {
     public readonly double Frequency = perlin.Frequency;
     public readonly double Persistence = perlin.Persistence;
@@ -61,16 +64,9 @@ public readonly unsafe struct BurstPerlin(LibNoise.Perlin perlin) : IModule, IBa
         return value;
     }
 
-    public void GetValues(double* x, double* y, double* z, double* output, int count)
-    {
-        for (int i = 0; i < count; i += 4)
-        {
-            var value = GetValue(
-                BatchUtil.Load(x, i, count),
-                BatchUtil.Load(y, i, count),
-                BatchUtil.Load(z, i, count)
-            );
-            BatchUtil.Store(output, i, count, value);
-        }
-    }
+    public readonly void GetValues(double* x, double* y, double* z, double* output, int count) =>
+        BatchUtil.GetValues(in this, x, y, z, output, count);
+
+    public readonly void GetValues(Vector3d* coords, double* output, int count) =>
+        BatchUtil.GetValues(in this, coords, output, count);
 }

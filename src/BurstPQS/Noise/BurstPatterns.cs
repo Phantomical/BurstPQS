@@ -8,7 +8,7 @@ namespace BurstPQS.Noise;
 /// <summary>
 /// Burst-compatible version of <see cref="LibNoise.Checkerboard"/>.
 /// </summary>
-public readonly unsafe struct BurstCheckerboard : IModule, IBatchModule
+public readonly unsafe struct BurstCheckerboard : IModule, IBatchModule, IVectorModule
 {
     public double GetValue(Vector3d coordinate) =>
         GetValue(coordinate.x, coordinate.y, coordinate.z);
@@ -25,24 +25,17 @@ public readonly unsafe struct BurstCheckerboard : IModule, IBatchModule
         return math.select(1.0, -1.0, parity != 0);
     }
 
-    public void GetValues(double* x, double* y, double* z, double* output, int count)
-    {
-        for (int i = 0; i < count; i += 4)
-        {
-            var value = GetValue(
-                BatchUtil.Load(x, i, count),
-                BatchUtil.Load(y, i, count),
-                BatchUtil.Load(z, i, count)
-            );
-            BatchUtil.Store(output, i, count, value);
-        }
-    }
+    public readonly void GetValues(double* x, double* y, double* z, double* output, int count) =>
+        BatchUtil.GetValues(in this, x, y, z, output, count);
+
+    public readonly void GetValues(Vector3d* coords, double* output, int count) =>
+        BatchUtil.GetValues(in this, coords, output, count);
 }
 
 /// <summary>
 /// Burst-compatible version of <see cref="LibNoise.Cylinders"/>.
 /// </summary>
-public readonly unsafe struct BurstCylinders(Cylinders noise) : IModule, IBatchModule
+public readonly unsafe struct BurstCylinders(Cylinders noise) : IModule, IBatchModule, IVectorModule
 {
     public readonly double Frequency = noise.Frequency;
 
@@ -65,24 +58,17 @@ public readonly unsafe struct BurstCylinders(Cylinders noise) : IModule, IBatchM
         return 1.0 - math.select(rem, frac, frac < rem) * 4.0;
     }
 
-    public void GetValues(double* x, double* y, double* z, double* output, int count)
-    {
-        for (int i = 0; i < count; i += 4)
-        {
-            var value = GetValue(
-                BatchUtil.Load(x, i, count),
-                BatchUtil.Load(y, i, count),
-                BatchUtil.Load(z, i, count)
-            );
-            BatchUtil.Store(output, i, count, value);
-        }
-    }
+    public readonly void GetValues(double* x, double* y, double* z, double* output, int count) =>
+        BatchUtil.GetValues(in this, x, y, z, output, count);
+
+    public readonly void GetValues(Vector3d* coords, double* output, int count) =>
+        BatchUtil.GetValues(in this, coords, output, count);
 }
 
 /// <summary>
 /// Burst-compatible version of <see cref="LibNoise.Spheres"/>.
 /// </summary>
-public readonly unsafe struct BurstSpheres(Spheres noise) : IModule, IBatchModule
+public readonly unsafe struct BurstSpheres(Spheres noise) : IModule, IBatchModule, IVectorModule
 {
     public readonly double Frequency = noise.Frequency;
 
@@ -107,16 +93,9 @@ public readonly unsafe struct BurstSpheres(Spheres noise) : IModule, IBatchModul
         return 1.0 - math.select(rem, frac, frac < rem) * 4.0;
     }
 
-    public void GetValues(double* x, double* y, double* z, double* output, int count)
-    {
-        for (int i = 0; i < count; i += 4)
-        {
-            var value = GetValue(
-                BatchUtil.Load(x, i, count),
-                BatchUtil.Load(y, i, count),
-                BatchUtil.Load(z, i, count)
-            );
-            BatchUtil.Store(output, i, count, value);
-        }
-    }
+    public readonly void GetValues(double* x, double* y, double* z, double* output, int count) =>
+        BatchUtil.GetValues(in this, x, y, z, output, count);
+
+    public readonly void GetValues(Vector3d* coords, double* output, int count) =>
+        BatchUtil.GetValues(in this, coords, output, count);
 }

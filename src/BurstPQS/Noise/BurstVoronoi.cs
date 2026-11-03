@@ -47,6 +47,12 @@ public readonly unsafe struct BurstVoronoi : IModule, IBatchModule
             output[i] = GetValue(new double3(x[i], y[i], z[i]));
     }
 
+    public void GetValues(Vector3d* coords, double* output, int count)
+    {
+        for (int i = 0; i < count; ++i)
+            output[i] = GetValue(BurstUtil.ConvertVector(coords[i]));
+    }
+
     private double GetValue(double3 c)
     {
         double3 p = c * Frequency;

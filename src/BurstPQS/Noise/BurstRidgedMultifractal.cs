@@ -12,7 +12,8 @@ namespace BurstPQS.Noise;
 /// <param name="noise"></param>
 public readonly unsafe struct BurstRidgedMultifractal(LibNoise.RidgedMultifractal noise)
     : IModule,
-        IBatchModule
+        IBatchModule,
+        IVectorModule
 {
     public readonly FixedArray30<double> SpectralWeights = new(noise.SpectralWeights);
     public readonly double Frequency = noise.Frequency;
@@ -90,16 +91,9 @@ public readonly unsafe struct BurstRidgedMultifractal(LibNoise.RidgedMultifracta
         return value * 1.25 - 1.0;
     }
 
-    public void GetValues(double* x, double* y, double* z, double* output, int count)
-    {
-        for (int i = 0; i < count; i += 4)
-        {
-            var value = GetValue(
-                BatchUtil.Load(x, i, count),
-                BatchUtil.Load(y, i, count),
-                BatchUtil.Load(z, i, count)
-            );
-            BatchUtil.Store(output, i, count, value);
-        }
-    }
+    public readonly void GetValues(double* x, double* y, double* z, double* output, int count) =>
+        BatchUtil.GetValues(in this, x, y, z, output, count);
+
+    public readonly void GetValues(Vector3d* coords, double* output, int count) =>
+        BatchUtil.GetValues(in this, coords, output, count);
 }
