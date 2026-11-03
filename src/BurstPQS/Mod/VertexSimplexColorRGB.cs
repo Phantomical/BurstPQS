@@ -2,6 +2,7 @@ using System;
 using BurstPQS.Noise;
 using BurstPQS.Util;
 using Unity.Burst;
+using Unity.Collections;
 using Unity.Jobs;
 using Unity.Mathematics;
 using UnityEngine;
@@ -43,9 +44,10 @@ public class VertexSimplexColorRGB(PQSMod_VertexSimplexColorRGB mod)
         public readonly void BuildVertices(in BuildVerticesData data)
         {
             float3 cblend = new(rBlend, gBlend, bBlend);
+            using var noise = simplex.GetValuesNormalized(data.directionFromCenter, Allocator.Temp);
             for (int i = 0; i < data.VertexCount; ++i)
             {
-                float n = (float)((simplex.noise(data.directionFromCenter[i]) + 1.0) * 0.5);
+                float n = (float)noise[i];
                 float4 c = new(n * cblend, Color.white.a);
 
                 data.vertColor[i] = Color.Lerp(data.vertColor[i], BurstUtil.ConvertColor(c), blend);

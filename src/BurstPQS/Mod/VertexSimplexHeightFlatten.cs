@@ -1,6 +1,7 @@
 using System;
 using BurstPQS.Noise;
 using Unity.Burst;
+using Unity.Collections;
 
 namespace BurstPQS.Mod;
 
@@ -32,9 +33,10 @@ public class VertexSimplexHeightFlatten(PQSMod_VertexSimplexHeightFlatten mod)
 
         public void BuildHeights(in BuildHeightsData data)
         {
+            using var noise = simplex.GetValuesNormalized(data.directionFromCenter, Allocator.Temp);
             for (int i = 0; i < data.VertexCount; ++i)
             {
-                double v = simplex.noiseNormalized(data.directionFromCenter[i]);
+                double v = noise[i];
                 if (v > cutoff)
                     data.vertHeight[i] += deformity * ((v - cutoff) / cutoff);
             }

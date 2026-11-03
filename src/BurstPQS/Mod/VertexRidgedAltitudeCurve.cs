@@ -2,6 +2,7 @@ using System;
 using BurstPQS.Noise;
 using BurstPQS.Util;
 using Unity.Burst;
+using Unity.Collections;
 
 namespace BurstPQS.Mod;
 
@@ -52,11 +53,12 @@ public class VertexRidgedAltitudeCurve(PQSMod_VertexRidgedAltitudeCurve mod)
 
         public readonly void BuildHeights(in BuildHeightsData data)
         {
+            using var noise = simplex.GetValuesNormalized(data.directionFromCenter, Allocator.Temp);
             for (int i = 0; i < data.VertexCount; ++i)
             {
                 double h = data.vertHeight[i] - radiusMin;
                 double t = MathUtil.Clamp01((h - simplexHeightStart) * hDeltaR);
-                double s = simplex.noiseNormalized(data.directionFromCenter[i]);
+                double s = noise[i];
                 if (s == 0.0)
                     continue;
 

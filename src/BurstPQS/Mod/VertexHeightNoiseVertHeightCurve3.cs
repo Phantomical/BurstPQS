@@ -1,6 +1,7 @@
 using BurstPQS.Noise;
 using BurstPQS.Util;
 using Unity.Burst;
+using Unity.Collections;
 
 namespace BurstPQS.Mod;
 
@@ -84,6 +85,10 @@ public class VertexHeightNoiseVertHeightCurve3(PQSMod_VertexHeightNoiseVertHeigh
             double d;
             float t;
 
+            using var multiplier = curveMultiplier.GetValuesNormalized(
+                data.directionFromCenter,
+                Allocator.Temp
+            );
             for (int i = 0; i < data.VertexCount; ++i)
             {
                 double h = data.vertHeight[i] - p.sphereRadiusMin;
@@ -95,7 +100,7 @@ public class VertexHeightNoiseVertHeightCurve3(PQSMod_VertexHeightNoiseVertHeigh
                     t = (float)((h - p.inputHeightStart) * p.hDeltaR);
 
                 var dir = data.directionFromCenter[i];
-                double s = curveMultiplier.noiseNormalized(dir) * inputHeightCurve.Evaluate(t);
+                double s = multiplier[i] * inputHeightCurve.Evaluate(t);
                 if (s != 0.0)
                 {
                     r = ridgedAdd.GetValue(dir) - ridgedSub.GetValue(dir);

@@ -57,10 +57,12 @@ public class VoronoiCraters(PQSMod_VoronoiCraters mod) : BatchPQSMod<PQSMod_Voro
         {
             rs = new(data.VertexCount, Allocator.Temp);
 
+            using var vor = voronoi.GetValues(data.directionFromCenter, Allocator.Temp);
+            using var spx = simplex.GetValues(data.directionFromCenter, Allocator.Temp);
             for (int i = 0; i < data.VertexCount; ++i)
             {
-                float vorH = (float)voronoi.GetValue(data.directionFromCenter[i]);
-                float spxH = (float)simplex.noise(data.directionFromCenter[i]);
+                float vorH = (float)vor[i];
+                float spxH = (float)spx[i];
                 float jtt = spxH * jitter * jitterCurve.Evaluate(vorH);
                 float r = vorH + jtt;
                 float h = craterCurve.Evaluate(r);

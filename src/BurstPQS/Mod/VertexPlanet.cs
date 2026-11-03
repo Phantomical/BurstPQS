@@ -160,17 +160,32 @@ public class VertexPlanet(PQSMod_VertexPlanet mod) : BatchPQSMod<PQSMod_VertexPl
             double vHeight;
             double continentialHeightPreSmooth;
 
+            var dirs = data.directionFromCenter;
+            using var smoothing = continentalSmoothing.simplex.GetValuesNormalized(dirs, Allocator.Temp);
+
+            // The continental noise's persistence depends on the smoothing noise.
+            using var persistenceArray = new NativeArray<double>(vertexCount, Allocator.Temp, NativeArrayOptions.UninitializedMemory);
+            var persistence = new MemorySpan<double>(persistenceArray);
+            for (int i = 0; i < vertexCount; ++i)
+                persistence[i] = continental.persistance - continentalSmoothing.persistance * smoothing[i];
+
+            using var continentalArray = new NativeArray<double>(vertexCount, Allocator.Temp, NativeArrayOptions.UninitializedMemory);
+            var continentalNoise = new MemorySpan<double>(continentalArray);
+            continental.simplex.GetValuesNormalized(dirs, persistence, continentalNoise);
+
+            using var sharpness = continentalSharpness.noise.GetValues(dirs, Allocator.Temp);
+            using var sharpnessMap = continentalSharpnessMap.simplex.GetValuesNormalized(dirs, Allocator.Temp);
+
             for (int i = 0; i < vertexCount; ++i)
             {
                 var directionFromCenter = data.directionFromCenter[i];
 
                 continentalDeformity = 1.0;
-                continental2Height = continentalSmoothing.simplex.noiseNormalized(directionFromCenter);
-                continental.simplex.persistence = continental.persistance - continentalSmoothing.persistance * continental2Height;
-                continentialHeight = continental.simplex.noiseNormalized(directionFromCenter);
-                continentialSharpnessValue = (continentalSharpness.noise.GetValue(directionFromCenter) + 1.0) * 0.5;
+                continental2Height = smoothing[i];
+                continentialHeight = continentalNoise[i];
+                continentialSharpnessValue = (sharpness[i] + 1.0) * 0.5;
                 continentialSharpnessValue *= Lerp(continentalSharpness.deformity, continentalSharpness.deformity * terrainRidgeBalance, (continental2Height + continentialSharpnessValue) * 0.5);
-                continentialSharpnessMapValue = Clamp((continentalSharpnessMap.simplex.noise(directionFromCenter) + 1.0) * 0.5, terrainRidgesMin, terrainRidgesMax);
+                continentialSharpnessMapValue = Clamp(sharpnessMap[i], terrainRidgesMin, terrainRidgesMax);
                 continentialSharpnessMapValue = (continentialSharpnessMapValue - terrainRidgesMin) / (terrainRidgesMax - terrainRidgesMin) * continentalSharpnessMap.deformity;
                 continentialSharpnessValue += Lerp(0.0, continentialSharpnessValue, continentialSharpnessMapValue);
                 continentialHeight += continentialSharpnessValue;
@@ -219,11 +234,15 @@ public class VertexPlanet(PQSMod_VertexPlanet mod) : BatchPQSMod<PQSMod_VertexPl
                 return;
             }
 
+            using var terrain = terrainType.GetValuesNormalized(
+                data.directionFromCenter,
+                Allocator.Temp
+            );
             for (int i = 0; i < data.VertexCount; ++i)
             {
                 var dir = data.directionFromCenter[i];
                 float h = (float)((data.vertHeight[i] - data.sphere.radius) / colorDeformity);
-                double d1 = terrainType.noiseNormalized(dir);
+                double d1 = terrain[i];
                 double tHeight = Mathf.Clamp01(
                     (float)((preSmoothHeights[i] + d1 * terrainTypeDeformity) * (double)h)
                 );

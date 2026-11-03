@@ -1,6 +1,7 @@
+using BurstPQS.Collections;
 using BurstPQS.Noise;
-using LibNoise.Modifiers;
 using Unity.Burst;
+using Unity.Collections;
 
 namespace BurstPQS.Mod;
 
@@ -8,49 +9,51 @@ namespace BurstPQS.Mod;
 [BatchPQSMod(typeof(PQSMod_VertexNoise))]
 public class VertexNoise(PQSMod_VertexNoise mod) : BatchPQSMod<PQSMod_VertexNoise>(mod)
 {
+    NoiseProgram noise;
+
+    public override void OnSetup()
+    {
+        base.OnSetup();
+        noise = CompileNoise(mod.terrainHeightMap);
+    }
+
     public override void OnQuadPreBuild(PQ quad, BatchPQSJobSet jobSet)
     {
         base.OnQuadPreBuild(quad, jobSet);
 
-        var control = (LibNoise.Perlin)mod.terrainHeightMap.ControlModule;
-        var input = (ScaleBiasOutput)mod.terrainHeightMap.SourceModule1;
-        var billow = (LibNoise.Billow)input.SourceModule;
-        var ridged = (LibNoise.RidgedMultifractal)mod.terrainHeightMap.SourceModule2;
-
-        var noise = new Select<BurstPerlin, ScaleBiasOutput<BurstBillow>, BurstRidgedMultifractal>(
-            mod.terrainHeightMap,
-            new(control),
-            new(input, new(billow)),
-            new(ridged)
-        );
-
         jobSet.Add(
             new BuildJob
             {
-                terrainHeightMap = noise,
+                noise = noise,
                 sphereRadius = mod.sphere.radius,
                 noiseDeformity = mod.noiseDeformity,
             }
         );
     }
 
+    public override void Dispose() => noise.Dispose();
+
     [BurstCompile]
     struct BuildJob : IBatchPQSHeightJob
     {
-        public Select<
-            BurstPerlin,
-            ScaleBiasOutput<BurstBillow>,
-            BurstRidgedMultifractal
-        > terrainHeightMap;
+        public NoiseProgram noise;
         public double sphereRadius;
         public double noiseDeformity;
 
         public readonly void BuildHeights(in BuildHeightsData data)
         {
+            using var coordArray = new NativeArray<Vector3d>(
+                data.VertexCount,
+                Allocator.Temp,
+                NativeArrayOptions.UninitializedMemory
+            );
+            var coords = new MemorySpan<Vector3d>(coordArray);
             for (int i = 0; i < data.VertexCount; ++i)
-                data.vertHeight[i] +=
-                    terrainHeightMap.GetValue(data.directionFromCenter[i] * sphereRadius)
-                    * noiseDeformity;
+                coords[i] = data.directionFromCenter[i] * sphereRadius;
+
+            using var values = noise.Evaluate(coords, Allocator.Temp);
+            for (int i = 0; i < data.VertexCount; ++i)
+                data.vertHeight[i] += values[i] * noiseDeformity;
         }
     }
 }

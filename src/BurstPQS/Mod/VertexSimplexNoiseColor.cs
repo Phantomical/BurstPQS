@@ -1,6 +1,7 @@
 using System;
 using BurstPQS.Noise;
 using Unity.Burst;
+using Unity.Collections;
 using UnityEngine;
 
 namespace BurstPQS.Mod;
@@ -35,10 +36,10 @@ public class VertexSimplexNoiseColor(PQSMod_VertexSimplexNoiseColor mod)
 
         public readonly void BuildVertices(in BuildVerticesData data)
         {
+            using var noise = simplex.GetValuesNormalized(data.directionFromCenter, Allocator.Temp);
             for (int i = 0; i < data.VertexCount; ++i)
             {
-                var dir = data.directionFromCenter[i];
-                var n = (float)((simplex.noise(dir) + 1.0) * 0.5);
+                var n = (float)noise[i];
                 var c = Color.Lerp(colorStart, colorEnd, n);
 
                 data.vertColor[i] = Color.Lerp(data.vertColor[i], c, blend);

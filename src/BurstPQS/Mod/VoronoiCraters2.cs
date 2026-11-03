@@ -1,3 +1,4 @@
+using BurstPQS.Collections;
 using BurstPQS.Noise;
 using BurstPQS.Util;
 using Unity.Burst;
@@ -72,14 +73,29 @@ public class VoronoiCraters2(PQSMod_VoronoiCraters2 mod) : BatchPQSMod<PQSMod_Vo
         {
             rs = new(data.VertexCount, Allocator.Temp);
 
+            var dirs = data.directionFromCenter;
+            using var nearestArray = new NativeArray<Vector3d>(
+                data.VertexCount,
+                Allocator.Temp,
+                NativeArrayOptions.UninitializedMemory
+            );
+            var nearest = new MemorySpan<Vector3d>(nearestArray);
+            for (int i = 0; i < data.VertexCount; ++i)
+                nearest[i] = voronoi.GetNearest(dirs[i]);
+
+            using var jitterNoise = jitterSimplex.GetValues(dirs, Allocator.Temp);
+            using var deformationNoise = deformationSimplex.GetValuesNormalized(
+                nearest,
+                Allocator.Temp
+            );
+
             for (int i = 0; i < data.VertexCount; ++i)
             {
-                var nearest = voronoi.GetNearest(data.directionFromCenter[i]);
-                var vd = nearest - data.directionFromCenter[i];
+                var vd = nearest[i] - dirs[i];
                 var h = MathUtil.Clamp01(vd.magnitude * 1.7320508075688772);
-                var s = jitterSimplex.noise(data.directionFromCenter[i]) * jitter;
+                var s = jitterNoise[i] * jitter;
                 var r = craterCurve.Evaluate((float)(h + s));
-                var d = deformationSimplex.noiseNormalized(nearest) * deformation;
+                var d = deformationNoise[i] * deformation;
 
                 rs[i] = r;
                 data.vertHeight[i] += d * r;
