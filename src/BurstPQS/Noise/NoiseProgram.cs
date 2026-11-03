@@ -207,7 +207,7 @@ public unsafe partial struct NoiseProgram : IBatchModule, IDisposable
 
     readonly void Execute(Vector3d* coords, double* output, int count)
     {
-        if (count == 0)
+        if (count <= 0)
             return;
 
         using var scratch = AllocScratch(
@@ -241,7 +241,7 @@ public unsafe partial struct NoiseProgram : IBatchModule, IDisposable
 
     readonly void Execute(double* x, double* y, double* z, double* output, int count)
     {
-        if (count == 0)
+        if (count <= 0)
             return;
 
         using var scratch = AllocScratch(
@@ -284,7 +284,7 @@ public unsafe partial struct NoiseProgram : IBatchModule, IDisposable
             + valueDepth * sizeof(double*)
             + 2 * frameSlots * sizeof(Frame);
 
-        var scratch = new OwnedBuffer(size, Allocator.Temp);
+        var scratch = new OwnedBuffer(size, Allocator.TempJob);
 
         values = (double**)scratch.Data;
         frames = (Frame*)(values + valueDepth);
