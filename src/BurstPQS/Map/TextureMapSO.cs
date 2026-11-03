@@ -441,7 +441,7 @@ public static partial class TextureMapSO
                 new ARGB32(new(data, width, height, mipCount), wrap)
             ),
             TextureFormat.ARGB4444 => BurstMapSO.Create(
-                new ARGB32(new(data, width, height, mipCount), wrap)
+                new ARGB4444(new(data, width, height, mipCount), wrap)
             ),
             TextureFormat.BC4 => BurstMapSO.Create(
                 new BC4(new(data, width, height, mipCount), wrap)
