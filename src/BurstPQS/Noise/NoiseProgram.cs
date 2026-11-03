@@ -102,8 +102,6 @@ internal struct NoiseInstruction(NoiseOp op, int data)
 /// </remarks>
 public unsafe partial struct NoiseProgram : IBatchModule, IDisposable
 {
-    const int ChunkSize = 128;
-
     [NativeDisableUnsafePtrRestriction]
     NoiseInstruction* code;
 
@@ -148,14 +146,7 @@ public unsafe partial struct NoiseProgram : IBatchModule, IDisposable
         if (coords.Length != output.Length)
             BurstException.ThrowArgumentOutOfRange();
 
-        Execute(
-            (double3*)coords.GetDataPtr(),
-            null,
-            null,
-            null,
-            output.GetDataPtr(),
-            output.Length
-        );
+        Execute(coords.GetDataPtr(), output.GetDataPtr(), output.Length);
     }
 
     /// <summary>
@@ -178,7 +169,7 @@ public unsafe partial struct NoiseProgram : IBatchModule, IDisposable
         if (coords.Length != output.Length)
             BurstException.ThrowArgumentOutOfRange();
 
-        Execute(coords.GetDataPtr(), null, null, null, output.GetDataPtr(), output.Length);
+        Execute((Vector3d*)coords.GetDataPtr(), output.GetDataPtr(), output.Length);
     }
 
     public readonly void Evaluate(
@@ -192,7 +183,7 @@ public unsafe partial struct NoiseProgram : IBatchModule, IDisposable
         if (x.Length != count || y.Length != count || z.Length != count)
             BurstException.ThrowArgumentOutOfRange();
 
-        Execute(null, x.GetDataPtr(), y.GetDataPtr(), z.GetDataPtr(), output.GetDataPtr(), count);
+        Execute(x.GetDataPtr(), y.GetDataPtr(), z.GetDataPtr(), output.GetDataPtr(), count);
     }
 
     public readonly void Evaluate(double* x, double* y, double* z, double* output, int count)
@@ -200,7 +191,7 @@ public unsafe partial struct NoiseProgram : IBatchModule, IDisposable
         if (count < 0)
             BurstException.ThrowArgumentOutOfRange();
 
-        Execute(null, x, y, z, output, count);
+        Execute(x, y, z, output, count);
     }
 
     public readonly void GetValues(double* x, double* y, double* z, double* output, int count) =>
@@ -211,81 +202,111 @@ public unsafe partial struct NoiseProgram : IBatchModule, IDisposable
         if (count < 0)
             BurstException.ThrowArgumentOutOfRange();
 
-        Execute((double3*)coords, null, null, null, output, count);
+        Execute(coords, output, count);
     }
 
-    // Either aos is non-null or x, y, and z are.
-    readonly void Execute(double3* aos, double* x, double* y, double* z, double* output, int count)
+    readonly void Execute(Vector3d* coords, double* output, int count)
     {
         if (count == 0)
             return;
+
+        using var scratch = AllocScratch(
+            count,
+            true,
+            out var values,
+            out var frames,
+            out var owned
+        );
+
+        int i = 0;
+        for (; i + 4 <= count; i += 4)
+        {
+            BatchUtil.Transpose(coords + i, out var x, out var y, out var z);
+            Store4(owned[0].x, i, x);
+            Store4(owned[0].y, i, y);
+            Store4(owned[0].z, i, z);
+        }
+
+        for (; i < count; ++i)
+        {
+            owned[0].x[i] = coords[i].x;
+            owned[0].y[i] = coords[i].y;
+            owned[0].z[i] = coords[i].z;
+        }
+
+        frames[0] = owned[0];
+        values[0] = output;
+        Run(values, frames, owned, count);
+    }
+
+    readonly void Execute(double* x, double* y, double* z, double* output, int count)
+    {
+        if (count == 0)
+            return;
+
+        using var scratch = AllocScratch(
+            count,
+            false,
+            out var values,
+            out var frames,
+            out var owned
+        );
+
+        frames[0] = new Frame
+        {
+            x = x,
+            y = y,
+            z = z,
+        };
+        values[0] = output;
+        Run(values, frames, owned, count);
+    }
+
+    // Lays out the value and frame stacks in a single temporary allocation.
+    // Value slot 0 is always the output itself, so it gets no storage. Frame
+    // slot 0 only needs storage when the input has to be converted.
+    readonly OwnedBuffer AllocScratch(
+        int count,
+        bool ownsInput,
+        out double** values,
+        out Frame* frames,
+        out Frame* owned
+    )
+    {
         if (code is null)
             throw new InvalidOperationException("NoiseProgram has not been created");
 
-        int chunk = math.min(count, ChunkSize);
         int frameSlots = frameDepth + 1;
-
-        // Value slot 0 is always the output itself, so only the rest need storage.
-        // Frame slot 0 is only used when converting from AoS input.
-        int bufferCount = (valueDepth - 1) + 3 * frameSlots;
+        int firstOwned = ownsInput ? 0 : 1;
+        int bufferCount = (valueDepth - 1) + 3 * (frameSlots - firstOwned);
         int size =
-            bufferCount * chunk * sizeof(double)
+            bufferCount * count * sizeof(double)
             + valueDepth * sizeof(double*)
             + 2 * frameSlots * sizeof(Frame);
 
-        using var scratch = new OwnedBuffer(size, Allocator.Temp);
+        var scratch = new OwnedBuffer(size, Allocator.Temp);
 
-        var values = (double**)scratch.Data;
-        var frames = (Frame*)(values + valueDepth);
-        var owned = frames + frameSlots;
+        values = (double**)scratch.Data;
+        frames = (Frame*)(values + valueDepth);
+        owned = frames + frameSlots;
         var buffers = (double*)(owned + frameSlots);
 
         for (int i = 1; i < valueDepth; ++i)
         {
             values[i] = buffers;
-            buffers += chunk;
+            buffers += count;
         }
-        for (int i = 0; i < frameSlots; ++i)
+
+        owned[0] = default;
+        for (int i = firstOwned; i < frameSlots; ++i)
         {
             owned[i].x = buffers;
-            owned[i].y = buffers + chunk;
-            owned[i].z = buffers + 2 * chunk;
-            buffers += 3 * chunk;
+            owned[i].y = buffers + count;
+            owned[i].z = buffers + 2 * count;
+            buffers += 3 * count;
         }
 
-        for (int start = 0; start < count; start += chunk)
-        {
-            int n = math.min(chunk, count - start);
-
-            if (aos is not null)
-            {
-                var input = (Vector3d*)(aos + start);
-                int i = 0;
-                for (; i + 4 <= n; i += 4)
-                {
-                    BatchUtil.Transpose(input + i, out var vx, out var vy, out var vz);
-                    Store4(owned[0].x, i, vx);
-                    Store4(owned[0].y, i, vy);
-                    Store4(owned[0].z, i, vz);
-                }
-                for (; i < n; ++i)
-                {
-                    owned[0].x[i] = input[i].x;
-                    owned[0].y[i] = input[i].y;
-                    owned[0].z[i] = input[i].z;
-                }
-                frames[0] = owned[0];
-            }
-            else
-            {
-                frames[0].x = x + start;
-                frames[0].y = y + start;
-                frames[0].z = z + start;
-            }
-
-            values[0] = output + start;
-            Run(values, frames, owned, n);
-        }
+        return scratch;
     }
 
     readonly void Run(double** values, Frame* frames, Frame* owned, int n)

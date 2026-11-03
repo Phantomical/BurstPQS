@@ -502,7 +502,7 @@ public class NoiseProgramTests : BurstPQSTestBase
         );
     }
 
-    // More points than fit in one chunk, with a deep stack in every chunk.
+    // Deeply nested modules need many value and frame stack slots at once.
     [TestInfo("NoiseProgram_DeepStack")]
     public void TestDeepStack()
     {
