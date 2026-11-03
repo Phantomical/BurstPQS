@@ -140,7 +140,14 @@ public abstract class BatchPQSMod : IDisposable
     public static bool IsSupported<T>()
         where T : PQSMod => TryGetFactory(typeof(T), out _);
 
-    static bool TryGetFactory(Type type, out Func<PQSMod, BatchPQSMod> factory)
+    /// <summary>
+    /// Get the factory func for <paramref name="type" />. Use this for advanced
+    /// use cases where you need to exactly construct the type you want.
+    /// </summary>
+    /// <param name="type"></param>
+    /// <param name="factory"></param>
+    /// <returns></returns>
+    public static bool TryGetFactory(Type type, out Func<PQSMod, BatchPQSMod> factory)
     {
         if (ModTypes.TryGetValue(type, out var batchMod))
         {
