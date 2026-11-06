@@ -74,7 +74,7 @@ internal static class BurstException
     static void ThrowIndexOutOfRangeImpl(int index, int length)
     {
 #if CRASH_ON_EXCEPTION
-        Debug.LogError($"Array index {index} was out of range (expected 0 < {index} < {length})");
+        //Debug.LogError($"Array index {index} was out of range (expected 0 < {index} < {length})");
         throw new IndexOutOfRangeException();
 #else
         VTable.ThrowIndexOutOfRange.Invoke(index, length);
