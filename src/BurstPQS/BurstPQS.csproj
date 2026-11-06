@@ -1,4 +1,4 @@
-<Project Sdk="Microsoft.NET.Sdk">
+﻿<Project Sdk="Microsoft.NET.Sdk">
   <PropertyGroup>
     <Description>Burst-Accelerated PQS</Description>
 
@@ -46,6 +46,14 @@
       <GenerateDependencyAttribute>true</GenerateDependencyAttribute>
     </Reference>
 
+    <Reference Include="netstandard">
+      <HintPath>..\..\..\..\..\..\..\Program Files\Kerbal Space Program\KSP_x64_Data\Managed\netstandard.dll</HintPath>
+    </Reference>
+
+    <Reference Include="System.Runtime.CompilerServices.Unsafe">
+      <HintPath>..\..\..\..\..\..\..\Program Files\Kerbal Space Program\KSP_x64_Data\Managed\System.Runtime.CompilerServices.Unsafe.dll</HintPath>
+    </Reference>
+
     <KSPVersionFile Include=".">
       <Destination>$(GameDataOutDir)/BurstPQS.version</Destination>
       <URL>https://github.com/Phantomical/BurstPQS/releases/latest/download/BurstPQS.version</URL>
@@ -62,9 +70,7 @@
   </PropertyGroup>
 
   <ItemGroup>
-    <ProjectReference Include="..\BurstPQS.Generators\BurstPQS.Generators.csproj"
-                      OutputItemType="Analyzer"
-                      ReferenceOutputAssembly="false" />
+    <ProjectReference Include="..\BurstPQS.Generators\BurstPQS.Generators.csproj" OutputItemType="Analyzer" ReferenceOutputAssembly="false" />
   </ItemGroup>
 
   <ItemGroup>
@@ -75,6 +81,12 @@
     <Publicize Include="UnityEngine.CoreModule:Unity.Profiling.ProfilerMarker+AutoScope.m_Ptr" />
     <Publicize Include="UnityEngine.CoreModule:UnityEngine.NoAllocHelpers" />
     <Publicize Include="UnityEngine.CoreModule:UnityEngine.NoAllocHelpers.ExtractArrayFromListT" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <Reference Update="C:\Users\Memphis\Documents\Visual Studio 2022\BurstPQS\deps\installs\depset1\GameData\000_KSPBurst\Plugins\Unity.Jobs.dll">
+      <Aliases>UnityJobs</Aliases>
+    </Reference>
   </ItemGroup>
 
   <!--
