@@ -29,7 +29,7 @@ internal static class QuadColliderBaker
     struct BakeJob : IJobParallelFor
     {
         [ReadOnly, DeallocateOnJobCompletion]
-        public NativeArray<int> meshIds;
+        public NativeArray<EntityId> meshIds;
 
         public void Execute(int index) => Physics.BakeMesh(meshIds[index], false);
     }
@@ -90,13 +90,13 @@ internal static class QuadColliderBaker
         if (baking.Count == 0)
             return;
 
-        var meshIds = new NativeArray<int>(
+        var meshIds = new NativeArray<EntityId>(
             baking.Count,
             Allocator.TempJob,
             NativeArrayOptions.UninitializedMemory
         );
         for (int i = 0; i < baking.Count; ++i)
-            meshIds[i] = baking[i].quad.mesh.GetInstanceID();
+            meshIds[i] = baking[i].quad.mesh.GetEntityId();
 
         handle = new BakeJob { meshIds = meshIds }.Schedule(baking.Count, 4);
         jobRunning = true;

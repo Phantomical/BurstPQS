@@ -166,7 +166,7 @@ internal static class PQS_BuildTangents_Patch
         {
             NormalListCache.Clear();
             quad.mesh.GetNormals(NormalListCache);
-            normals = NoAllocHelpers.ExtractArrayFromListT(NormalListCache);
+            normals = NormalListCache.ToArray();
             normalCount = NormalListCache.Count;
         }
 

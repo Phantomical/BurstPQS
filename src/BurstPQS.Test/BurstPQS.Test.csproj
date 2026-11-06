@@ -49,6 +49,10 @@
       <HintPath>$(DepSet1)/KSPTextureLoader/Plugins/KSPTextureLoader.dll</HintPath>
       <Private>false</Private>
     </Reference>
+
+    <Reference Include="netstandard">
+      <HintPath>..\..\..\..\..\..\..\Program Files\Kerbal Space Program\KSP_x64_Data\Managed\netstandard.dll</HintPath>
+    </Reference>
   </ItemGroup>
 
   <ItemGroup>
