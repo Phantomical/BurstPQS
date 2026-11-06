@@ -7,6 +7,35 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## Unreleased
 
+## v1.0.30
+### Added
+* There's now a new `NoiseProgram` helper that other mods can use to evaluate
+  any libnoise function within a `BatchPQSMod`.
+* Added some new APIs to help construct `BurstMapSO`s and `BatchPQSMod`
+  adapters.
+
+### Changed
+* Optimized evaluation of noise functions in a bunch of PQSMods. Should result
+  in minor performance improvements.
+* BurstPQS support for kopernicus has been moved into kopernicus itself.
+  There is still a shim dll so any references to `BurstPQS.Kopernicus.dll`
+  (if there are any) should continue to work.
+
+### Fixes
+* Fixed a few minor bugs with `TextureMapSO` on less-used texture formats.
+
+### Changed
+* The Kopernicus integration now lives in Kopernicus itself.
+  `BurstPQS.Kopernicus.dll` now only contains type forwards for mods that
+  reference it directly.
+
+## v1.0.29
+### Fixed
+* Fixed an issue where an exception getting thrown during texture export
+  would permanently break the texture exporter.
+* Fixed an issue where any planet in fallback mode with a parallax pqsmod
+  would throw an exception during texture export.
+
 ## v1.0.28
 ### Fixed
 * Fixed an issue where BurstPQS was causing all parallax scatters to be tilted.

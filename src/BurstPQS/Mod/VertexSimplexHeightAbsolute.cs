@@ -1,6 +1,7 @@
 using System;
 using BurstPQS.Noise;
 using Unity.Burst;
+using Unity.Collections;
 
 namespace BurstPQS.Mod;
 
@@ -26,11 +27,9 @@ public class VertexSimplexHeightAbsolute(PQSMod_VertexSimplexHeightAbsolute mod)
 
         public void BuildHeights(in BuildHeightsData data)
         {
+            using var noise = simplex.GetValuesNormalized(data.directionFromCenter, Allocator.Temp);
             for (int i = 0; i < data.VertexCount; ++i)
-            {
-                data.vertHeight[i] +=
-                    (simplex.noise(data.directionFromCenter[i]) + 1.0) * 0.5 * deformity;
-            }
+                data.vertHeight[i] += noise[i] * deformity;
         }
 
         public void Dispose()

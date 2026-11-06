@@ -67,6 +67,7 @@ internal struct TextureExportOceanBlockJob() : IJob
 
         var vbdata = PQS.vbData;
         vbdata.buildQuad = quad;
+        vbdata.vertIndex = 0;
 
         quad.meshVertMax = double.MaxValue;
         quad.meshVertMin = double.MinValue;
@@ -76,7 +77,6 @@ internal struct TextureExportOceanBlockJob() : IJob
             vbdata.directionFromCenter = heightData.directionFromCenter[i];
             vbdata.globalV = vbdata.directionFromCenter * sphere.radius;
             vbdata.vertHeight = sphere.radius;
-            vbdata.vertIndex = i;
 
             sphere.Mod_OnVertexBuildHeight(vbdata);
 

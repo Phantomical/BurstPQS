@@ -1,6 +1,7 @@
 using System;
 using BurstPQS.Noise;
 using Unity.Burst;
+using Unity.Collections;
 using Unity.Jobs;
 using UnityEngine;
 
@@ -43,15 +44,13 @@ public class VertexSimplexMultiChromatic(PQSMod_VertexSimplexMultiChromatic mod)
 
         public readonly void BuildVertices(in BuildVerticesData data)
         {
+            using var r = rSimplex.GetValuesNormalized(data.directionFromCenter, Allocator.Temp);
+            using var g = gSimplex.GetValuesNormalized(data.directionFromCenter, Allocator.Temp);
+            using var b = bSimplex.GetValuesNormalized(data.directionFromCenter, Allocator.Temp);
+            using var a = aSimplex.GetValuesNormalized(data.directionFromCenter, Allocator.Temp);
             for (int i = 0; i < data.VertexCount; ++i)
             {
-                var dir = data.directionFromCenter[i];
-                var c = new Color(
-                    (float)rSimplex.noiseNormalized(dir),
-                    (float)bSimplex.noiseNormalized(dir),
-                    (float)gSimplex.noiseNormalized(dir),
-                    (float)aSimplex.noiseNormalized(dir)
-                );
+                var c = new Color((float)r[i], (float)b[i], (float)g[i], (float)a[i]);
 
                 data.vertColor[i] = Color.Lerp(data.vertColor[i], c, blend);
             }

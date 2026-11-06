@@ -9,7 +9,7 @@ namespace BurstPQS.Noise;
 /// <summary>
 /// Burst-compatible voronoi noise.
 /// </summary>
-public readonly struct BurstVoronoi : IModule
+public readonly unsafe struct BurstVoronoi : IModule, IBatchModule
 {
     public readonly int Seed;
     public readonly bool DistanceEnabled;
@@ -37,6 +37,20 @@ public readonly struct BurstVoronoi : IModule
     public double GetValue(double x, double y, double z)
     {
         return GetValue(new double3(x, y, z));
+    }
+
+    // Each point is already vectorized across the cells it searches, so this
+    // doesn't group points together.
+    public void GetValues(double* x, double* y, double* z, double* output, int count)
+    {
+        for (int i = 0; i < count; ++i)
+            output[i] = GetValue(new double3(x[i], y[i], z[i]));
+    }
+
+    public void GetValues(Vector3d* coords, double* output, int count)
+    {
+        for (int i = 0; i < count; ++i)
+            output[i] = GetValue(BurstUtil.ConvertVector(coords[i]));
     }
 
     private double GetValue(double3 c)

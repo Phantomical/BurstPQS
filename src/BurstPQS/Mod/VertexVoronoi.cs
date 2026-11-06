@@ -1,5 +1,6 @@
 using BurstPQS.Noise;
 using Unity.Burst;
+using Unity.Collections;
 
 namespace BurstPQS.Mod;
 
@@ -22,10 +23,11 @@ public class VertexVoronoi(PQSMod_VertexVoronoi mod) : BatchPQSMod<PQSMod_Vertex
         public BurstVoronoi voronoi;
         public double deformation;
 
-        public readonly void BuildHeights(in BuildHeightsData data)
+        public void BuildHeights(in BuildHeightsData data)
         {
+            using var noise = voronoi.GetValues(data.directionFromCenter, Allocator.Temp);
             for (int i = 0; i < data.VertexCount; ++i)
-                data.vertHeight[i] += voronoi.GetValue(data.directionFromCenter[i]) * deformation;
+                data.vertHeight[i] += noise[i] * deformation;
         }
     }
 }

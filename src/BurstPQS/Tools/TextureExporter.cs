@@ -122,8 +122,8 @@ internal static partial class TextureExporter
     public static bool IsExporting { get; private set; }
     public static string StatusMessage { get; set; } = "";
 
-    private static Coroutine StartCoroutine(IEnumerator coroutine) =>
-        TextureExportRunner.Instance.StartCoroutine(coroutine);
+    private static CoroutineTask StartTask(IEnumerator routine) =>
+        CoroutineTask.Start(TextureExportRunner.Instance, routine);
 
     /// <summary>
     /// Exports one texture set per entry in <paramref name="projections"/>, then writes the
@@ -173,22 +173,25 @@ internal static partial class TextureExporter
             })
             .ToArray();
         using var guard = new ArrayDisposeGuard<PlanetExporter>(exporters);
-        var coroutines = new List<Coroutine>(exporters.Length);
+        // Every exporter has to finish before any error is rethrown, since they share the height
+        // maps that unwinding this frame releases.
+        var tasks = exporters.Select(exporter => StartTask(exporter.Export())).ToArray();
 
-        foreach (var exporter in exporters)
-            coroutines.Add(StartCoroutine(exporter.Export()));
+        foreach (var task in tasks)
+            yield return task;
 
-        foreach (var coro in coroutines)
-            yield return coro;
+        CoroutineTask.ThrowIfAnyFailed(tasks);
 
         if (options.exportHeight)
         {
             StatusMessage = $"Exporting {displayName}: saving height maps";
-            var coro1 = StartCoroutine(heightMaps.Save(options.heightFormat));
-            var coro2 = StartCoroutine(oceanHeightMaps.Save(options.heightFormat));
+            var task1 = StartTask(heightMaps.Save(options.heightFormat));
+            var task2 = StartTask(oceanHeightMaps.Save(options.heightFormat));
 
-            yield return coro1;
-            yield return coro2;
+            yield return task1;
+            yield return task2;
+
+            CoroutineTask.ThrowIfAnyFailed([task1, task2]);
         }
 
         WriteInfo(body, exportDir, projections, heightMaps, oceanHeightMaps);
@@ -307,6 +310,16 @@ internal static partial class TextureExporter
             using (jobSetGuard)
             using (oceanJobSetGuard)
                 handle.Complete();
+        }
+    }
+
+    // Completes whatever is still in flight if the export is abandoned part way through.
+    readonly struct BlockQueueGuard(Queue<BlockState> blocks) : IDisposable
+    {
+        public void Dispose()
+        {
+            while (blocks.Count > 0)
+                blocks.Dequeue().Dispose();
         }
     }
 
@@ -866,6 +879,7 @@ internal static partial class TextureExporter
             // can't run within their 4-frame lifetime, producing warnings.
             int maxInFlight = Math.Max(JobsUtility.JobWorkerCount * 2, 4);
             var blocks = new Queue<BlockState>();
+            using var blocksGuard = new BlockQueueGuard(blocks);
             int complete = 0;
 
             var lastYield = Time.realtimeSinceStartup;
@@ -1296,8 +1310,19 @@ internal static partial class TextureExporter
             }
             else
             {
-                using (new FallbackBuildingMapsGuard(pqs))
-                    blockJob.ExecuteFallback(pqs, quad);
+                try
+                {
+                    using (new FallbackBuildingMapsGuard(pqs))
+                        blockJob.ExecuteFallback(pqs, quad);
+                }
+                catch
+                {
+                    blockHeights.Dispose();
+                    blockNormals.Dispose();
+                    blockColors.Dispose();
+                    block.Dispose();
+                    throw;
+                }
 
                 handle = block.jobSetGuard.Dependency;
             }
@@ -1382,8 +1407,23 @@ internal static partial class TextureExporter
                 }
                 else
                 {
-                    using (new FallbackBuildingMapsGuard(oceanPQS))
-                        oceanJob.ExecuteFallback(oceanPQS, oceanQuad);
+                    try
+                    {
+                        using (new FallbackBuildingMapsGuard(oceanPQS))
+                            oceanJob.ExecuteFallback(oceanPQS, oceanQuad);
+                    }
+                    catch
+                    {
+                        // The terrain copies are already reading these.
+                        handle.Complete();
+                        blockHeights.Dispose();
+                        blockNormals.Dispose();
+                        blockColors.Dispose();
+                        oceanBlockHeights.Dispose();
+                        oceanBlockNormals.Dispose();
+                        block.Dispose();
+                        throw;
+                    }
                 }
 
                 handle = new TextureExportBlendOceanJob

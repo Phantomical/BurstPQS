@@ -66,9 +66,14 @@ internal class TextureExportRunner : MonoBehaviour
     )
     {
         using var guard = new TextureExporter.ExportGuard();
-        var coroutine = StartCoroutine(TextureExporter.ExportPlanet(body, options, projections));
+        var task = CoroutineTask.Start(
+            this,
+            TextureExporter.ExportPlanet(body, options, projections)
+        );
 
-        yield return coroutine;
+        yield return task;
+
+        ReportFailure(body, task);
     }
 
     IEnumerator RunAll(
@@ -77,17 +82,32 @@ internal class TextureExportRunner : MonoBehaviour
         TextureProjection[] projections
     )
     {
-        var coroutines = new Queue<Coroutine>();
+        var tasks = new List<CoroutineTask>(bodies.Count);
         using var guard = new TextureExporter.ExportGuard();
 
         foreach (var body in bodies)
         {
-            coroutines.Enqueue(
-                StartCoroutine(TextureExporter.ExportPlanet(body, options, projections))
+            tasks.Add(
+                CoroutineTask.Start(this, TextureExporter.ExportPlanet(body, options, projections))
             );
         }
 
-        foreach (var coroutine in coroutines)
-            yield return coroutine;
+        for (int i = 0; i < tasks.Count; i++)
+        {
+            yield return tasks[i];
+
+            ReportFailure(bodies[i], tasks[i]);
+        }
+    }
+
+    static void ReportFailure(CelestialBody body, CoroutineTask task)
+    {
+        if (task.Error is null)
+            return;
+
+        Debug.LogException(task.Error);
+        ScreenMessages.PostScreenMessage(
+            $"Failed to export {body.displayName.LocalizeRemoveGender()}. See KSP.log for details."
+        );
     }
 }

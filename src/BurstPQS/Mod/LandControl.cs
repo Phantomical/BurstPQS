@@ -162,6 +162,27 @@ public class LandControl(PQSLandControl mod) : BatchPQSMod<PQSLandControl>(mod)
 
             data.vertColor.Fill(Color.black);
 
+            var dirs = data.directionFromCenter;
+            using var altitudeNoise = altitudeSimplex.GetValues(dirs, Allocator.Temp);
+            using var latitudeNoise = latitudeSimplex.GetValues(dirs, Allocator.Temp);
+            using var longitudeNoise = longitudeSimplex.GetValues(dirs, Allocator.Temp);
+
+            // Coverage noise for land class c is at [c * VertexCount, (c + 1) * VertexCount).
+            using var coverage = new NativeArray<double>(
+                lcActiveCount,
+                Allocator.Temp,
+                NativeArrayOptions.UninitializedMemory
+            );
+            var coverageSpan = new MemorySpan<double>(coverage);
+            for (int itr = 0; itr < landClassCount; ++itr)
+            {
+                var lc = landClasses[itr];
+                lc.coverageSimplex.GetValuesNormalized(
+                    dirs,
+                    coverageSpan.Slice(itr * data.VertexCount, data.VertexCount)
+                );
+            }
+
             for (int i = 0; i < data.VertexCount; ++i)
             {
                 double totalDelta = 0.0;
@@ -171,14 +192,11 @@ public class LandControl(PQSLandControl mod) : BatchPQSMod<PQSLandControl>(mod)
                     vHeight = hMap.GetPixelFloat(data.u[i], data.v[i]);
                 else
                     vHeight = (data.vertHeight[i] - sphereRadius) / vHeightMax;
-                vHeight += altitudeBlend * altitudeSimplex.noise(data.directionFromCenter[i]);
+                vHeight += altitudeBlend * altitudeNoise[i];
                 vHeight = Math.Min(vHeight, 1.0);
 
-                double vLat =
-                    data.sy[i] + latitudeBlend * latitudeSimplex.noise(data.directionFromCenter[i]);
-                double vLon =
-                    data.sx[i]
-                    + longitudeBlend * longitudeSimplex.noise(data.directionFromCenter[i]);
+                double vLat = data.sy[i] + latitudeBlend * latitudeNoise[i];
+                double vLon = data.sx[i] + longitudeBlend * longitudeNoise[i];
 
                 vLat = MathUtil.Clamp01(vLat);
                 vLon = MathUtil.Clamp01(vLon);
@@ -198,7 +216,7 @@ public class LandControl(PQSLandControl mod) : BatchPQSMod<PQSLandControl>(mod)
                     double delta = altDelta * latDelta * lonDelta;
                     delta = Lerp(
                         delta,
-                        delta * lc.coverageSimplex.noiseNormalized(data.directionFromCenter[i]),
+                        delta * coverageSpan[itr * data.VertexCount + i],
                         lc.coverageBlend
                     );
 

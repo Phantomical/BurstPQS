@@ -1,6 +1,7 @@
 using BurstPQS.Noise;
 using BurstPQS.Util;
 using Unity.Burst;
+using Unity.Collections;
 
 namespace BurstPQS.Mod;
 
@@ -56,6 +57,7 @@ public class VertexHeightNoiseVertHeightCurve2(PQSMod_VertexHeightNoiseVertHeigh
             double r;
             float t;
 
+            using var noise = simplex.GetValuesNormalized(data.directionFromCenter, Allocator.Temp);
             for (int i = 0; i < data.VertexCount; ++i)
             {
                 h = data.vertHeight[i] - data.sphere.radiusMin;
@@ -66,7 +68,7 @@ public class VertexHeightNoiseVertHeightCurve2(PQSMod_VertexHeightNoiseVertHeigh
                 else
                     t = (float)((h - simplexHeightStart) * hDeltaR);
 
-                s = simplex.noiseNormalized(data.directionFromCenter[i]) * simplexCurve.Evaluate(t);
+                s = noise[i] * simplexCurve.Evaluate(t);
                 if (s != 0.0)
                 {
                     r = MathUtil.Clamp(

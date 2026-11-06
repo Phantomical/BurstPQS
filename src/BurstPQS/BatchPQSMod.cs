@@ -1,7 +1,9 @@
 using System;
 using System.Collections.Generic;
 using BurstPQS.Map;
+using BurstPQS.Noise;
 using BurstPQS.Util;
+using Unity.Collections;
 using UnityEngine;
 
 namespace BurstPQS;
@@ -79,12 +81,79 @@ public abstract class BatchPQSMod : IDisposable
         ModTypes.Add(mod, batchMod);
     }
 
+    /// <summary>
+    /// Create a <see cref="BatchPQSMod"/> adapter for <paramref name="mod"/>.
+    /// Returns <see langword="null"/> if <paramref name="mod"/> is compatible
+    /// with BatchPQS but does not need an adapter.
+    /// </summary>
+    /// <exception cref="UnsupportedPQSModException">
+    /// <paramref name="mod"/> is not supported by BatchPQS.
+    /// </exception>
     public static BatchPQSMod Create(PQSMod mod)
     {
-        var type = mod.GetType();
+        if (!TryGetFactory(mod.GetType(), out var factory))
+            throw new UnsupportedPQSModException(
+                $"PQSMod {mod.GetType().Name} is not compatible with BatchPQS"
+            );
 
+        return factory(mod);
+    }
+
+    /// <summary>
+    /// Try to create a <see cref="BatchPQSMod"/> adapter for <paramref name="mod"/>.
+    /// </summary>
+    /// <returns>
+    /// <see langword="false"/> if <paramref name="mod"/> is not supported by
+    /// BatchPQS. If it is supported but does not need an adapter then this
+    /// returns <see langword="true"/> and <paramref name="batchMod"/> is
+    /// <see langword="null"/>.
+    /// </returns>
+    public static bool TryCreate(PQSMod mod, out BatchPQSMod batchMod)
+    {
+        if (!TryGetFactory(mod.GetType(), out var factory))
+        {
+            batchMod = null;
+            return false;
+        }
+
+        batchMod = factory(mod);
+        return true;
+    }
+
+    /// <summary>
+    /// Returns <see langword="true"/> if <paramref name="mod"/> can be used
+    /// with <see cref="Create(PQSMod)"/> without throwing.
+    /// </summary>
+    ///
+    /// <remarks>
+    /// This only checks whether an adapter is available for the mod's type.
+    /// The adapter's <see cref="OnSetup"/> may still reject the mod, e.g. if
+    /// it contains an unsupported <see cref="MapSO"/>.
+    /// </remarks>
+    public static bool IsSupported(PQSMod mod) => TryGetFactory(mod.GetType(), out _);
+
+    /// <summary>
+    /// Returns <see langword="true"/> if instances of exactly type
+    /// <typeparamref name="T"/> can be used with <see cref="Create(PQSMod)"/>.
+    /// Derived types are checked separately.
+    /// </summary>
+    public static bool IsSupported<T>()
+        where T : PQSMod => TryGetFactory(typeof(T), out _);
+
+    /// <summary>
+    /// Get the factory func for <paramref name="type" />. Use this for advanced
+    /// use cases where you need to exactly construct the type you want.
+    /// </summary>
+    /// <param name="type"></param>
+    /// <param name="factory"></param>
+    /// <returns></returns>
+    public static bool TryGetFactory(Type type, out Func<PQSMod, BatchPQSMod> factory)
+    {
         if (ModTypes.TryGetValue(type, out var batchMod))
-            return (BatchPQSMod)Activator.CreateInstance(batchMod, [mod]);
+        {
+            factory = mod => (BatchPQSMod)Activator.CreateInstance(batchMod, [mod]);
+            return true;
+        }
 
         var onQuadPreBuild = type.GetMethod(nameof(PQSMod.OnQuadPreBuild), [typeof(PQ)]);
         var onQuadBuilt = type.GetMethod(nameof(PQSMod.OnQuadBuilt), [typeof(PQ)]);
@@ -102,14 +171,20 @@ public abstract class BatchPQSMod : IDisposable
         {
             // This is a shim which just passes through OnQuadPreBuild and OnQuadBuilt
             if (overridesQuadBuilt || overridesQuadPreBuild || overridesMeshBuild)
-                return new BatchPQSModShim(mod) { overridesMeshBuild = overridesMeshBuild };
-
+                factory = mod => new BatchPQSModShim(mod)
+                {
+                    overridesMeshBuild = overridesMeshBuild,
+                };
             // Otherwise it doesn't override any build methods, so it is likely
             // compatible.
-            return null;
+            else
+                factory = static _ => null;
+
+            return true;
         }
 
-        throw new UnsupportedPQSModException($"PQSMod {type.Name} is not compatible with BatchPQS");
+        factory = null;
+        return false;
     }
 
     class BatchPQSModShim(PQSMod mod) : BatchPQSMod<PQSMod>(mod)
@@ -192,6 +267,28 @@ public abstract class BatchPQSMod<T>(T mod) : BatchPQSMod
     protected void ValidateMapSOsAreSupported()
     {
         MapSOValidator.Validate(mod);
+    }
+
+    /// <summary>
+    /// Compiles <paramref name="noise"/> into a <see cref="NoiseProgram"/>
+    /// with a persistent allocation. You are responsible for disposing it.
+    /// </summary>
+    /// <throws>
+    /// An <see cref="UnsupportedPQSModException"/> if the noise cannot be
+    /// compiled, e.g. because one of its modules is missing a source.
+    /// </throws>
+    protected NoiseProgram CompileNoise(LibNoise.IModule noise)
+    {
+        try
+        {
+            return NoiseProgram.Compile(noise, Allocator.Persistent);
+        }
+        catch (ArgumentException e)
+        {
+            throw new UnsupportedPQSModException(
+                $"noise for {mod.GetType().Name} {mod.name} could not be compiled: {e.Message}"
+            );
+        }
     }
 
     public override string ToString()

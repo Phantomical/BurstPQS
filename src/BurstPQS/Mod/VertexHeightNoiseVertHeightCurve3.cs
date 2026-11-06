@@ -1,7 +1,7 @@
-using System;
 using BurstPQS.Noise;
 using BurstPQS.Util;
 using Unity.Burst;
+using Unity.Collections;
 
 namespace BurstPQS.Mod;
 
@@ -10,6 +10,23 @@ namespace BurstPQS.Mod;
 public class VertexHeightNoiseVertHeightCurve3(PQSMod_VertexHeightNoiseVertHeightCurve3 mod)
     : BatchPQSMod<PQSMod_VertexHeightNoiseVertHeightCurve3>(mod)
 {
+    BurstRidgedMultifractal ridgedAdd;
+    BurstRidgedMultifractal ridgedSub;
+    BurstSimplex curveMultiplier;
+    BurstSimplex deformity;
+    BurstAnimationCurve inputHeightCurve;
+
+    public override void OnSetup()
+    {
+        base.OnSetup();
+
+        ridgedAdd = new(mod.ridgedAdd.fractal);
+        ridgedSub = new(mod.ridgedSub.fractal);
+        curveMultiplier = new(mod.curveMultiplier.fractal);
+        deformity = new(mod.deformity.fractal);
+        inputHeightCurve = new(mod.inputHeightCurve);
+    }
+
     public override void OnQuadPreBuild(PQ quad, BatchPQSJobSet jobSet)
     {
         base.OnQuadPreBuild(quad, jobSet);
@@ -17,11 +34,11 @@ public class VertexHeightNoiseVertHeightCurve3(PQSMod_VertexHeightNoiseVertHeigh
         jobSet.Add(
             new BuildJob
             {
-                ridgedAdd = new(mod.ridgedAdd.fractal),
-                ridgedSub = new(mod.ridgedSub.fractal),
-                curveMultiplier = new BurstSimplex(mod.curveMultiplier.fractal),
-                deformity = new BurstSimplex(mod.deformity.fractal),
-                inputHeightCurve = new BurstAnimationCurve(mod.inputHeightCurve),
+                ridgedAdd = ridgedAdd,
+                ridgedSub = ridgedSub,
+                curveMultiplier = curveMultiplier,
+                deformity = deformity,
+                inputHeightCurve = inputHeightCurve,
                 p = new Params
                 {
                     sphereRadiusMin = mod.sphere.radiusMin,
@@ -35,6 +52,13 @@ public class VertexHeightNoiseVertHeightCurve3(PQSMod_VertexHeightNoiseVertHeigh
         );
     }
 
+    public override void Dispose()
+    {
+        curveMultiplier.Dispose();
+        deformity.Dispose();
+        inputHeightCurve.Dispose();
+    }
+
     struct Params
     {
         public double sphereRadiusMin;
@@ -46,7 +70,7 @@ public class VertexHeightNoiseVertHeightCurve3(PQSMod_VertexHeightNoiseVertHeigh
     }
 
     [BurstCompile]
-    struct BuildJob : IBatchPQSHeightJob, IDisposable
+    struct BuildJob : IBatchPQSHeightJob
     {
         public BurstRidgedMultifractal ridgedAdd;
         public BurstRidgedMultifractal ridgedSub;
@@ -61,6 +85,10 @@ public class VertexHeightNoiseVertHeightCurve3(PQSMod_VertexHeightNoiseVertHeigh
             double d;
             float t;
 
+            using var multiplier = curveMultiplier.GetValuesNormalized(
+                data.directionFromCenter,
+                Allocator.Temp
+            );
             for (int i = 0; i < data.VertexCount; ++i)
             {
                 double h = data.vertHeight[i] - p.sphereRadiusMin;
@@ -72,7 +100,7 @@ public class VertexHeightNoiseVertHeightCurve3(PQSMod_VertexHeightNoiseVertHeigh
                     t = (float)((h - p.inputHeightStart) * p.hDeltaR);
 
                 var dir = data.directionFromCenter[i];
-                double s = curveMultiplier.noiseNormalized(dir) * inputHeightCurve.Evaluate(t);
+                double s = multiplier[i] * inputHeightCurve.Evaluate(t);
                 if (s != 0.0)
                 {
                     r = ridgedAdd.GetValue(dir) - ridgedSub.GetValue(dir);
@@ -87,13 +115,6 @@ public class VertexHeightNoiseVertHeightCurve3(PQSMod_VertexHeightNoiseVertHeigh
                     data.vertHeight[i] += r * d * s;
                 }
             }
-        }
-
-        public void Dispose()
-        {
-            curveMultiplier.Dispose();
-            deformity.Dispose();
-            inputHeightCurve.Dispose();
         }
     }
 }

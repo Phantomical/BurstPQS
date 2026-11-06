@@ -216,7 +216,7 @@ internal static partial class TextureExporter
             if (!running)
             {
                 running = true;
-                StartCoroutine(Run());
+                TextureExportRunner.Instance.StartCoroutine(Run());
             }
 
             return task;

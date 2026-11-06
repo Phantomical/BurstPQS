@@ -1,4 +1,5 @@
 using LibNoise;
+using Unity.Mathematics;
 using UnityEngine;
 using static BurstPQS.Noise.GradientNoiseBasis;
 
@@ -9,7 +10,10 @@ namespace BurstPQS.Noise;
 /// PQS jobs.
 /// </summary>
 /// <param name="noise"></param>
-public readonly struct BurstBillow(LibNoise.Billow noise) : IModule
+public readonly unsafe struct BurstBillow(LibNoise.Billow noise)
+    : IModule,
+        IBatchModule,
+        IVectorModule
 {
     public readonly double Frequency = noise.Frequency;
     public readonly double Persistence = noise.Persistence;
@@ -49,4 +53,30 @@ public readonly struct BurstBillow(LibNoise.Billow noise) : IModule
         }
         return num + 0.5;
     }
+
+    public double4 GetValue(double4 x, double4 y, double4 z)
+    {
+        double4 value = 0.0;
+        double amplitude = 1.0;
+        x *= Frequency;
+        y *= Frequency;
+        z *= Frequency;
+        for (int i = 0; i < OctaveCount; i++)
+        {
+            double4 signal = GradientCoherentNoise(x, y, z, Seed + i, NoiseQuality);
+            signal = 2.0 * math.abs(signal) - 1.0;
+            value += signal * amplitude;
+            x *= Lacunarity;
+            y *= Lacunarity;
+            z *= Lacunarity;
+            amplitude *= Persistence;
+        }
+        return value + 0.5;
+    }
+
+    public readonly void GetValues(double* x, double* y, double* z, double* output, int count) =>
+        BatchUtil.GetValues(in this, x, y, z, output, count);
+
+    public readonly void GetValues(Vector3d* coords, double* output, int count) =>
+        BatchUtil.GetValues(in this, coords, output, count);
 }
