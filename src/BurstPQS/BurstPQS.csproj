@@ -7,7 +7,7 @@
   </PropertyGroup>
 
   <ItemGroup>
-    <PackageReference Include="KSPBuildTools" Version="1.1.0" />
+    <PackageReference Include="KSP1Retooled.BuildTools" Version="2.0.1" />
   
     <PackageReference Include="JsonPoke" Version="1.2.0" />
     <PackageReference Include="Krafs.Publicizer" Version="2.3.0">
@@ -24,17 +24,20 @@
     </Reference>
 
     <Reference Include="KSPBurst">
-      <HintPath>$(DepSet1)/000_KSPBurst/Plugins/Unity.Burst.dll</HintPath>
+      <HintPath>$(DepSet1)/000_KSPBurst/Plugins/KSPBurst.dll</HintPath>
       <Private>false</Private>
       <KSPAssemblyName>KSPBurst</KSPAssemblyName>
       <KSPAssemblyVersion>1.5.5</KSPAssemblyVersion>
       <GenerateDependencyAttribute>true</GenerateDependencyAttribute>
     </Reference>
 
-    <Reference Include="$(DepSet1)/000_KSPBurst/Plugins/Unity.*.dll">
+    <Reference Include="$(DepSet1)/000_KSPBurst/Plugins/Unity.*.dll" Condition=" '$(KSPBT_TargetGame)' != 'Retooled' ">
       <Private>false</Private>
     </Reference>
-    <Reference Include="$(DepSet1)/000_KSPBurst/Plugins/System.Runtime.CompilerServices.Unsafe.dll">
+    <Reference Include="$(KSPBT_ManagedPath)/System.Runtime.CompilerServices.Unsafe.dll" Condition=" '$(KSPBT_TargetGame)' == 'Retooled' ">
+      <Private>false</Private>
+    </Reference>
+    <Reference Include="$(DepSet1)/000_KSPBurst/Plugins/System.Runtime.CompilerServices.Unsafe.dll" Condition=" '$(KSPBT_TargetGame)' != 'Retooled' ">
       <Private>false</Private>
     </Reference>
 
@@ -50,6 +53,9 @@
       <Destination>$(GameDataOutDir)/BurstPQS.version</Destination>
       <URL>https://github.com/Phantomical/BurstPQS/releases/latest/download/BurstPQS.version</URL>
       <Download>https://github.com/Phantomical/BurstPQS/releases/latest</Download>
+      <KSP_Version>1.13</KSP_Version>
+      <KSP_Version_Min>1.8</KSP_Version_Min>
+      <KSP_Version_Max>1.13</KSP_Version_Max>
     </KSPVersionFile>
   </ItemGroup>
 
@@ -73,8 +79,6 @@
     <Publicize Include="UnityEngine.CoreModule:Unity.Profiling.ProfilerMarker.Internal_Begin" />
     <Publicize Include="UnityEngine.CoreModule:Unity.Profiling.ProfilerMarker.Internal_End" />
     <Publicize Include="UnityEngine.CoreModule:Unity.Profiling.ProfilerMarker+AutoScope.m_Ptr" />
-    <Publicize Include="UnityEngine.CoreModule:UnityEngine.NoAllocHelpers" />
-    <Publicize Include="UnityEngine.CoreModule:UnityEngine.NoAllocHelpers.ExtractArrayFromListT" />
   </ItemGroup>
 
   <!--
@@ -99,14 +103,5 @@
       <Patches Include="$(ProjectRootDir)\src\GameData\**\*.*" />
     </ItemGroup>
     <Copy SourceFiles="@(Patches)" DestinationFolder="$(GameDataOutDir)\%(RecursiveDir)" />
-  </Target>
-
-  <Target Name="CopyExtrasToPluginFolder" AfterTargets="KSPBT_CopyDLLsToPluginFolder">
-    <ItemGroup>
-      <_ExtrasToCopy Include="$(TargetDir)/**/*.pdb" />
-      <_ExtrasToCopy Include="$(TargetDir)/**/*.xml" />
-    </ItemGroup>
-
-    <Copy SourceFiles="@(_ExtrasToCopy)" DestinationFolder="$(KSPBT_ModRoot)/$(KSPBT_ModPluginFolder)/%(RecursiveDir)" />
   </Target>
 </Project>

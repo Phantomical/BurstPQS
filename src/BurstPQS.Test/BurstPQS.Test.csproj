@@ -24,24 +24,27 @@
       <GenerateDependencyAttribute>true</GenerateDependencyAttribute>
     </ProjectReference>
 
-    <PackageReference Include="KSPBuildTools" Version="1.1.0" />
+    <PackageReference Include="KSP1Retooled.BuildTools" Version="2.0.1" />
     <PackageReference Include="Krafs.Publicizer" Version="2.3.0">
       <IncludeAssets>runtime; build; native; contentfiles; analyzers; buildtransitive</IncludeAssets>
       <PrivateAssets>all</PrivateAssets>
     </PackageReference>
 
     <Reference Include="KSPBurst">
-      <HintPath>$(DepSet1)/000_KSPBurst/Plugins/Unity.Burst.dll</HintPath>
+      <HintPath>$(DepSet1)/000_KSPBurst/Plugins/KSPBurst.dll</HintPath>
       <Private>false</Private>
       <KSPAssemblyName>KSPBurst</KSPAssemblyName>
       <KSPAssemblyVersion>1.5.5</KSPAssemblyVersion>
       <GenerateDependencyAttribute>true</GenerateDependencyAttribute>
     </Reference>
 
-    <Reference Include="$(DepSet1)/000_KSPBurst/Plugins/Unity.*.dll">
+    <Reference Include="$(DepSet1)/000_KSPBurst/Plugins/Unity.*.dll" Condition=" '$(KSPBT_TargetGame)' != 'Retooled' ">
       <Private>false</Private>
     </Reference>
-    <Reference Include="$(DepSet1)/000_KSPBurst/Plugins/System.Runtime.CompilerServices.Unsafe.dll">
+    <Reference Include="$(KSPBT_ManagedPath)/System.Runtime.CompilerServices.Unsafe.dll" Condition=" '$(KSPBT_TargetGame)' == 'Retooled' ">
+      <Private>false</Private>
+    </Reference>
+    <Reference Include="$(DepSet1)/000_KSPBurst/Plugins/System.Runtime.CompilerServices.Unsafe.dll" Condition=" '$(KSPBT_TargetGame)' != 'Retooled' ">
       <Private>false</Private>
     </Reference>
 
@@ -54,13 +57,4 @@
   <ItemGroup>
     <Publicize Include="Assembly-CSharp" />
   </ItemGroup>
-
-  <Target Name="CopyExtrasToPluginFolder" AfterTargets="KSPBT_CopyDLLsToPluginFolder">
-    <ItemGroup>
-      <_ExtrasToCopy Include="$(TargetDir)/**/*.pdb" />
-      <_ExtrasToCopy Include="$(TargetDir)/**/*.xml" />
-    </ItemGroup>
-
-    <Copy SourceFiles="@(_ExtrasToCopy)" DestinationFolder="$(KSPBT_ModRoot)/$(KSPBT_ModPluginFolder)/%(RecursiveDir)" />
-  </Target>
 </Project>
