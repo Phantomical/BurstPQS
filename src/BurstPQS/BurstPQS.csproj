@@ -7,7 +7,7 @@
   </PropertyGroup>
 
   <ItemGroup>
-    <PackageReference Include="KSP1Retooled.BuildTools" Version="2.0.1" />
+    <PackageReference Include="KSP1Retooled.BuildTools" Version="2.0.3" />
   
     <PackageReference Include="JsonPoke" Version="1.2.0" />
     <PackageReference Include="Krafs.Publicizer" Version="2.3.0">
@@ -32,9 +32,6 @@
     </Reference>
 
     <Reference Include="$(DepSet1)/000_KSPBurst/Plugins/Unity.*.dll" Condition=" '$(KSPBT_TargetGame)' != 'Retooled' ">
-      <Private>false</Private>
-    </Reference>
-    <Reference Include="$(KSPBT_ManagedPath)/System.Runtime.CompilerServices.Unsafe.dll" Condition=" '$(KSPBT_TargetGame)' == 'Retooled' ">
       <Private>false</Private>
     </Reference>
     <Reference Include="$(DepSet1)/000_KSPBurst/Plugins/System.Runtime.CompilerServices.Unsafe.dll" Condition=" '$(KSPBT_TargetGame)' != 'Retooled' ">

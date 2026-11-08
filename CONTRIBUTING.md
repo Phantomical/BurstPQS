@@ -54,7 +54,7 @@ To build for both stock KSP and KSP Retooled, set both of these in the same
 <KSPBT_RetooledGameRoot>$RETOOLED_ROOT_PATH</KSPBT_RetooledGameRoot>
 ```
 
-This adds a `.Retooled.1.13.dll` next to each DLL in `Plugins`. Each game loads
+This adds a `.zRetooled.dll` next to each DLL in `Plugins`. Each game loads
 the one built for it. Code specific to Retooled goes behind `#if UNITY_6_7`.
 
 Finally, you can build by running either:

@@ -10,9 +10,9 @@
       },
       "KSP1Retooled.BuildTools": {
         "type": "Direct",
-        "requested": "[2.0.1, )",
-        "resolved": "2.0.1",
-        "contentHash": "9G3q4AyET4ys5NFYLUJlMJ0YzXGKgyhpgJMkb7iN270j731t+qWfYyMgYJaJ4KAy0DGDdnXUsJkT+B87XWgebw==",
+        "requested": "[2.0.3, )",
+        "resolved": "2.0.3",
+        "contentHash": "y8vBkG9kT4quNiI6Es35J6TybM2YclPuAGY/lPQcd7wY9Moxgwv+weU36C7TOXKhEq1Dolu48I12qfb85tkWAg==",
         "dependencies": {
           "JsonPoke": "1.2.0"
         }
@@ -26,7 +26,7 @@
         "type": "Project",
         "dependencies": {
           "JsonPoke": "[1.2.0, )",
-          "KSP1Retooled.BuildTools": "[2.0.1, )"
+          "KSP1Retooled.BuildTools": "[2.0.3, )"
         }
       }
     }
