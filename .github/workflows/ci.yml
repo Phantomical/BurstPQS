@@ -34,7 +34,9 @@ jobs:
 
       - name: Install CKAN dependencies
         shell: powershell
-        run: .\setup-deps.ps1 -ckan .\ckan.exe -asroot
+        run: |
+          .\ckan.exe authtoken add github.com $env:GH_TOKEN --asroot
+          .\setup-deps.ps1 -ckan .\ckan.exe -asroot
 
       - uses: actions/setup-dotnet@v4
         with:
