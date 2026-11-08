@@ -22,7 +22,7 @@ jobs:
         
       - name: Download KSP Libs
         run: |
-          curl -sSL https://github.com/KSPModdingLibs/KSPLibs/raw/main/KSP-1.12.5.zip -o D:\\ksp.zip
+          gh api -H "Accept: application/vnd.github.raw" repos/KSPModdingLibs/KSPLibs/contents/KSP-1.12.5.zip > D:\\ksp.zip
           unzip -q D:\\ksp.zip -d ${{ env.KSP_ROOT }}
         shell: bash
 
