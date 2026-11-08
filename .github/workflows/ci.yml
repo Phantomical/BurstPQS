@@ -7,6 +7,7 @@ on:
 
 env:
   KSP_ROOT: D:\\KSP
+  RETOOLED_ROOT: D:\\Retooled
   GH_TOKEN: ${{ github.token }}
   RELEASE_STAGING: D:\\release
 
@@ -21,13 +22,21 @@ jobs:
         
       - name: Download KSP Libs
         run: |
-          curl -sSL https://github.com/KSPModdingLibs/KSPLibs/raw/main/KSP-1.12.5.zip -o D:\\ksp.zip
+          gh api -H "Accept: application/vnd.github.raw" repos/KSPModdingLibs/KSPLibs/contents/KSP-1.12.5.zip > D:\\ksp.zip
           unzip -q D:\\ksp.zip -d ${{ env.KSP_ROOT }}
+        shell: bash
+
+      - name: Download Retooled Libs
+        run: |
+          gh release download 1.13.0-rc0 --repo KSP1Retooled/retooled --pattern retooled-refs.zip -O D:\\retooled-refs.zip
+          unzip -q D:\\retooled-refs.zip -d ${{ env.RETOOLED_ROOT }}
         shell: bash
 
       - name: Install CKAN dependencies
         shell: powershell
-        run: .\setup-deps.ps1 -ckan .\ckan.exe -asroot
+        run: |
+          .\ckan.exe authtoken add github.com $env:GH_TOKEN --asroot
+          .\setup-deps.ps1 -ckan .\ckan.exe -asroot
 
       - uses: actions/setup-dotnet@v4
         with:
@@ -37,6 +46,9 @@ jobs:
 
       - run: dotnet restore
       - run: dotnet build -c Release
+        env:
+          KSPBT_StockGameRoot: ${{ env.KSP_ROOT }}
+          KSPBT_RetooledGameRoot: ${{ env.RETOOLED_ROOT }}
 
       - name: Copy Files to Staging
         shell: bash

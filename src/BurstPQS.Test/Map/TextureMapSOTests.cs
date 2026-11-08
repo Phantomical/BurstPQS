@@ -527,7 +527,7 @@ public class TextureMapSOTests : BurstPQSTestBase
                 {
                     Color expected = src.GetPixel(x, y);
                     float actual = mapSO.GetPixelFloat(x, y);
-                    assertFloatEquals($"BC4.VsTex2D({x},{y})", actual, expected.r, 0.05f);
+                    assertFloatEquals($"BC4.VsTex2D({x},{y})", actual, expected.grayscale, 0.05f);
 
                     float burstActual = burst.GetPixelFloat(x, y);
                     assertFloatEquals($"BC4.Burst({x},{y})", burstActual, actual, 0.001f);

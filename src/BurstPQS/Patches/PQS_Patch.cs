@@ -166,7 +166,7 @@ internal static class PQS_BuildTangents_Patch
         {
             NormalListCache.Clear();
             quad.mesh.GetNormals(NormalListCache);
-            normals = NoAllocHelpers.ExtractArrayFromListT(NormalListCache);
+            normals = NormalListCache.GetBackingArray();
             normalCount = NormalListCache.Count;
         }
 
@@ -288,9 +288,7 @@ internal static class PQS_UpdateEdgeNormals_Patch
     static IEnumerable<CodeInstruction> Transpiler(IEnumerable<CodeInstruction> instructions)
     {
         var setNormals = AccessTools.PropertySetter(typeof(Mesh), nameof(Mesh.normals));
-        var replacement = SymbolExtensions.GetMethodInfo(() =>
-            BatchPQS.SetQuadNormals(null, null)
-        );
+        var replacement = SymbolExtensions.GetMethodInfo(() => BatchPQS.SetQuadNormals(null, null));
 
         var matcher = new CodeMatcher(instructions);
         matcher

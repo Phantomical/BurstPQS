@@ -1,7 +1,6 @@
 using System;
 using System.Runtime.CompilerServices;
 using System.Runtime.InteropServices;
-using BackgroundResourceProcessing.Shim;
 using BurstPQS.Collections;
 using BurstPQS.Util;
 using LibNoise;
@@ -579,14 +578,14 @@ internal static unsafe class ManagedNoise
         public FunctionPointer<EvaluateFn> Evaluate;
     }
 
-    static readonly SharedStaticShim<VTable> VTableStatic;
+    static readonly SharedStatic<VTable> VTableStatic;
 
     // Keeps the delegate behind the function pointer alive.
     static EvaluateFn EvaluateDelegate;
 
     static ManagedNoise()
     {
-        VTableStatic = SharedStaticShim<VTable>.GetOrCreate<VTable>();
+        VTableStatic = SharedStatic<VTable>.GetOrCreate<VTable>();
         Init();
     }
 

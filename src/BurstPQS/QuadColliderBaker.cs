@@ -4,6 +4,11 @@ using Unity.Collections;
 using Unity.Jobs;
 using Unity.Profiling;
 using UnityEngine;
+#if UNITY_6_7
+using MeshId = UnityEngine.EntityId;
+#else
+using MeshId = int;
+#endif
 
 namespace BurstPQS;
 
@@ -29,7 +34,7 @@ internal static class QuadColliderBaker
     struct BakeJob : IJobParallelFor
     {
         [ReadOnly, DeallocateOnJobCompletion]
-        public NativeArray<int> meshIds;
+        public NativeArray<MeshId> meshIds;
 
         public void Execute(int index) => Physics.BakeMesh(meshIds[index], false);
     }
@@ -90,13 +95,17 @@ internal static class QuadColliderBaker
         if (baking.Count == 0)
             return;
 
-        var meshIds = new NativeArray<int>(
+        var meshIds = new NativeArray<MeshId>(
             baking.Count,
             Allocator.TempJob,
             NativeArrayOptions.UninitializedMemory
         );
         for (int i = 0; i < baking.Count; ++i)
+#if UNITY_6_7
+            meshIds[i] = baking[i].quad.mesh.GetEntityId();
+#else
             meshIds[i] = baking[i].quad.mesh.GetInstanceID();
+#endif
 
         handle = new BakeJob { meshIds = meshIds }.Schedule(baking.Count, 4);
         jobRunning = true;

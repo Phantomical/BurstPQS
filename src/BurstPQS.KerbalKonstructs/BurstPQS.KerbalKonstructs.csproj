@@ -17,7 +17,7 @@
       <GenerateDependencyAttribute>true</GenerateDependencyAttribute>
     </ProjectReference>
 
-    <PackageReference Include="KSPBuildTools" Version="1.1.0" />
+    <PackageReference Include="KSP1Retooled.BuildTools" Version="2.0.3" />
     <Reference Include="KerbalKonstructs">
       <Private>false</Private>
       <HintPath>$(DepSet1)/KerbalKonstructs/KerbalKonstructs.dll</HintPath>
@@ -34,13 +34,4 @@
       <GenerateDependencyAttribute>true</GenerateDependencyAttribute>
     </Reference>
   </ItemGroup>
-
-  <Target Name="CopyExtrasToPluginFolder" AfterTargets="KSPBT_CopyDLLsToPluginFolder">
-    <ItemGroup>
-      <_ExtrasToCopy Include="$(TargetDir)/**/*.pdb" />
-      <_ExtrasToCopy Include="$(TargetDir)/**/*.xml" />
-    </ItemGroup>
-
-    <Copy SourceFiles="@(_ExtrasToCopy)" DestinationFolder="$(KSPBT_ModRoot)/$(KSPBT_ModPluginFolder)/%(RecursiveDir)" />
-  </Target>
 </Project>

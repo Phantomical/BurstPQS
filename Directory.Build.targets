@@ -40,6 +40,21 @@
         </ItemGroup>
     </Target>
 
+    <Target Name="CopyExtrasToPluginFolder" AfterTargets="KSPBT_CopyDLLsToPluginFolder">
+        <ItemGroup Condition=" '$(KSPBT_RetooledFileSuffix)' == '' ">
+            <_ExtrasToCopy Include="$(TargetDir)/**/*.pdb" />
+            <_ExtrasToCopy Include="$(TargetDir)/**/*.xml" />
+        </ItemGroup>
+        <Copy SourceFiles="@(_ExtrasToCopy)" DestinationFolder="$(KSPBT_ModRoot)/$(KSPBT_ModPluginFolder)/%(RecursiveDir)" />
+
+        <!-- This sits next to the stock build's files so only its own pdb can be copied, under the variant's name. -->
+        <Copy
+            Condition=" '$(KSPBT_RetooledFileSuffix)' != '' "
+            SourceFiles="$(TargetDir)$(TargetName).pdb"
+            DestinationFiles="$(KSPBT_ModRoot)/$(KSPBT_ModPluginFolder)/$(TargetName)$(KSPBT_RetooledFileSuffix).pdb"
+        />
+    </Target>
+
     <!--
         It's really easy for old binaries to stick around in GameData and bin
         directories. This step makes sure that doesn't happen.

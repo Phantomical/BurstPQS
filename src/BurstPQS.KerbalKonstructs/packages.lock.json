@@ -2,11 +2,11 @@
   "version": 1,
   "dependencies": {
     ".NETFramework,Version=v4.8": {
-      "KSPBuildTools": {
+      "KSP1Retooled.BuildTools": {
         "type": "Direct",
-        "requested": "[1.1.0, )",
-        "resolved": "1.1.0",
-        "contentHash": "4XMSjeUmlAXAw/uy34Ov2HzcQG4jIGWwyHdxoDYoqQ0UIUVUSOAignAcJbKL88XK539/921IRUq/HPTjKfkt6A==",
+        "requested": "[2.0.3, )",
+        "resolved": "2.0.3",
+        "contentHash": "y8vBkG9kT4quNiI6Es35J6TybM2YclPuAGY/lPQcd7wY9Moxgwv+weU36C7TOXKhEq1Dolu48I12qfb85tkWAg==",
         "dependencies": {
           "JsonPoke": "1.2.0"
         }
@@ -20,7 +20,7 @@
         "type": "Project",
         "dependencies": {
           "JsonPoke": "[1.2.0, )",
-          "KSPBuildTools": "[1.1.0, )"
+          "KSP1Retooled.BuildTools": "[2.0.3, )"
         }
       }
     }

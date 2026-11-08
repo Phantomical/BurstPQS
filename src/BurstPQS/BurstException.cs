@@ -3,7 +3,6 @@
 using System;
 using System.Runtime.CompilerServices;
 using System.Runtime.InteropServices;
-using BackgroundResourceProcessing.Shim;
 using Unity.Burst;
 using Unity.Burst.CompilerServices;
 using UnityEngine;
@@ -33,12 +32,12 @@ internal static class BurstException
         }
     }
 
-    static readonly SharedStaticShim<BurstExceptionVTable> VTableStatic;
+    static readonly SharedStatic<BurstExceptionVTable> VTableStatic;
     static ref BurstExceptionVTable VTable => ref VTableStatic.Data;
 
     static BurstException()
     {
-        VTableStatic = SharedStaticShim<BurstExceptionVTable>.GetOrCreate<BurstExceptionVTable>();
+        VTableStatic = SharedStatic<BurstExceptionVTable>.GetOrCreate<BurstExceptionVTable>();
         InitVTable();
     }
 
