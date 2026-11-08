@@ -20,12 +20,5 @@ Get-ChildItem .\deps -Filter *.ckan | Foreach-Object {
     & $ckan instance forget "BRP-$name" @extra
 
     & $ckan update  --gamedir "$installdir" --headless @extra
-
-    # Downloads from GitHub fail intermittently. Successful ones stay in the
-    # CKAN cache so each retry only needs to fetch what is left.
-    for ($attempt = 1; $attempt -le 3; $attempt++) {
-        & $ckan install --gamedir "$installdir" --headless @extra --no-recommends -c $_.FullName
-        if ($LASTEXITCODE -eq 0) { break }
-    }
-    if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+    & $ckan install --gamedir "$installdir" --headless @extra --no-recommends -c $_.FullName
 }
