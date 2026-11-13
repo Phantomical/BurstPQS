@@ -951,10 +951,19 @@ public class BatchPQS : MonoBehaviour
                 ),
                 directionNormalized = BurstUtil.ConvertVector(pqs.relativeTargetPositionNormalized),
                 collapseFactor = pqs.collapseThreshold,
-                maxLevelAtSpeed = Math.Max(pqs.maxLevelAtCurrentTgtSpeed, primaryColliderLevel),
                 colliderLevel = primaryColliderLevel,
                 vesselRadius = primaryRadius,
             },
+            primaryAngularSpeed = pqs.angularTargetSpeed,
+            primarySurfaceSpeed =
+                primaryVessel != null && primaryVessel.transform == pqs.target
+                    ? primaryVessel.srfSpeed
+                    : 0.0,
+            limitSpeed = HighLogic.LoadedSceneIsFlight,
+            minOrbitalDistance =
+                HighLogic.LoadedSceneIsFlight && body != null
+                    ? body.minOrbitalDistance
+                    : double.PositiveInfinity,
             planetToWorld = planetToWorld,
             radius = pqs.radius,
             maxDetailDistance = pqs.maxDetailDistance,
@@ -962,7 +971,7 @@ public class BatchPQS : MonoBehaviour
             collapseAltitudeValue = pqs.collapseAltitudeValue,
             collapseDelta = pqs.collapseDelta,
             maxQuadLengthsPerFrame = pqs.maxQuadLenghtsPerFrame,
-            fixedDeltaTime = Time.fixedDeltaTime,
+            fixedDeltaTime = TimeWarp.fixedDeltaTime,
             minLevel = pqs.minLevel,
             maxLevel = pqs.maxLevel,
             inputs = inputs,
@@ -998,7 +1007,10 @@ public class BatchPQS : MonoBehaviour
             return 0.0;
         }
 
+        // The job scales speeds by the warp rate, so measure in game time.
         double dt = Time.deltaTime;
+        if (Time.fixedDeltaTime > 0f)
+            dt *= TimeWarp.fixedDeltaTime / Time.fixedDeltaTime;
         if (dt <= 0.0)
             return smoothedCameraSpeed;
 
