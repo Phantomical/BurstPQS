@@ -7,6 +7,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## Unreleased
 
+## v1.0.32
+### Fixed
+* Subdivide less aggressively when in low orbit or at high timewarp.
+
 ## v1.0.31
 ### Added
 * Add support for Unity 6.7 and KSP Retooled.
