@@ -57,7 +57,7 @@ jobs:
           shopt -s globstar
           shopt -s nullglob
           mkdir -p ${{ env.RELEASE_STAGING  }}
-          cp -r -v GameData README* LICENSE* CHANGELOG* ${{ env.RELEASE_STAGING }}
+          cp -r -v GameData README* LICENSE* ${{ env.RELEASE_STAGING }}
           rm -rf ${{ env.RELEASE_STAGING }}/GameData/BurstPQS.Test
           cp -r -v LICENSE* BurstPQS.ckan ${{ env.RELEASE_STAGING }}/GameData/BurstPQS
           cd ${{ env.RELEASE_STAGING }}

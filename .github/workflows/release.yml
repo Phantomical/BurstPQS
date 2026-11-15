@@ -23,7 +23,7 @@ jobs:
       - uses: actions/download-artifact@v4
         with:
           name: BurstPQS
-          path: BurstPQS
+          path: release
       - uses: actions/download-artifact@v4
         with:
           name: BurstPQS.version
@@ -31,7 +31,7 @@ jobs:
 
       - name: Create Zip
         run: |
-          cd BurstPQS
+          cd release
           zip -r9 ../BurstPQS.zip *
 
       - name: Upload Release Assets
