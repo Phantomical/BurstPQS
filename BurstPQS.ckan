@@ -13,8 +13,8 @@ depends:
   - name: KSPTextureLoader
     min_version: 1.0.29
   - name: KSPBurst
-    min_version: 1.5.5.2
+    min_version: v1.7.4.11
 
 recommends:
   - name: KSPBurst-Full
-    min_version: 1.5.5.2
+    min_version: v1.7.4.11
