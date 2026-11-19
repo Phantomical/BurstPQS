@@ -139,20 +139,24 @@ class VertexHeightOblateAdvanced(PQSMod_VertexHeightOblateAdvanced mod)
 
         readonly double CalculateDeformityContactBinary(double phi, double theta)
         {
-            double cosphi = math.cos(phi);
-            double sintheta = math.sin(theta);
+            double x = math.sin(theta) * math.cos(phi);
 
+            // The denominator goes negative over most of each lobe. The
+            // original relies on the resulting NaN failing the comparison,
+            // which FloatMode.Fast does not preserve.
             if (
                 (-Math.PI / 2 < phi && phi < Math.PI / 2)
                 || (Math.PI * 1.5f < phi && phi < Math.PI * 2f)
             )
             {
-                var denominator = 1 - ((1 + primarySlope) * Sqr(sintheta * cosphi));
-                var rsqrtden = math.rsqrt(denominator);
-                var xValue = sintheta * cosphi * rsqrtden;
-                if (xValue < primarySlopeXLimit)
-                    return rsqrtden;
-                return 2 * primaryRadius * sintheta * cosphi;
+                var denominator = 1 - ((1 + primarySlope) * Sqr(x));
+                if (denominator > 0)
+                {
+                    var rsqrtden = math.rsqrt(denominator);
+                    if (x * rsqrtden < primarySlopeXLimit)
+                        return rsqrtden;
+                }
+                return 2 * primaryRadius * x;
             }
 
             if (
@@ -160,12 +164,14 @@ class VertexHeightOblateAdvanced(PQSMod_VertexHeightOblateAdvanced mod)
                 || (-Math.PI < phi && phi < -Math.PI / 2)
             )
             {
-                var denominator = 1 - ((1 + secondarySlope) * Sqr(sintheta * cosphi));
-                var rsqrtden = math.rsqrt(denominator);
-                var xValue = sintheta * cosphi * rsqrtden;
-                if (xValue > secondarySlopeXLimit)
-                    return rsqrtden;
-                return -2 * secondaryRadius * sintheta * cosphi;
+                var denominator = 1 - ((1 + secondarySlope) * Sqr(x));
+                if (denominator > 0)
+                {
+                    var rsqrtden = math.rsqrt(denominator);
+                    if (x * rsqrtden > secondarySlopeXLimit)
+                        return rsqrtden;
+                }
+                return -2 * secondaryRadius * x;
             }
 
             return 1;
