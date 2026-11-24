@@ -731,11 +731,6 @@ internal static partial class TextureExporter
         readonly HeightMapSet heightMaps;
         readonly HeightMapSet oceanHeightMaps;
 
-        readonly float clampMin;
-        readonly float clampMax;
-        readonly float oceanClampMin;
-        readonly float oceanClampMax;
-
         Permit permit;
 
         NativeArray<float> heights;
@@ -779,15 +774,6 @@ internal static partial class TextureExporter
 
             if (oceanBatchPQS?.Fallback ?? true)
                 oceanBatchPQS = null;
-
-            clampMin = (float)(pqs.radiusMin - pqs.radius);
-            clampMax = (float)(pqs.radiusMax - pqs.radius);
-
-            if (hasOcean)
-            {
-                oceanClampMin = Math.Max(clampMin, (float)(oceanPQS.radiusMin - pqs.radius));
-                oceanClampMax = Math.Max(clampMax, (float)(oceanPQS.radiusMax - pqs.radius));
-            }
         }
 
         public IEnumerator Export()
@@ -1334,8 +1320,6 @@ internal static partial class TextureExporter
                 outputHeights = heights,
                 blockMinMax = blockMinMax,
                 block = index,
-                clampMin = clampMin,
-                clampMax = clampMax,
                 resX = resX,
                 startX = startX,
                 startY = startY,
@@ -1443,8 +1427,6 @@ internal static partial class TextureExporter
                     outputHeights = oceanHeights,
                     blockMinMax = oceanBlockMinMax,
                     block = index,
-                    clampMin = oceanClampMin,
-                    clampMax = oceanClampMax,
                     resX = resX,
                     startX = startX,
                     startY = startY,

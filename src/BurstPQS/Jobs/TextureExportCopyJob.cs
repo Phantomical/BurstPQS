@@ -8,8 +8,8 @@ using UnityEngine;
 namespace BurstPQS.Jobs;
 
 /// <summary>
-/// Clamps a completed block's height data to the sphere's own bounds, copies it into the
-/// correct position within the full-resolution output array, and records the block's range.
+/// Copies a completed block's height data into the correct position within the full-resolution
+/// output array, and records the block's range.
 /// </summary>
 /// <remarks>
 /// Ranges are recorded per block so no two of these ever touch the same slot, and folding them
@@ -30,9 +30,6 @@ internal struct TextureExportCopyHeightsJob : IJob
 
     public int block;
 
-    public float clampMin,
-        clampMax;
-
     public int resX;
     public int startX,
         startY;
@@ -51,7 +48,9 @@ internal struct TextureExportCopyHeightsJob : IJob
 
             for (int lx = 0; lx < blockW; lx++)
             {
-                float height = math.clamp(blockHeights[blkRow + lx], clampMin, clampMax);
+                float height = blockHeights[blkRow + lx];
+                if (!math.isfinite(height))
+                    height = 0f;
 
                 outputHeights[outRow + lx] = height;
                 min = math.min(min, height);
