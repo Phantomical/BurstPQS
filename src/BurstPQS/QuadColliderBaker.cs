@@ -28,6 +28,7 @@ internal static class QuadColliderBaker
     {
         public PQ quad;
         public PQSMod_QuadMeshColliders mod;
+        public ulong requestId;
     }
 
     [BurstCompile]
@@ -42,9 +43,11 @@ internal static class QuadColliderBaker
     static readonly List<Entry> queued = [];
     static readonly List<Entry> baking = [];
 
-    // Quads with a collider waiting to be assigned. Destroyed quads are
-    // removed so that stale entries get skipped.
-    static readonly HashSet<PQ> pendingQuads = [];
+    // Stock pools quads. Check the request ID so reusing the same PQ cannot
+    // make an entry from its previous lifetime current again.
+    static readonly Dictionary<PQ, ulong> pendingQuads = [];
+    static ulong lastRequestId;
+    static readonly HashSet<MeshId> meshesToBake = [];
 
     static JobHandle handle;
     static bool jobRunning;
@@ -61,9 +64,16 @@ internal static class QuadColliderBaker
             return;
         }
 
-        if (pendingQuads.Add(quad))
-            queued.Add(entry);
+        if (pendingQuads.ContainsKey(quad))
+            return;
+
+        entry.requestId = ++lastRequestId;
+        pendingQuads.Add(quad, entry.requestId);
+        queued.Add(entry);
     }
+
+    static bool IsPending(Entry entry) =>
+        pendingQuads.TryGetValue(entry.quad, out var requestId) && requestId == entry.requestId;
 
     public static void OnQuadDestroy(PQ quad)
     {
@@ -87,8 +97,17 @@ internal static class QuadColliderBaker
 
         foreach (var entry in queued)
         {
-            if (pendingQuads.Contains(entry.quad) && entry.quad != null)
-                baking.Add(entry);
+            if (!IsPending(entry) || entry.quad == null)
+                continue;
+
+            // Unity does not allow concurrent bakes of the same mesh. Keep
+            // every current collider assignment even when quads share a mesh.
+            baking.Add(entry);
+#if UNITY_6_7
+            meshesToBake.Add(entry.quad.mesh.GetEntityId());
+#else
+            meshesToBake.Add(entry.quad.mesh.GetInstanceID());
+#endif
         }
         queued.Clear();
 
@@ -96,18 +115,16 @@ internal static class QuadColliderBaker
             return;
 
         var meshIds = new NativeArray<MeshId>(
-            baking.Count,
+            meshesToBake.Count,
             Allocator.TempJob,
             NativeArrayOptions.UninitializedMemory
         );
-        for (int i = 0; i < baking.Count; ++i)
-#if UNITY_6_7
-            meshIds[i] = baking[i].quad.mesh.GetEntityId();
-#else
-            meshIds[i] = baking[i].quad.mesh.GetInstanceID();
-#endif
+        int i = 0;
+        foreach (var meshId in meshesToBake)
+            meshIds[i++] = meshId;
+        meshesToBake.Clear();
 
-        handle = new BakeJob { meshIds = meshIds }.Schedule(baking.Count, 4);
+        handle = new BakeJob { meshIds = meshIds }.Schedule(meshIds.Length, 4);
         jobRunning = true;
         JobHandle.ScheduleBatchedJobs();
     }
@@ -120,7 +137,11 @@ internal static class QuadColliderBaker
 
             foreach (var entry in baking)
             {
-                if (pendingQuads.Remove(entry.quad) && entry.quad != null)
+                if (!IsPending(entry))
+                    continue;
+
+                pendingQuads.Remove(entry.quad);
+                if (entry.quad != null)
                     Apply(entry);
             }
             baking.Clear();
