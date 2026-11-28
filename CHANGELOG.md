@@ -7,6 +7,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## Unreleased
 
+## v1.0.35
+### Fixed
+* Fixed an issue where the wrong BurstPQS dll could be loaded on file systems
+  that do not sort alphabetically.
+
 ## v1.0.34
 ### Changed
 * BurstPQS now requires KSPBurst 1.7.4 or newer.
