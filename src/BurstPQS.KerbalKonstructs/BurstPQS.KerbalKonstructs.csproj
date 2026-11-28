@@ -17,7 +17,7 @@
       <GenerateDependencyAttribute>true</GenerateDependencyAttribute>
     </ProjectReference>
 
-    <PackageReference Include="KSP1Retooled.BuildTools" Version="2.0.3" />
+    <PackageReference Include="KSP1Retooled.BuildTools" Version="2.0.4" />
     <Reference Include="KerbalKonstructs">
       <Private>false</Private>
       <HintPath>$(DepSet1)/KerbalKonstructs/KerbalKonstructs.dll</HintPath>
