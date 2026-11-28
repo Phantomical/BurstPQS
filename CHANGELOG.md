@@ -11,6 +11,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Fixed
 * Fixed an issue where the wrong BurstPQS dll could be loaded on file systems
   that do not sort alphabetically.
+* Fixed a crash that could occur when BurstPQS bakes the same mesh collider
+  multiple times in parallel. (credit to @ilostmy-fish for the fix)
 
 ## v1.0.34
 ### Changed
